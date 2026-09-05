@@ -1,0 +1,25 @@
+config BR2_PACKAGE_AOS_NVIDIA_OPEN
+	bool "aos-nvidia-open (NVIDIA open kernel modules)"
+	depends on BR2_x86_64
+	depends on BR2_LINUX_KERNEL
+	depends on BR2_TOOLCHAIN_USES_GLIBC
+	help
+	  NVIDIA's open GPU kernel modules: nvidia, nvidia-modeset,
+	  nvidia-drm and nvidia-uvm. Dual MIT/GPL-2.0 licensed and
+	  freely redistributable.
+
+	  These are the only kernel modules NVIDIA supports for Turing
+	  (RTX 20-series) and newer; for Blackwell there is no
+	  proprietary kernel module alternative at all. Pre-Turing cards
+	  are not supported here -- use nouveau/NVK from Mesa for those.
+
+	  The modules alone are not enough to bring a GPU up. They load
+	  GSP firmware from /lib/firmware/nvidia/<version>/, which ships
+	  only in NVIDIA's installer package -- see aos-nvidia. Without
+	  it, the module loads but the GPU never initialises.
+
+	  https://github.com/NVIDIA/open-gpu-kernel-modules
+
+comment "aos-nvidia-open needs a Linux kernel and a glibc toolchain"
+	depends on BR2_x86_64
+	depends on !BR2_LINUX_KERNEL || !BR2_TOOLCHAIN_USES_GLIBC

@@ -1,0 +1,43 @@
+# AOS x86_64 - milestone M0: skeleton that boots to a shell.
+#
+# Later milestones layer on top of this file:
+#   M1 GNU userland, M2 hardware breadth, M3 graphics,
+#   M4 self-hosting toolchain, M5 live ISO + installer.
+
+# Architecture: x86-64-v2 baseline (~2009+ CPUs, SSE4.2/POPCNT).
+BR2_x86_64=y
+BR2_x86_x86_64_v2=y
+
+# Toolchain. glibc is non-negotiable: it is part of the platform ABI
+# AOS promises, and the NVIDIA blob and the Rust dist both require it.
+BR2_TOOLCHAIN_BUILDROOT_GLIBC=y
+BR2_GCC_VERSION_15_X=y
+BR2_TOOLCHAIN_BUILDROOT_CXX=y
+
+# System.
+BR2_TARGET_GENERIC_HOSTNAME="aos"
+BR2_TARGET_GENERIC_ISSUE="AOS - kernel, libc, drivers. The rest is yours."
+BR2_INIT_BUSYBOX=y
+BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
+# Follow the kernel console= setting rather than pinning tty1, so the same
+# image gives a login on a VGA screen and on a serial console. A foundation
+# image gets driven headlessly at least as often as it gets a monitor.
+BR2_TARGET_GENERIC_GETTY_PORT="console"
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_AOS_PATH)/board/aos/rootfs-overlay"
+
+# Kernel: latest upstream, seeded from the mainline x86_64 defconfig so we
+# inherit its broad PC hardware coverage, then narrowed/widened by our
+# fragment. Do not replace this with a hand-written full config.
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_LATEST_VERSION=y
+BR2_LINUX_KERNEL_USE_DEFCONFIG=y
+BR2_LINUX_KERNEL_DEFCONFIG="x86_64"
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_AOS_PATH)/board/aos/linux.config.fragment"
+BR2_LINUX_KERNEL_INSTALL_TARGET=y
+BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
+BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
+
+# Filesystem. M5 replaces this with the hybrid BIOS+UEFI ISO.
+BR2_TARGET_ROOTFS_EXT2=y
+BR2_TARGET_ROOTFS_EXT2_4=y
+BR2_TARGET_ROOTFS_EXT2_SIZE="512M"

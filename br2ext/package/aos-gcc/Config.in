@@ -1,0 +1,32 @@
+config BR2_PACKAGE_AOS_GCC
+	bool "aos-gcc (gcc on the target)"
+	depends on BR2_x86_64
+	depends on BR2_TOOLCHAIN_BUILDROOT
+	depends on BR2_INSTALL_LIBSTDCPP
+	select BR2_PACKAGE_BINUTILS
+	select BR2_PACKAGE_BINUTILS_TARGET
+	select BR2_PACKAGE_GMP
+	select BR2_PACKAGE_MPFR
+	select BR2_PACKAGE_MPC
+	select BR2_PACKAGE_MAKE
+	help
+	  Builds a C and C++ compiler that runs on the target, so the
+	  system can compile software on itself.
+
+	  Buildroot deliberately does not support this -- see the note
+	  in package/make/Config.in -- because a normal Buildroot image
+	  is never expected to build anything. It is the whole point of
+	  AOS, so we build gcc a second time here: once as the cross-
+	  compiler Buildroot uses, and once as a compiler that runs on
+	  the target.
+
+	  The same gcc version and source tarball as the cross-compiler
+	  is used. That is deliberate: the target already carries
+	  libgcc_s and libstdc++ produced by that build, and a
+	  mismatched compiler would not match its own runtime.
+
+	  This roughly doubles the toolchain build time.
+
+comment "aos-gcc needs an internal Buildroot toolchain w/ C++"
+	depends on BR2_x86_64
+	depends on !BR2_TOOLCHAIN_BUILDROOT || !BR2_INSTALL_LIBSTDCPP

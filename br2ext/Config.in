@@ -1,0 +1,18 @@
+menu "AOS foundation"
+
+comment "Self-hosting toolchain"
+comment "Buildroot does not support building a toolchain for the target"
+comment "(see package/make/Config.in). AOS needs one, so it supplies gcc"
+comment "and the Rust toolchain as external packages here. The matching"
+comment "headers, crt files and static libraries are exported from the"
+comment "staging sysroot by board/aos/post-build.sh."
+
+source "$BR2_EXTERNAL_AOS_PATH/package/aos-gcc/Config.in"
+source "$BR2_EXTERNAL_AOS_PATH/package/aos-rust/Config.in"
+
+comment "Graphics"
+
+source "$BR2_EXTERNAL_AOS_PATH/package/aos-nvidia-open/Config.in"
+source "$BR2_EXTERNAL_AOS_PATH/package/aos-nvidia/Config.in"
+
+endmenu

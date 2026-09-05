@@ -1,0 +1,8 @@
+# Verified against
+# https://static.rust-lang.org/dist/rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz.sha256
+sha256  d29ccb1559a177c4e72291f6e5f629de7fe8885e7521ca47802627544b121e95  rust-1.96.1-x86_64-unknown-linux-gnu.tar.xz
+
+# Locally computed
+sha256  172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af  COPYRIGHT
+sha256  62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a  LICENSE-APACHE
+sha256  b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1  LICENSE-MIT

@@ -1,0 +1,117 @@
+#!/bin/sh
+#
+# aos-install -- copy the running live system onto a disk and make it boot.
+#
+# The live root and the installed root are the same filesystem, so there is
+# no separate image to unpack: this partitions the disk, copies the running
+# root onto it, and installs a bootloader for both BIOS and UEFI.
+
+set -e
+
+usage() {
+	cat <<USAGE
+Usage: aos-install <disk>
+
+  <disk>  the whole disk to install onto, e.g. /dev/sda or /dev/nvme0n1
+
+This ERASES the target disk completely.
+USAGE
+	exit 1
+}
+
+[ $# -eq 1 ] || usage
+DISK="$1"
+[ -b "$DISK" ] || { echo "aos-install: $DISK is not a block device" >&2; exit 1; }
+
+# Partition naming differs between /dev/sda2 and /dev/nvme0n1p2.
+case "$DISK" in
+	*[0-9]) PART_PREFIX="${DISK}p" ;;
+	*)      PART_PREFIX="$DISK" ;;
+esac
+ESP="${PART_PREFIX}1"
+ROOT="${PART_PREFIX}2"
+
+# Booting both ways from one disk needs a GPT with a BIOS boot partition for
+# GRUB's core image (there is no MBR gap to embed it in) alongside the ESP.
+echo "This will ERASE all data on $DISK."
+printf "Type YES to continue: "
+read -r confirm
+[ "$confirm" = "YES" ] || { echo "Aborted."; exit 1; }
+
+echo ">>> Partitioning $DISK"
+parted -s "$DISK" mklabel gpt
+parted -s "$DISK" mkpart ESP fat32 1MiB 513MiB
+parted -s "$DISK" set 1 esp on
+parted -s "$DISK" mkpart root ext4 513MiB 100%
+
+# Give the kernel a moment to notice the new partition table.
+partprobe "$DISK" 2>/dev/null || true
+udevadm settle 2>/dev/null || true
+
+echo ">>> Creating filesystems"
+mkfs.fat -F32 -n AOS_ESP "$ESP"
+mkfs.ext4 -F -L aos "$ROOT"
+
+echo ">>> Mounting"
+TARGET=/mnt/aos-install
+mkdir -p "$TARGET"
+mount "$ROOT" "$TARGET"
+mkdir -p "$TARGET/boot/efi"
+mount "$ESP" "$TARGET/boot/efi"
+
+echo ">>> Copying system (this takes a while)"
+# One-file-system keeps /proc, /sys, /dev and the mounted target itself out.
+tar -cf - --one-file-system / | tar -xf - -C "$TARGET"
+
+# Directories that exist only at runtime; tar skipped them as mount points.
+mkdir -p "$TARGET/proc" "$TARGET/sys" "$TARGET/dev" "$TARGET/run" "$TARGET/tmp"
+chmod 1777 "$TARGET/tmp"
+
+echo ">>> Writing /etc/fstab"
+ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
+ESP_UUID=$(blkid -s UUID -o value "$ESP")
+cat > "$TARGET/etc/fstab" <<FSTAB
+# <device>			<mount>		<type>	<options>		<dump>	<pass>
+UUID=$ROOT_UUID	/		ext4	defaults,noatime	0	1
+UUID=$ESP_UUID		/boot/efi	vfat	defaults,noatime	0	2
+proc				/proc		proc	defaults		0	0
+sysfs				/sys		sysfs	defaults		0	0
+devtmpfs			/dev		devtmpfs defaults		0	0
+tmpfs				/tmp		tmpfs	defaults		0	0
+FSTAB
+
+echo ">>> Installing bootloader"
+for d in proc sys dev; do mount --bind "/$d" "$TARGET/$d"; done
+
+# UEFI. --removable writes EFI/BOOT/BOOTX64.EFI, which firmware will boot
+# without needing an NVRAM entry -- important for a disk that may be moved
+# between machines, and for firmware that forgets its boot entries.
+chroot "$TARGET" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+	--bootloader-id=AOS --removable --recheck || \
+	echo "!! UEFI bootloader install failed (not an EFI system?)"
+
+# BIOS. Harmless on a UEFI-only machine, and makes the same disk boot on
+# older hardware.
+chroot "$TARGET" grub-install --target=i386-pc --recheck "$DISK" || \
+	echo "!! BIOS bootloader install failed (no i386-pc GRUB target?)"
+
+chroot "$TARGET" grub-mkconfig -o /boot/grub/grub.cfg 2>/dev/null || {
+	echo ">>> grub-mkconfig unavailable, writing a minimal grub.cfg"
+	mkdir -p "$TARGET/boot/grub"
+	cat > "$TARGET/boot/grub/grub.cfg" <<GRUBCFG
+set default=0
+set timeout=3
+
+menuentry "AOS" {
+	linux /boot/bzImage root=UUID=$ROOT_UUID rw
+}
+GRUBCFG
+}
+
+echo ">>> Unmounting"
+for d in dev sys proc; do umount "$TARGET/$d"; done
+umount "$TARGET/boot/efi"
+umount "$TARGET"
+
+echo
+echo "AOS installed on $DISK. Remove the install media and reboot."

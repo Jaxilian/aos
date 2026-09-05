@@ -1,0 +1,37 @@
+# Applied on top of the mainline x86_64_defconfig.
+#
+# Only put here what the mainline defconfig does not already give us.
+# M2 grows this considerably (DRM, wifi, legacy PATA, filesystems);
+# for M0 we only assert the handful of options Buildroot's userland
+# and eudev depend on, so that a defconfig change upstream cannot
+# silently break the boot.
+
+# Device nodes: eudev needs devtmpfs mounted before it starts.
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+
+# Module loading. Hardware support is shipped as modules so the kernel
+# image stays small and udev loads only what the machine actually has.
+CONFIG_MODULES=y
+CONFIG_MODULE_UNLOAD=y
+
+# Filesystems the live ISO and the installer need (M5).
+CONFIG_EXT4_FS=y
+CONFIG_ISO9660_FS=y
+CONFIG_SQUASHFS=y
+CONFIG_OVERLAY_FS=y
+CONFIG_VFAT_FS=y
+CONFIG_NLS_CODEPAGE_437=y
+CONFIG_NLS_ISO8859_1=y
+
+# EFI variable access, needed by efibootmgr during install.
+CONFIG_EFI=y
+CONFIG_EFI_STUB=y
+CONFIG_EFIVAR_FS=y
+
+# Console fallbacks: these are what make the image come up on machines
+# whose GPU has no DRM driver, or before the DRM module is loaded.
+CONFIG_FB=y
+CONFIG_FB_EFI=y
+CONFIG_FB_VESA=y
+CONFIG_FRAMEBUFFER_CONSOLE=y

@@ -1,0 +1,44 @@
+config BR2_PACKAGE_AOS_RUST
+	bool "aos-rust (rustc + cargo on the target)"
+	depends on BR2_x86_64
+	depends on BR2_TOOLCHAIN_USES_GLIBC
+	depends on BR2_INSTALL_LIBSTDCPP
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_AOS_GCC
+	help
+	  Installs the official upstream Rust toolchain -- rustc, cargo
+	  and the x86_64-unknown-linux-gnu standard library -- into the
+	  target, so the machine can build Rust software on itself.
+
+	  Buildroot's own "rust" package is a host package used to
+	  cross-compile Rust code; it puts nothing on the target. This
+	  package installs the prebuilt upstream distribution rather
+	  than rebuilding the compiler, which would need LLVM plus a
+	  bootstrap rustc and hours of build time.
+
+	  cargo cannot link anything without a C compiler and a linker,
+	  so this selects aos-gcc, which in turn brings in binutils.
+
+	  Note this is large: roughly 600MB installed. Turn it off for a
+	  C-only image.
+
+	  https://www.rust-lang.org
+
+comment "rust-target needs a glibc toolchain w/ C++ and dynamic libs"
+	depends on BR2_x86_64
+	depends on !BR2_TOOLCHAIN_USES_GLIBC || !BR2_INSTALL_LIBSTDCPP \
+		|| BR2_STATIC_LIBS
+
+if BR2_PACKAGE_AOS_RUST
+
+config BR2_PACKAGE_AOS_RUST_RUSTFMT
+	bool "rustfmt"
+	help
+	  Install the rustfmt code formatter.
+
+config BR2_PACKAGE_AOS_RUST_CLIPPY
+	bool "clippy"
+	help
+	  Install the clippy linter.
+
+endif

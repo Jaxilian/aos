@@ -1,0 +1,51 @@
+config BR2_PACKAGE_AOS_NVIDIA
+	bool "aos-nvidia (NVIDIA userspace driver and GSP firmware)"
+	depends on BR2_x86_64
+	depends on BR2_LINUX_KERNEL
+	depends on BR2_TOOLCHAIN_USES_GLIBC
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_AOS_NVIDIA_OPEN
+	select BR2_PACKAGE_LIBGLVND
+	select BR2_PACKAGE_WAYLAND
+	help
+	  The userspace half of the NVIDIA driver: the EGL, OpenGL ES
+	  and Vulkan vendor libraries, the EGL external platform modules
+	  for Wayland and GBM, and -- critically -- the GSP firmware the
+	  open kernel modules load at probe time.
+
+	  X11/GLX components are deliberately not installed. AOS ships
+	  no display server, so they would only be dangling.
+
+	  This coexists with Mesa rather than replacing it: libglvnd
+	  dispatches per-device, so the Intel or AMD GPU keeps using
+	  Mesa while the NVIDIA GPU uses these libraries. That is what
+	  makes a hybrid laptop work.
+
+	  These files are covered by NVIDIA's proprietary licence, not
+	  by the MIT/GPL terms of the kernel modules. NVIDIA permits
+	  redistribution unmodified and with the licence included; even
+	  so, this is off by default so that a stock AOS image carries
+	  no proprietary code unless you ask for it.
+
+	  https://www.nvidia.com/
+
+comment "aos-nvidia needs a Linux kernel, a glibc toolchain, dynamic libs"
+	depends on BR2_x86_64
+	depends on !BR2_LINUX_KERNEL || !BR2_TOOLCHAIN_USES_GLIBC \
+		|| BR2_STATIC_LIBS
+
+if BR2_PACKAGE_AOS_NVIDIA
+
+config BR2_PACKAGE_AOS_NVIDIA_CUDA
+	bool "CUDA support"
+	help
+	  Install libcuda, the NVVM compiler and the PTX JIT compiler.
+	  Needed to run CUDA or OpenCL workloads.
+
+config BR2_PACKAGE_AOS_NVIDIA_SMI
+	bool "nvidia-smi"
+	help
+	  Install the nvidia-smi management and monitoring utility.
+	  Useful for confirming on a real machine that the GPU came up.
+
+endif
