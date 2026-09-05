@@ -119,11 +119,11 @@ endif
 # artefacts out of the staging sysroot. Building them again would be slow,
 # and would risk shipping two subtly different copies of the same runtime.
 define AOS_GCC_BUILD_CMDS
-	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D) all-gcc
+	$(TARGET_MAKE_ENV) $(MAKE) -C $(AOS_GCC_BUILDDIR) all-gcc
 endef
 
 define AOS_GCC_INSTALL_TARGET_CMDS
-	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D) DESTDIR=$(TARGET_DIR) install-gcc
+	$(TARGET_MAKE_ENV) $(MAKE) -C $(AOS_GCC_BUILDDIR) DESTDIR=$(TARGET_DIR) install-gcc
 endef
 
 # Nearly everything that looks for a C compiler looks for "cc" first --

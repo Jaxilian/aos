@@ -33,9 +33,30 @@ define AOS_NVIDIA_OPEN_INSTALL_MODPROBE_CONF
 endef
 AOS_NVIDIA_OPEN_POST_INSTALL_TARGET_HOOKS += AOS_NVIDIA_OPEN_INSTALL_MODPROBE_CONF
 
-# The kernel modules are built by the kernel-module infrastructure's hooks;
-# there is nothing to build or install by the generic infrastructure itself.
-AOS_NVIDIA_OPEN_BUILD_CMDS =
+# The driver builds in two halves. src/nvidia and src/nvidia-modeset are the
+# OS-agnostic core, compiled by NVIDIA's own build system into two .o_binary
+# blobs; kernel-open is the kbuild glue that links against them. Running kbuild
+# alone fails with "No rule to make target nv-kernel.o_binary", so the core has
+# to be built first, here. The kernel-module infrastructure's hooks then do the
+# kbuild half and the modules_install.
+#
+# HOST_CC is passed explicitly because NVIDIA's utils.mk defaults it to $(CC),
+# which would point host-side build tools at the cross compiler.
+AOS_NVIDIA_OPEN_CORE_OBJS = \
+	kernel-open/nvidia/nv-kernel.o_binary \
+	kernel-open/nvidia-modeset/nv-modeset-kernel.o_binary
+
+define AOS_NVIDIA_OPEN_BUILD_CMDS
+	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D) \
+		CC="$(TARGET_CC)" \
+		LD="$(TARGET_LD)" \
+		AR="$(TARGET_AR)" \
+		OBJCOPY="$(TARGET_OBJCOPY)" \
+		HOST_CC="$(HOSTCC)" \
+		ARCH=x86_64 \
+		$(AOS_NVIDIA_OPEN_CORE_OBJS)
+endef
+
 AOS_NVIDIA_OPEN_INSTALL_TARGET_CMDS =
 
 $(eval $(kernel-module))

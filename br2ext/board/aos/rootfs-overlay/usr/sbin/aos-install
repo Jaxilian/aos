@@ -53,17 +53,29 @@ mkfs.fat -F32 -n AOS_ESP "$ESP"
 mkfs.ext4 -F -L aos "$ROOT"
 
 echo ">>> Mounting"
-TARGET=/mnt/aos-install
+# Under /run, not /mnt: on the live ISO the root filesystem is read-only and
+# a mount point cannot be created anywhere on it.
+TARGET=/run/aos-install
 mkdir -p "$TARGET"
 mount "$ROOT" "$TARGET"
 mkdir -p "$TARGET/boot/efi"
 mount "$ESP" "$TARGET/boot/efi"
 
 echo ">>> Copying system (this takes a while)"
-# One-file-system keeps /proc, /sys, /dev and the mounted target itself out.
-tar -cf - --one-file-system / | tar -xf - -C "$TARGET"
+# Copy through a bind mount of / rather than from / directly.
+#
+# A bind mount exposes the root filesystem as it actually is, with nothing
+# mounted over it. Copying from / instead would pick up the runtime tmpfs on
+# /var -- and so install an empty /var, because the real one underneath is
+# hidden -- as well as having to exclude /proc, /sys, /dev and /run by hand.
+SRC=/run/aos-src
+mkdir -p "$SRC"
+mount --bind / "$SRC"
+tar -cf - -C "$SRC" . | tar -xf - -C "$TARGET"
+umount "$SRC"
+rmdir "$SRC"
 
-# Directories that exist only at runtime; tar skipped them as mount points.
+# Mount points, which are empty directories in the source tree.
 mkdir -p "$TARGET/proc" "$TARGET/sys" "$TARGET/dev" "$TARGET/run" "$TARGET/tmp"
 chmod 1777 "$TARGET/tmp"
 

@@ -50,3 +50,34 @@ if [ -d "${STAGING_DIR}/usr/lib/pkgconfig" ]; then
 	# the sysroot is simply /.
 	sed -i "s,${STAGING_DIR},,g" "${TARGET_DIR}"/usr/lib/pkgconfig/*.pc
 fi
+
+# gcc's own runtime, and the C++ headers.
+#
+# aos-gcc builds only the compiler proper ("all-gcc"), deliberately: the
+# target libraries were already built once by host-gcc-final, from the same
+# gcc source and version, and building them twice risks shipping two subtly
+# different copies of the same runtime. The consequence is that the pieces
+# gcc links into every binary -- crtbegin.o, crtend.o, libgcc.a -- live in
+# the cross toolchain's own directory rather than in the sysroot, so they
+# have to be brought over explicitly. Without them the compiler runs fine
+# and then fails at the link step with "cannot find crtbegin.o".
+: "${HOST_DIR:?post-build.sh: HOST_DIR not set}"
+
+GCC_TRIPLET=x86_64-buildroot-linux-gnu
+for gccdir in "${HOST_DIR}/lib/gcc/${GCC_TRIPLET}"/*; do
+	[ -d "${gccdir}" ] || continue
+	gccver=$(basename "${gccdir}")
+	dest="${TARGET_DIR}/usr/lib/gcc/${GCC_TRIPLET}/${gccver}"
+	mkdir -p "${dest}"
+	find "${gccdir}" -maxdepth 1 \( -name '*.o' -o -name '*.a' \) \
+		-exec cp -a -t "${dest}/" {} +
+done
+
+# The C++ standard library headers live under the toolchain's own include
+# tree, not under the sysroot, so rsync them across as well.
+if [ -d "${HOST_DIR}/${GCC_TRIPLET}/include/c++" ]; then
+	mkdir -p "${TARGET_DIR}/usr/include/c++"
+	rsync -a --chmod=u=rwX,go=rX \
+		"${HOST_DIR}/${GCC_TRIPLET}/include/c++/" \
+		"${TARGET_DIR}/usr/include/c++/"
+fi

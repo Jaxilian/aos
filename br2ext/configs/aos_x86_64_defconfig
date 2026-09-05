@@ -40,4 +40,209 @@ BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
 # Filesystem. M5 replaces this with the hybrid BIOS+UEFI ISO.
 BR2_TARGET_ROOTFS_EXT2=y
 BR2_TARGET_ROOTFS_EXT2_4=y
-BR2_TARGET_ROOTFS_EXT2_SIZE="512M"
+BR2_TARGET_ROOTFS_EXT2_SIZE="4G"
+
+################################################################################
+# M1 -- GNU userland.
+#
+# BusyBox stays as init and for odds and ends, but the tools that build
+# systems actually invoke are the real GNU ones. This is not preference:
+# BusyBox applets diverge from GNU in ways that break ./configure, cargo
+# build.rs and kbuild, and a self-hosting image has to survive all three.
+################################################################################
+# Buildroot hides any package that duplicates a BusyBox applet unless this
+# is set. Shipping the real GNU tools alongside BusyBox is the entire point
+# of M1, so it has to be on.
+BR2_PACKAGE_BUSYBOX_SHOW_OTHERS=y
+BR2_PACKAGE_COREUTILS=y
+BR2_PACKAGE_BASH=y
+BR2_PACKAGE_GAWK=y
+BR2_PACKAGE_SED=y
+BR2_PACKAGE_GREP=y
+BR2_PACKAGE_FINDUTILS=y
+BR2_PACKAGE_DIFFUTILS=y
+BR2_PACKAGE_TAR=y
+BR2_PACKAGE_GZIP=y
+BR2_PACKAGE_XZ=y
+BR2_PACKAGE_ZSTD=y
+BR2_PACKAGE_PATCH=y
+BR2_PACKAGE_FLEX=y
+BR2_PACKAGE_WHICH=y
+BR2_PACKAGE_LESS=y
+BR2_PACKAGE_FILE=y
+BR2_PACKAGE_PKGCONF=y
+BR2_PACKAGE_NCURSES=y
+BR2_PACKAGE_READLINE=y
+BR2_PACKAGE_MAKE=y
+
+# binutils supplies as and ld. Free here, and aos-gcc is useless without it.
+BR2_PACKAGE_BINUTILS=y
+BR2_PACKAGE_BINUTILS_TARGET=y
+
+# Process and module handling. kmod rather than the BusyBox applets because
+# a modular kernel is central to the "boots on anything" goal.
+BR2_PACKAGE_KMOD=y
+BR2_PACKAGE_KMOD_TOOLS=y
+BR2_PACKAGE_PROCPS_NG=y
+BR2_PACKAGE_PSMISC=y
+BR2_PACKAGE_UTIL_LINUX=y
+BR2_PACKAGE_UTIL_LINUX_BINARIES=y
+
+# Needed by aos-install: partitioning, filesystems, EFI boot entries.
+BR2_PACKAGE_E2FSPROGS=y
+BR2_PACKAGE_DOSFSTOOLS=y
+# The sub-options are not implied by the package. Without MKFS_FAT there
+# is no mkfs.fat and aos-install cannot format the EFI system partition.
+BR2_PACKAGE_DOSFSTOOLS_MKFS_FAT=y
+BR2_PACKAGE_DOSFSTOOLS_FSCK_FAT=y
+BR2_PACKAGE_DOSFSTOOLS_FATLABEL=y
+BR2_PACKAGE_PARTED=y
+BR2_PACKAGE_EFIBOOTMGR=y
+
+################################################################################
+# M2 -- networking userland.
+#
+# Whoever writes the package manager needs a working TLS fetch on first boot,
+# so openssl, a CA bundle and curl are part of the foundation, not extras.
+################################################################################
+BR2_PACKAGE_DHCPCD=y
+BR2_PACKAGE_IPROUTE2=y
+BR2_PACKAGE_IW=y
+BR2_PACKAGE_WPA_SUPPLICANT=y
+BR2_PACKAGE_WPA_SUPPLICANT_NL80211=y
+BR2_PACKAGE_WIRELESS_REGDB=y
+BR2_PACKAGE_OPENSSL=y
+BR2_PACKAGE_CA_CERTIFICATES=y
+BR2_PACKAGE_LIBCURL=y
+BR2_PACKAGE_LIBCURL_CURL=y
+
+################################################################################
+# M2 -- firmware.
+#
+# Selected per vendor rather than wholesale: linux-firmware in full is several
+# GB. These cover the wireless and GPU parts actually found in PCs of the last
+# fifteen years or so.
+################################################################################
+BR2_PACKAGE_LINUX_FIRMWARE=y
+BR2_PACKAGE_LINUX_FIRMWARE_I915=y
+BR2_PACKAGE_LINUX_FIRMWARE_AMDGPU=y
+BR2_PACKAGE_LINUX_FIRMWARE_RADEON=y
+BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_3160=y
+BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_3168=y
+BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_7260=y
+BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_7265D=y
+BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_8000C=y
+BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_8265=y
+BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_9XXX=y
+BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_22000=y
+BR2_PACKAGE_LINUX_FIRMWARE_ATHEROS_9271=y
+BR2_PACKAGE_LINUX_FIRMWARE_ATHEROS_10K_QCA998X=y
+BR2_PACKAGE_LINUX_FIRMWARE_ATHEROS_11K_WCN6855=y
+BR2_PACKAGE_LINUX_FIRMWARE_RTL_81XX=y
+BR2_PACKAGE_LINUX_FIRMWARE_RTL_8169=y
+BR2_PACKAGE_LINUX_FIRMWARE_RTL_RTW88=y
+BR2_PACKAGE_LINUX_FIRMWARE_RTL_RTW89=y
+BR2_PACKAGE_LINUX_FIRMWARE_MEDIATEK_MT7921=y
+BR2_PACKAGE_LINUX_FIRMWARE_MEDIATEK_MT7922=y
+BR2_PACKAGE_LINUX_FIRMWARE_MEDIATEK_MT7925=y
+BR2_PACKAGE_LINUX_FIRMWARE_BRCM_BCM43XXX=y
+
+################################################################################
+# M3 -- graphics.
+#
+# DRM/KMS + Mesa (GBM/EGL/Vulkan) + libglvnd. No X server, no Wayland
+# compositor, no display manager: a user writes a compositor straight against
+# DRM/KMS + GBM + EGL. libwayland and the protocol XML are here so that
+# writing one does not start with adding packages.
+#
+# libglvnd is not optional. Mesa hands GL/EGL dispatch to it, and it is what
+# lets the Mesa drivers and the NVIDIA blob coexist and be selected per
+# device -- exactly what a hybrid Intel + NVIDIA laptop needs.
+#
+# Note there is no OPENGL_GL symbol: Buildroot offers OPENGL_GLX, which needs
+# X11. Desktop GL is reached through EGL here.
+################################################################################
+BR2_PACKAGE_LIBDRM=y
+BR2_PACKAGE_LIBGLVND=y
+BR2_PACKAGE_MESA3D=y
+# Gates iris, radeonsi, llvmpipe and the Intel/AMD Vulkan drivers. Without
+# it kconfig silently drops all of them and you get a Mesa with almost no
+# hardware support. Pulls in LLVM, which dominates the build time.
+BR2_PACKAGE_MESA3D_LLVM=y
+BR2_PACKAGE_MESA3D_OPENGL_EGL=y
+BR2_PACKAGE_MESA3D_OPENGL_ES=y
+BR2_PACKAGE_MESA3D_GBM=y
+
+# Gallium (OpenGL). crocus covers Intel Gen4-7, iris Gen8+; r600 covers the
+# older Radeons and radeonsi the GCN-and-later ones. llvmpipe is the software
+# fallback that makes the image work on a GPU with no native driver at all.
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_IRIS=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_CROCUS=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_RADEONSI=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_R600=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_NOUVEAU=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_LLVMPIPE=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_ZINK=y
+
+# Vulkan. Buildroot's mesa3d exposes no nouveau/NVK driver, so NVIDIA Vulkan
+# comes only from the proprietary blob in M4.
+BR2_PACKAGE_MESA3D_VULKAN_DRIVER_INTEL=y
+BR2_PACKAGE_MESA3D_VULKAN_DRIVER_AMD=y
+BR2_PACKAGE_MESA3D_VULKAN_DRIVER_SWRAST=y
+BR2_PACKAGE_MESA3D_VULKAN_DRIVER_VIRTIO=y
+
+# The loader is what actually finds and dispatches to those ICDs.
+BR2_PACKAGE_VULKAN_LOADER=y
+
+BR2_PACKAGE_WAYLAND=y
+BR2_PACKAGE_WAYLAND_PROTOCOLS=y
+
+################################################################################
+# M4 -- self-hosting.
+#
+# post-build.sh exports the development sysroot (headers, crt files, static
+# archives, the unversioned .so symlinks and the pkg-config metadata) from
+# staging into the target. Without it the compiler below has nothing to
+# compile against.
+################################################################################
+BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_AOS_PATH)/board/aos/post-build.sh"
+
+BR2_PACKAGE_AOS_GCC=y
+BR2_PACKAGE_AOS_RUST=y
+
+# NVIDIA. The kernel modules are Dual MIT/GPL; the userspace half is
+# proprietary, which is why aos-nvidia is opt-in rather than implied by
+# aos-nvidia-open. CUDA is left off -- it is large and a foundation image
+# does not need it; flip BR2_PACKAGE_AOS_NVIDIA_CUDA if you do.
+BR2_PACKAGE_AOS_NVIDIA=y
+BR2_PACKAGE_AOS_NVIDIA_SMI=y
+
+################################################################################
+# M5 -- hybrid BIOS + UEFI live ISO.
+#
+# The root filesystem IS the ISO, mounted read-only, rather than an initrd
+# unpacked into RAM. With Mesa, the Rust toolchain and the development
+# sysroot on board the image is a couple of gigabytes, and an initrd that
+# size would need as much RAM again -- which defeats supporting older
+# machines. zisofs stores files compressed and expands them on read, so the
+# kernel needs CONFIG_ZISOFS (set in linux.config.fragment).
+#
+# /var is made writable at boot by etc/init.d/S00livevar.
+################################################################################
+BR2_TARGET_ROOTFS_ISO9660=y
+BR2_TARGET_ROOTFS_ISO9660_GRUB2=y
+# BR2_TARGET_ROOTFS_ISO9660_INITRD is not set
+BR2_TARGET_ROOTFS_ISO9660_TRANSPARENT_COMPRESSION=y
+BR2_TARGET_ROOTFS_ISO9660_BOOT_MENU="$(BR2_EXTERNAL_AOS_PATH)/board/aos/iso-grub.cfg"
+
+BR2_TARGET_GRUB2=y
+BR2_TARGET_GRUB2_I386_PC=y
+BR2_TARGET_GRUB2_X86_64_EFI=y
+# 'cd' and the iso9660 module are what let the BIOS GRUB core find its
+# configuration on the optical medium rather than on a disk partition.
+BR2_TARGET_GRUB2_BOOT_PARTITION="cd"
+BR2_TARGET_GRUB2_BUILTIN_MODULES_PC="boot linux ext2 fat squash4 part_msdos part_gpt normal biosdisk iso9660 serial terminal"
+BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat squash4 part_msdos part_gpt normal efi_gop iso9660 serial terminal"
+BR2_TARGET_GRUB2_BUILTIN_CONFIG_EFI="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-efi-embedded.cfg"
+# aos-install runs grub-install and grub-mkconfig on the installed system.
+BR2_TARGET_GRUB2_INSTALL_TOOLS=y
