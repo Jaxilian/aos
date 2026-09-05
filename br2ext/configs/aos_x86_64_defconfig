@@ -87,6 +87,11 @@ BR2_PACKAGE_PROCPS_NG=y
 BR2_PACKAGE_PSMISC=y
 BR2_PACKAGE_UTIL_LINUX=y
 BR2_PACKAGE_UTIL_LINUX_BINARIES=y
+# Real mount/umount. BusyBox's applet cannot resolve UUID= or PARTUUID=
+# in /etc/fstab (it needs FEATURE_MOUNT_LABEL, which Buildroot leaves off),
+# so an fstab written by aos-install fails at boot with "Can't lookup
+# blockdev". util-linux mount understands both.
+BR2_PACKAGE_UTIL_LINUX_MOUNT=y
 
 # Needed by aos-install: partitioning, filesystems, EFI boot entries.
 BR2_PACKAGE_E2FSPROGS=y
@@ -241,8 +246,12 @@ BR2_TARGET_GRUB2_X86_64_EFI=y
 # 'cd' and the iso9660 module are what let the BIOS GRUB core find its
 # configuration on the optical medium rather than on a disk partition.
 BR2_TARGET_GRUB2_BOOT_PARTITION="cd"
-BR2_TARGET_GRUB2_BUILTIN_MODULES_PC="boot linux ext2 fat squash4 part_msdos part_gpt normal biosdisk iso9660 serial terminal"
-BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat squash4 part_msdos part_gpt normal efi_gop iso9660 serial terminal"
-BR2_TARGET_GRUB2_BUILTIN_CONFIG_EFI="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-efi-embedded.cfg"
+BR2_TARGET_GRUB2_BUILTIN_MODULES_PC="boot linux ext2 fat squash4 part_msdos part_gpt normal biosdisk iso9660 serial terminal search search_fs_file"
+BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat squash4 part_msdos part_gpt normal efi_gop iso9660 serial terminal search search_fs_file"
+BR2_TARGET_GRUB2_BUILTIN_CONFIG_EFI="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-embedded.cfg"
+BR2_TARGET_GRUB2_BUILTIN_CONFIG_PC="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-embedded.cfg"
 # aos-install runs grub-install and grub-mkconfig on the installed system.
 BR2_TARGET_GRUB2_INSTALL_TOOLS=y
+# Re-runs xorriso with -isohybrid-mbr and -isohybrid-gpt-basdat so the ISO can
+# be written to a USB stick with dd. Buildroot's grub2 ISO path omits both.
+BR2_ROOTFS_POST_IMAGE_SCRIPT="$(BR2_EXTERNAL_AOS_PATH)/board/aos/post-image.sh"

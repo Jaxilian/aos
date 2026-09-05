@@ -28,8 +28,9 @@ case "$DISK" in
 	*[0-9]) PART_PREFIX="${DISK}p" ;;
 	*)      PART_PREFIX="$DISK" ;;
 esac
-ESP="${PART_PREFIX}1"
-ROOT="${PART_PREFIX}2"
+BIOSBOOT="${PART_PREFIX}1"
+ESP="${PART_PREFIX}2"
+ROOT="${PART_PREFIX}3"
 
 # Booting both ways from one disk needs a GPT with a BIOS boot partition for
 # GRUB's core image (there is no MBR gap to embed it in) alongside the ESP.
@@ -39,10 +40,20 @@ read -r confirm
 [ "$confirm" = "YES" ] || { echo "Aborted."; exit 1; }
 
 echo ">>> Partitioning $DISK"
+# Three partitions, because booting the same disk on both firmwares needs
+# two different things from it:
+#
+#   1. a BIOS boot partition -- on GPT there is no post-MBR gap to embed
+#      GRUB's core image in, and without somewhere to put it grub-install
+#      refuses with "will not proceed with blocklists";
+#   2. an EFI system partition for the UEFI bootloader;
+#   3. the root filesystem.
 parted -s "$DISK" mklabel gpt
-parted -s "$DISK" mkpart ESP fat32 1MiB 513MiB
-parted -s "$DISK" set 1 esp on
-parted -s "$DISK" mkpart root ext4 513MiB 100%
+parted -s "$DISK" mkpart bios_grub 1MiB 2MiB
+parted -s "$DISK" set 1 bios_grub on
+parted -s "$DISK" mkpart ESP fat32 2MiB 514MiB
+parted -s "$DISK" set 2 esp on
+parted -s "$DISK" mkpart root ext4 514MiB 100%
 
 # Give the kernel a moment to notice the new partition table.
 partprobe "$DISK" 2>/dev/null || true
@@ -82,6 +93,12 @@ chmod 1777 "$TARGET/tmp"
 echo ">>> Writing /etc/fstab"
 ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
 ESP_UUID=$(blkid -s UUID -o value "$ESP")
+# The kernel command line needs the *partition* UUID, not the filesystem one.
+# AOS boots without an initramfs, and resolving root=UUID= means reading
+# filesystem superblocks -- which is userspace's job, normally done inside an
+# initrd. PARTUUID comes from the GPT itself, so the kernel can resolve it on
+# its own. Using UUID= here panics with "Unable to mount root fs".
+ROOT_PARTUUID=$(blkid -s PARTUUID -o value "$ROOT")
 cat > "$TARGET/etc/fstab" <<FSTAB
 # <device>			<mount>		<type>	<options>		<dump>	<pass>
 UUID=$ROOT_UUID	/		ext4	defaults,noatime	0	1
@@ -107,18 +124,32 @@ chroot "$TARGET" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
 chroot "$TARGET" grub-install --target=i386-pc --recheck "$DISK" || \
 	echo "!! BIOS bootloader install failed (no i386-pc GRUB target?)"
 
-chroot "$TARGET" grub-mkconfig -o /boot/grub/grub.cfg 2>/dev/null || {
-	echo ">>> grub-mkconfig unavailable, writing a minimal grub.cfg"
-	mkdir -p "$TARGET/boot/grub"
-	cat > "$TARGET/boot/grub/grub.cfg" <<GRUBCFG
-set default=0
-set timeout=3
+# Write grub.cfg directly rather than running grub-mkconfig.
+#
+# grub-mkconfig's 10_linux script discovers kernels by filename, looking for
+# vmlinuz-* or kernel-*. AOS installs its kernel as /boot/bzImage, so
+# grub-mkconfig finds nothing, emits a menu with no Linux entry at all, and
+# still exits successfully -- the machine then boots to firmware settings.
+# A foundation image has exactly one kernel and no /etc/default/grub
+# machinery, so writing the file out is both simpler and predictable.
+echo ">>> Writing grub.cfg"
+mkdir -p "$TARGET/boot/grub"
+cat > "$TARGET/boot/grub/grub.cfg" <<GRUBCFG
+serial --unit=0 --speed=115200
+terminal_input console serial
+terminal_output console serial
+
+set default="0"
+set timeout="5"
 
 menuentry "AOS" {
-	linux /boot/bzImage root=UUID=$ROOT_UUID rw
+	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID rw console=ttyS0,115200 console=tty1
+}
+
+menuentry "AOS (serial console)" {
+	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID rw console=ttyS0,115200
 }
 GRUBCFG
-}
 
 echo ">>> Unmounting"
 for d in dev sys proc; do umount "$TARGET/$d"; done
