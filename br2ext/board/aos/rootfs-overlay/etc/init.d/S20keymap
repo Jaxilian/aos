@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# Load the console keymap named in /etc/vconsole.conf.
+#
+# Without this the console uses the kernel's built-in US layout, which is
+# wrong for most of the world -- and notably swaps the positions of several
+# symbols that matter when typing shell commands and passwords.
+#
+# This affects the text console only. A Wayland compositor does its own
+# keyboard handling through libxkbcommon and ignores this setting.
+
+KEYMAP=us
+[ -r /etc/vconsole.conf ] && . /etc/vconsole.conf
+
+case "$1" in
+	start)
+		# Nothing to do when there is no virtual console -- for instance
+		# when booting headless with console=ttyS0. Serial terminals
+		# handle their own key translation.
+		[ -c /dev/tty0 ] || exit 0
+
+		printf 'Loading keymap %s: ' "$KEYMAP"
+		if loadkeys -q "$KEYMAP" 2>/dev/null; then
+			echo "OK"
+		else
+			# A bad name in vconsole.conf should not stop the boot, but it
+			# must be visible, or you are left wondering why the keys are
+			# still wrong.
+			echo "FAILED (no such keymap? see /usr/share/keymaps)"
+		fi
+		;;
+	stop|restart|reload)
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac

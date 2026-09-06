@@ -101,6 +101,11 @@ BR2_PACKAGE_DOSFSTOOLS=y
 BR2_PACKAGE_DOSFSTOOLS_MKFS_FAT=y
 BR2_PACKAGE_DOSFSTOOLS_FSCK_FAT=y
 BR2_PACKAGE_DOSFSTOOLS_FATLABEL=y
+# Console keymaps. BusyBox has a loadkmap applet but ships no keymap data, so
+# without kbd the console is stuck on the kernel's built-in US layout with no
+# way to change it. kbd provides loadkeys and the keymap files for every
+# common layout; /etc/init.d/S20keymap applies the one in /etc/vconsole.conf.
+BR2_PACKAGE_KBD=y
 BR2_PACKAGE_PARTED=y
 BR2_PACKAGE_EFIBOOTMGR=y
 

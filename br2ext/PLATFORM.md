@@ -1,5 +1,10 @@
 # The AOS platform contract
 
+> Looking for how to build, test, upgrade or publish AOS, or a plain-language
+> description of what it is? See [docs/](docs/). This file is the technical
+> contract for software built *on* AOS.
+
+
 AOS is a foundation, not a distribution. It gives you a kernel, a C library,
 drivers, a graphics stack and a working toolchain -- and then stops. There is
 no package manager, no init beyond BusyBox, no desktop, no applications. Those
