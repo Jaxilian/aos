@@ -99,10 +99,27 @@ ESP_UUID=$(blkid -s UUID -o value "$ESP")
 # initrd. PARTUUID comes from the GPT itself, so the kernel can resolve it on
 # its own. Using UUID= here panics with "Unable to mount root fs".
 ROOT_PARTUUID=$(blkid -s PARTUUID -o value "$ROOT")
+# Why this fstab looks the way it does.
+#
+# BusyBox init runs, from inittab and before udev exists, both
+# "mount -o remount,rw /" and "mount -a". util-linux mount resolves UUID=
+# through the /dev/disk/by-uuid symlinks that udev creates, so at that point
+# any UUID= entry it touches fails with "can't find UUID=...": alarming, and
+# useless, since nothing is actually wrong.
+#
+#  - There is deliberately NO entry for "/". The kernel mounts the root from
+#    root=PARTUUID= on the GRUB command line, and with no fstab line to
+#    consult, the early remount just uses the live mount and stays quiet.
+#    (The cost is that root keeps the kernel's default relatime rather than
+#    noatime; acceptable for a foundation image.)
+#  - /boot/efi is "noauto" so the early "mount -a" skips it silently;
+#    /etc/init.d/S15mount-fstab mounts it explicitly once udev is up. noauto
+#    only affects "mount -a", never an explicit "mount /boot/efi".
 cat > "$TARGET/etc/fstab" <<FSTAB
-# <device>			<mount>		<type>	<options>		<dump>	<pass>
-UUID=$ROOT_UUID	/		ext4	defaults,noatime	0	1
-UUID=$ESP_UUID		/boot/efi	vfat	defaults,noatime	0	2
+# <device>			<mount>		<type>	<options>			<dump>	<pass>
+# The root filesystem is mounted by the kernel from root=PARTUUID= in
+# /boot/grub/grub.cfg; it has no entry here on purpose (see aos-install).
+UUID=$ESP_UUID		/boot/efi	vfat	defaults,noatime,noauto		0	2
 proc				/proc		proc	defaults		0	0
 sysfs				/sys		sysfs	defaults		0	0
 devtmpfs			/dev		devtmpfs defaults		0	0

@@ -1,0 +1,46 @@
+#!/bin/sh
+#
+# Mount /etc/fstab a second time, now that udev is running.
+#
+# BusyBox init runs "mount -a" from inittab at sysinit, before rcS and so
+# before udevd (S10udevd). util-linux mount resolves UUID= and PARTUUID=
+# entries through the /dev/disk/by-* symlinks that udev creates, which do not
+# exist yet at that point, so on an installed system every UUID= line fails
+# with "can't find UUID=..." -- most visibly leaving /boot/efi unmounted.
+#
+# mount -a skips anything already mounted, so re-running it here after udev
+# has settled is idempotent, and harmless on the live ISO whose fstab has no
+# UUID entries.
+#
+# The alternative -- writing device nodes like /dev/vda3 into fstab -- is
+# worse: those names are not stable across disks or boots on real hardware.
+# UUIDs are the right identifier; they just need udev to be up first.
+
+case "$1" in
+	start)
+		printf 'Mounting filesystems from fstab: '
+		udevadm settle --timeout=10 2>/dev/null
+		rc=0
+		# Anything without noauto, for entries a user adds later.
+		mount -a || rc=1
+		# The EFI system partition is deliberately noauto (see aos-install),
+		# so it must be named explicitly. Only on an installed system: the
+		# live ISO has no /boot/efi entry.
+		if grep -qE '^[^#].*[[:space:]]/boot/efi[[:space:]]' /etc/fstab \
+		   && ! grep -qs ' /boot/efi ' /proc/mounts; then
+			mount /boot/efi || rc=1
+		fi
+		if [ "$rc" = 0 ]; then
+			echo "OK"
+		else
+			echo "FAIL"
+			exit 1
+		fi
+		;;
+	stop|restart|reload)
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac

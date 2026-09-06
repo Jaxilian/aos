@@ -252,6 +252,14 @@ BR2_TARGET_GRUB2_BUILTIN_CONFIG_EFI="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-emb
 BR2_TARGET_GRUB2_BUILTIN_CONFIG_PC="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-embedded.cfg"
 # aos-install runs grub-install and grub-mkconfig on the installed system.
 BR2_TARGET_GRUB2_INSTALL_TOOLS=y
-# Re-runs xorriso with -isohybrid-mbr and -isohybrid-gpt-basdat so the ISO can
-# be written to a USB stick with dd. Buildroot's grub2 ISO path omits both.
-BR2_ROOTFS_POST_IMAGE_SCRIPT="$(BR2_EXTERNAL_AOS_PATH)/board/aos/post-image.sh"
+# NOTE: there is deliberately no POST_IMAGE script here.
+#
+# An earlier attempt made the ISO USB-bootable by re-running xorriso over the
+# staging tree from a post-image script. That is wrong: Buildroot generates
+# filesystem images inside a fakeroot session so that everything is owned by
+# root, and post-image scripts run outside it. The rebuilt ISO came out owned
+# by the build user, which left the booted system unable to open /dev/console
+# or write to /run, so the network and getty both failed.
+#
+# Making the ISO hybrid has to preserve that ownership -- see the note on USB
+# booting in PLATFORM.md.

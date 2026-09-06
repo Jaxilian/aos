@@ -154,3 +154,15 @@ CONFIG_X86_PAT=y
 # toolchain and the development sysroot are all on it.
 CONFIG_ZISOFS=y
 CONFIG_ZLIB_INFLATE=y
+
+# --- Console on UEFI ----------------------------------------------------------
+# Under UEFI there is no VGA text mode, so the only way to get a console on
+# the screen is fbcon on top of a framebuffer. simpledrm takes the firmware
+# framebuffer and the bochs/i915/xe/amdgpu drivers take over later, but a DRM
+# driver provides an fbdev for fbcon to bind to ONLY with this set. Without it
+# the console stays on the "colour dummy device" and the screen is black from
+# the moment GRUB hands over, while the system runs fine on serial.
+# Legacy BIOS boots were unaffected because vgacon needs no framebuffer,
+# which is what made this hard to spot.
+CONFIG_DRM_FBDEV_EMULATION=y
+CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY=y

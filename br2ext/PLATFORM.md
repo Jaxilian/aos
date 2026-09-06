@@ -48,6 +48,14 @@ the staging sysroot by `board/aos/post-build.sh`.
 
 `/etc/os-release` identifies the system as `ID=aos`.
 
+On an installed system, `/etc/fstab` has **no entry for `/`** — on purpose.
+The kernel mounts the root from `root=PARTUUID=` in `/boot/grub/grub.cfg`,
+and BusyBox init remounts it read-write before udev exists; a `UUID=` line
+there cannot be resolved that early and only produces a spurious error.
+`/boot/efi` is listed with `noauto` and is mounted by
+`/etc/init.d/S15mount-fstab` once udev is up. If you add entries by UUID,
+they will be picked up by that same script.
+
 ## What is guaranteed present
 
 **Toolchain.** gcc, g++, cpp, `cc`, binutils (as, ld, ar, nm, objdump,
@@ -108,6 +116,62 @@ Vulkan ICDs are registered in `/usr/share/vulkan/icd.d/`, EGL vendors in
 `/usr/share/glvnd/egl_vendor.d/`, and EGL external platforms in
 `/usr/share/egl/egl_external_platform.d/`. Anything you add should follow
 the same convention.
+
+## Trying it in QEMU
+
+```sh
+./br2ext/board/aos/run-qemu.sh            # live ISO, UEFI, in a window
+./br2ext/board/aos/run-qemu.sh bios       # live ISO, legacy BIOS
+./br2ext/board/aos/run-qemu.sh install    # live ISO + a fresh blank 8G disk
+./br2ext/board/aos/run-qemu.sh disk       # boot the disk you installed to
+```
+
+Log in as `root`, no password. Add `serial` as a second word to run in the
+terminal instead of a window.
+
+Two things people trip over:
+
+- **Never run it with `sudo`.** QEMU with KVM needs no root; your user only
+  needs `/dev/kvm`. A root run leaves the disk image and OVMF variables owned
+  by root, after which a normal run cannot open them. The script refuses to
+  run as root and prints the cleanup command.
+- **One line of boot noise on the live ISO is expected.** Buildroot's
+  default inittab runs `mount -o remount,rw /` early; on the read-only ISO
+  that prints `mount: /: cannot remount /dev/root read-write, is
+  write-protected` and carries on. `/var` is made writable separately and
+  the system is fine. It does not appear on an installed system.
+- **Firmware variables are not kept between runs, on purpose.** OVMF saves
+  its boot order in its variable store. Reusing one file across runs let a
+  stale order put network boot (PXE) ahead of the ISO and the disk, so every
+  mode dropped into the firmware and sat on `Start PXE over IPv4`. The
+  script now uses a fresh copy of the store each run, pins the boot order
+  with `bootindex`, and strips the NIC's PXE ROM. If you drive QEMU by hand,
+  do the same.
+- **The two boot menu entries differ only in where the login goes.** The
+  first puts it on the screen, the second on the serial line. In a window,
+  use the first; with `serial`, use the second. Kernel messages go to both
+  either way.
+
+## USB booting
+
+**Not yet supported, and untested.** The ISO boots from optical media and in
+VMs (BIOS and UEFI). Written to a USB stick with `dd` it has no partition
+table, so a BIOS has nothing to boot and UEFI firmware finds no EFI system
+partition. Buildroot's `HYBRID` option only exists for the isolinux path,
+not the GRUB2 one this image uses.
+
+Do not "fix" this by regenerating the ISO from a post-image script. Buildroot
+builds images inside a fakeroot session so everything is owned by root, and
+post-image scripts run outside it: the rebuilt ISO comes out owned by the
+build user, `/dev/console` becomes unopenable, and the system boots into a
+cascade of permission errors. That was tried and reverted.
+
+The workable approach, when a stick is available to test against, is
+`xorriso -indev … -outdev … -boot_image any replay` plus the isohybrid MBR
+and GPT options, which rewrites only the boot records and copies the
+filesystem image verbatim, preserving ownership. UEFI-from-USB additionally
+needs the embedded GRUB config to *search* for its medium rather than assume
+`(cd0)`, which `grub-embedded.cfg` already does.
 
 ## Rebuilding AOS itself
 
