@@ -158,6 +158,8 @@ N: 	Alexis Lothoré <alexis.lothore@bootlin.com>
 F:	package/libxmlsec1/
 F:	package/openscap/
 F: 	package/python-scp/
+F:	support/testing/tests/package/test_libldns.py
+F:	support/testing/tests/package/test_python_scp.py
 
 N:	Alistair Francis <alistair@alistair23.me>
 F:	board/sifive/
@@ -165,6 +167,9 @@ F:	boot/opensbi/
 F:	configs/hifive_unleashed_defconfig
 F:	package/libspdm/
 F:	package/xen/
+
+N:	Alsey Coleman Miller <alseycmiller@gmail.com>
+F:	package/liblc3/
 
 N:	Alvaro G. M <alvaro.gamez@hazent.com>
 F:	package/dcron/
@@ -186,6 +191,7 @@ F:	package/wine/
 
 N:	Andrea Ricchi <andrea.ricchi@amarulasolutions.com>
 F:	package/cutekeyboard/
+F:	package/libcppconnman/
 
 N:	Andreas Klinger <ak@it-klinger.de>
 F:	package/ply/
@@ -243,6 +249,7 @@ F:	package/python-pillow/
 F:	package/python-pydal/
 F:	package/python-spidev/
 F:	package/python-web2py/
+F:	package/qpdf/
 F:	package/qt5/qt5coap/
 F:	package/qt5/qt5knx/
 F:	package/qt5/qt5mqtt/
@@ -445,6 +452,7 @@ F:	package/libsidplay2/
 F:	package/libsilk/
 F:	package/libsndfile/
 F:	package/libsoundtouch/
+F:	package/libudev-zero/
 F:	package/libudfread/
 F:	package/libunibreak/
 F:	package/liburiparser/
@@ -513,6 +521,7 @@ F:	package/python-pyicu/
 F:	package/python-pylru/
 F:	package/python-requests-oauthlib/
 F:	package/python-slob/
+F:	package/qt6/qt6positioning/
 F:	package/rrdtool/
 F:	package/rsync/
 F:	package/rtmpdump/
@@ -530,6 +539,7 @@ F:	package/unixodbc/
 F:	package/utfcpp/
 F:	package/vlc/
 F:	package/wget/
+F:	package/wget2/
 F:	package/wireless-regdb/
 F:	package/wireless_tools/
 F:	package/x264/
@@ -702,6 +712,9 @@ F:	package/perl-sys-mmap/
 F:	package/perl-time-parsedate/
 F:	package/perl-x10/
 
+N:	Christopher Obbard <chris.obbard@oss.qualcomm.com>
+F:	package/dtui/
+
 N:	Colin Foster <colin.foster@in-advantage.com>
 F:	package/python-tftpy/
 F:	package/rauc-hawkbit-updater/
@@ -809,6 +822,7 @@ F:	package/babeld/
 F:	package/bc/
 F:	package/cmocka/
 F:	package/connman/
+F:	package/drogon/
 F:	package/empty/
 F:	package/iana-assignments/
 F:	package/inih/
@@ -1138,6 +1152,7 @@ F:	package/cpulimit/
 
 N:	Florian Larysch <fl@n621.de>
 F:	package/casync-nano/
+F:	package/sigsum-c/
 F:	package/sigsum-go/
 
 N:	Floris Bos <bos@je-eigen-domein.nl>
@@ -1162,7 +1177,7 @@ F:	board/visionfive2/
 F:	configs/sipeed_licheepi_nano_defconfig
 F:	configs/visionfive2_defconfig
 
-N:	Francois Perrad <francois.perrad@gadz.org>
+N:	Francois Perrad <francois.perrad.86@gmail.com>
 F:	board/olimex/a20_olinuxino
 F:	board/olimex/imx233_olinuxino/
 F:	board/olimex/stmp1_olinuxino/
@@ -1176,7 +1191,9 @@ F:	package/copas/
 F:	package/coxpcall/
 F:	package/dado/
 F:	package/ficl/
+F:	package/hare*
 F:	package/janet/
+F:	package/qbe/
 F:	package/libtomcrypt/
 F:	package/libtommath/
 F:	package/linenoise/
@@ -1192,10 +1209,12 @@ F:	package/lzlib/
 F:	package/moarvm/
 F:	package/opendoas/
 F:	package/perl*
+F:	package/pkg-hare.mk
 F:	package/pkg-perl.mk
 F:	package/pkg-luarocks.mk
 F:	package/quickjs/
 F:	package/rings/
+F:	package/scdoc/
 F:	package/wsapi/
 F:	package/wsapi-fcgi/
 F:	package/wsapi-xavante/
@@ -1657,6 +1676,7 @@ F:	package/ssdp-responder/
 F:	package/sysklogd/
 F:	package/uredir/
 F:	package/watchdogd/
+F:	support/testing/tests/package/test_mdnsd.py
 
 N:	Jochen Baltes <jochen.baltes@gmail.com>
 F:	package/altera-stapl
@@ -1745,6 +1765,7 @@ F:	package/llama-cpp/
 F:	package/llvm-project/clang/
 F:	package/llvm-project/lld/
 F:	package/llvm-project/llvm/
+F:	package/mesa3d/
 F:	package/python-cython/
 F:	package/python-pycups/
 F:	package/python-raven/
@@ -1755,6 +1776,8 @@ F:	package/python-xlib/
 F:	package/sentry-cli/
 F:	package/sentry-native/
 F:	package/unclutter-xfixes/
+F:	package/virglrenderer/
+F:	support/testing/tests/package/test_virglrenderer.py
 
 N:	Joshua Henderson <joshua.henderson@microchip.com>
 F:	package/qt5/qt5wayland/
@@ -1833,6 +1856,8 @@ F:	support/testing/tests/boot/test_optee_os.py
 F:	support/testing/tests/boot/test_optee_os/
 F:	support/testing/tests/fs/test_btrfs.py
 F:	support/testing/tests/fs/test_btrfs/
+F:	support/testing/tests/fs/test_cramfs.py
+F:	support/testing/tests/fs/test_cramfs/
 F:	support/testing/tests/fs/test_erofs.py
 F:	support/testing/tests/fs/test_erofs/
 F:	support/testing/tests/fs/test_xfs.py
@@ -1844,6 +1869,7 @@ F:	support/testing/tests/package/sample_python_midiutil.py
 F:	support/testing/tests/package/sample_python_ml_dtypes.py
 F:	support/testing/tests/package/sample_python_mpmath.py
 F:	support/testing/tests/package/sample_python_pyalsa.py
+F:	support/testing/tests/package/sample_python_pydal.py
 F:	support/testing/tests/package/sample_python_spake2.py
 F:	support/testing/tests/package/sample_python_sympy.py
 F:	support/testing/tests/package/test_4th.py
@@ -1902,6 +1928,8 @@ F:	support/testing/tests/package/test_gnuradio/
 F:	support/testing/tests/package/test_gpsd.py
 F:	support/testing/tests/package/test_gpsd/
 F:	support/testing/tests/package/test_gstreamer1.py
+F:	support/testing/tests/package/test_guile.py
+F:	support/testing/tests/package/test_guile/
 F:	support/testing/tests/package/test_gzip.py
 F:	support/testing/tests/package/test_highway.py
 F:	support/testing/tests/package/test_hwloc.py
@@ -1929,6 +1957,8 @@ F:	support/testing/tests/package/test_libcamera.py
 F:	support/testing/tests/package/test_libcamera/
 F:	support/testing/tests/package/test_libcurl.py
 F:	support/testing/tests/package/test_libgpgme.py
+F:	support/testing/tests/package/test_libgpiod2.py
+F:	support/testing/tests/package/test_libgpiod2/
 F:	support/testing/tests/package/test_libjxl.py
 F:	support/testing/tests/package/test_lighttpd.py
 F:	support/testing/tests/package/test_links.py
@@ -1978,6 +2008,8 @@ F:	support/testing/tests/package/test_patch.py
 F:	support/testing/tests/package/test_patch/
 F:	support/testing/tests/package/test_pciutils.py
 F:	support/testing/tests/package/test_perftest.py
+F:	support/testing/tests/package/test_php.py
+F:	support/testing/tests/package/test_php/
 F:	support/testing/tests/package/test_pigz.py
 F:	support/testing/tests/package/test_postgresql.py
 F:	support/testing/tests/package/test_pppd.py
@@ -1993,10 +2025,13 @@ F:	support/testing/tests/package/test_python_midiutil.py
 F:	support/testing/tests/package/test_python_ml_dtypes.py
 F:	support/testing/tests/package/test_python_mpmath.py
 F:	support/testing/tests/package/test_python_pyalsa.py
+F:	support/testing/tests/package/test_python_pydal.py
 F:	support/testing/tests/package/test_python_pyqt5.py
 F:	support/testing/tests/package/test_python_pyqt5/
 F:	support/testing/tests/package/test_python_spake2.py
 F:	support/testing/tests/package/test_python_sympy.py
+F:	support/testing/tests/package/test_quickjs.py
+F:	support/testing/tests/package/test_quickjs/
 F:	support/testing/tests/package/test_rdma_core.py
 F:	support/testing/tests/package/test_rdma_core/
 F:	support/testing/tests/package/test_rrdtool.py
@@ -2030,6 +2065,8 @@ F:	support/testing/tests/package/test_weston/
 F:	support/testing/tests/package/test_wget.py
 F:	support/testing/tests/package/test_which.py
 F:	support/testing/tests/package/test_wine.py
+F:	support/testing/tests/package/test_wpa_supplicant.py
+F:	support/testing/tests/package/test_wpa_supplicant/
 F:	support/testing/tests/package/test_xfsprogs.py
 F:	support/testing/tests/package/test_xfsprogs/
 F:	support/testing/tests/package/test_xvisor.py
@@ -2235,10 +2272,10 @@ F:	board/orangepi/orangepi-zero3/
 F:	configs/grinn_*
 F:	configs/orangepi_zero_plus_defconfig
 F:	configs/orangepi_zero3_defconfig
-F:	package/argparse/
 F:	package/dt-utils/
 F:	package/easydbus/
 F:	package/gitlab-runner/
+F:	package/lua-argparse/
 F:	package/lua-flu/
 F:	package/lua-stdlib/
 F:	package/luaossl/
@@ -2262,6 +2299,8 @@ F:	support/testing/tests/package/sample_python_dbus_fast.py
 F:	support/testing/tests/package/sample_python_dbus_next.py
 F:	support/testing/tests/package/sample_python_pytest.py
 F:	support/testing/tests/package/sample_python_pytest_asyncio.py
+F:	support/testing/tests/package/test_easydbus.py
+F:	support/testing/tests/package/test_easydbus/
 F:	support/testing/tests/package/test_netdata.py
 F:	support/testing/tests/package/test_python_dbus_next.py
 F:	support/testing/tests/package/test_python_pytest.py
@@ -2396,6 +2435,10 @@ F:	configs/arcturus_ucls1012a_defconfig
 N:	Michael Fischer <mf@go-sys.de>
 F:	package/gnuplot/
 F:	package/sdl2/
+F:	package/sdl3/
+F:	package/sdl3_gfx/
+F:	package/sdl3_image/
+F:	package/sdl3_ttf/
 
 N:	Michael Nosthoff <buildroot@heine.tech>
 F:	package/boost/
@@ -2488,6 +2531,8 @@ F:	package/binutils-bare-metal/
 F:	package/bootgen/
 F:	package/gcc-bare-metal/
 F:	package/newlib-bare-metal/
+F:	package/qemu-xen/
+F:	package/xen/
 F:	package/xilinx-fpgautil/
 F:	toolchain/toolchain-bare-metal-buildroot/
 
@@ -2639,6 +2684,7 @@ F:	configs/orangepi_pc_defconfig
 F:	configs/orangepi_r1_defconfig
 F:	configs/sheevaplug_defconfig
 F:	configs/visionfive_defconfig
+F:	package/agec/
 F:	package/bats-core/
 F:	package/dfu-programmer/
 F:	package/docker-compose/
@@ -2673,7 +2719,9 @@ F:	package/triggerhappy/
 F:	package/ugetty/
 F:	package/wireguard-linux-compat/
 F:	package/wireguard-tools/
+F:	support/testing/tests/package/test_agec.py
 F:	support/testing/tests/package/test_docker_compose.py
+F:	support/testing/tests/package/test_haproxy.py
 F:	support/testing/tests/package/test_python_hid.py
 
 N:	Peter Seiderer <ps.report@gmx.net>
@@ -2762,10 +2810,6 @@ F:	package/synergy/
 
 N:	Qais Yousef <qais.yousef@arm.com>
 F:	package/bpftrace/
-
-N:	Rafal Susz <rafal.susz@gmail.com>
-F:	board/avnet/s6lx9_microboard/
-F:	configs/s6lx9_microboard_defconfig
 
 N:	Rafał Miłecki <rafal@milecki.pl>
 F:	board/broadcom/northstar/
@@ -3019,10 +3063,13 @@ F:	package/ubus/
 F:	package/wolfssl/
 
 N:	Shubham Chakraborty <chakrabortyshubham66@gmail.com>
+F:	package/bash-completion/
 F:	package/ccache/
 F:	package/dos2unix/
+F:	package/font-awesome/
 F:	package/htop/
 F:	package/hyperfine/
+F:	package/libenca/
 F:	package/pv/
 F:	package/unrar/
 F:	package/xterm/
@@ -3255,7 +3302,10 @@ F:	support/testing/tests/package/sample_python_augeas.py
 F:	support/testing/tests/package/sample_python_flask.py
 F:	support/testing/tests/package/sample_python_flask_expects_json.py
 F:	support/testing/tests/package/sample_python_git.py
+F:	support/testing/tests/package/sample_python_pyudev.py
 F:	support/testing/tests/package/sample_python_unittest_xml_reporting.py
+F:	support/testing/tests/package/test_bpftrace.py
+F:	support/testing/tests/package/test_bpftrace/linux-bpftrace.fragment
 F:	support/testing/tests/package/test_nodejs.py
 F:	support/testing/tests/package/test_python_augeas.py
 F:	support/testing/tests/package/test_python_crccheck.py
@@ -3264,6 +3314,7 @@ F:	support/testing/tests/package/test_python_flask_expects_json.py
 F:	support/testing/tests/package/test_python_fs.py
 F:	support/testing/tests/package/test_python_git.py
 F:	support/testing/tests/package/test_python_pyfatfs.py
+F:	support/testing/tests/package/test_python_pyudev.py
 F:	support/testing/tests/package/test_python_pyusb.py
 F:	support/testing/tests/package/test_python_serial.py
 F:	support/testing/tests/package/test_snagboot.py
@@ -3336,6 +3387,8 @@ F:	package/dpdk/
 F:	package/libecoli/
 F:	package/libnss-ato/
 F:	package/libyang-cpp/
+F:	package/python-libyang/
+F:	package/python-sysv-ipc/
 F:	package/sysrepo-cpp/
 
 N:	Vincent Prince <vincent.prince.fr@gmail.com>
@@ -3384,10 +3437,6 @@ F:	support/testing/tests/package/test_zerofree.py
 N:	Vinicius Tinti <viniciustinti@gmail.com>
 F:	package/python-thrift/
 
-N:	Vivien Didelot <vivien.didelot@gmail.com>
-F:	board/technologic/ts5500/
-F:	configs/ts5500_defconfig
-
 N:	Vladimir Oltean <olteanv@gmail.com>
 F:	package/qoriq-ddr-phy-binary/
 F:	package/qoriq-firmware-inphi/
@@ -3412,6 +3461,11 @@ F:	package/evilwm/
 F:	package/fbv/
 F:	package/libpam-pkcs11/
 F:	package/mksh/
+F:	package/perl-cgi/
+F:	package/perl-cgi-session/
+F:	package/perl-log-message/
+F:	package/perl-log-message-simple/
+F:	package/perl-switch/
 F:	package/ruby/
 F:	package/uclibc/
 F:	package/uclibc-ng-test/
@@ -3471,6 +3525,10 @@ F:	package/tpm2-pkcs11/
 
 N:	Yann E. MORIN <yann.morin@orange.com>
 F:	.editorconfig
+F:	package/amazon-ecr-credential-helper/
+F:	package/distribution-registry/
+F:	package/docker-credential-acr-env/
+F:	package/docker-credential-gcr/
 F:	package/gpsd/
 F:	package/mosquitto/
 F:	package/python-humanfriendly/

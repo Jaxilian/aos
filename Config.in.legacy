@@ -144,6 +144,103 @@ endif
 
 ###############################################################################
 
+comment "Legacy options removed in 2026.08"
+
+config BR2_PACKAGE_FLUIDSYNTH_SDL2
+	bool "fluidsynth sdl2 audio support removed"
+	select BR2_LEGACY
+	help
+	  FluidSynth SDL2 audio support was removed in v2.5.0.
+
+config BR2_PACKAGE_HOSTAPD_DRIVER_HOSTAP
+	bool "hostapd hostap driver removed"
+	select BR2_LEGACY
+	help
+	  The hostap driver was removed from hostapd.
+
+config BR2_GDB_VERSION_ARC
+	bool "ARC-specific gdb version removed"
+	select BR2_LEGACY
+	help
+	  Support for the ARC-specific gdb version was removed, as it
+	  was no longer maintained in Buildroot.
+
+config BR2_BINUTILS_VERSION_ARC
+	bool "ARC-specific binutils version removed"
+	select BR2_LEGACY
+	help
+	  Support for the ARC-specific binutils version was removed,
+	  as it was no longer maintained in Buildroot.
+
+config BR2_GCC_VERSION_ARC
+	bool "ARC-specific gcc version removed"
+	select BR2_LEGACY
+	help
+	  Support for the ARC-specific gcc version was removed, as it
+	  was no longer maintained in Buildroot.
+
+config BR2_TOOLCHAIN_EXTERNAL_SYNOPSYS_ARC
+	bool "Synopsys ARC toolchain removed"
+	select BR2_LEGACY
+	help
+	  The Synopsys ARC external toolchain has been removed, as it
+	  was no longer maintained in Buildroot.
+
+config BR2_PACKAGE_TS4900_FPGA
+	bool "ts4900-fpga removed"
+	select BR2_LEGACY
+	help
+	  The ts4900 defconfig was removed, so ts4900-fpga package
+	  has been dropped.
+
+config BR2_GDB_VERSION_14
+	bool "gdb 14.x has been removed"
+	select BR2_LEGACY
+	help
+	  GDB 14.x support has been removed, a newer version should be
+	  used instead.
+
+config BR2_PACKAGE_ARGPARSE
+	bool "argparse has been removed"
+	select BR2_LEGACY
+	select BR2_PACKAGE_LUA_ARGPARSE
+	help
+	  Package argparse duplicates the package lua-argparse.
+
+config BR2_KERNEL_HEADERS_7_0
+	bool "kernel headers version 7.0.x are no longer supported"
+	select BR2_LEGACY
+	help
+	  Version 7.0.x of the Linux kernel headers are no longer
+	  maintained upstream and are now removed.
+
+config BR2_PACKAGE_BLUEZ5_UTILS_PLUGINS_SAP
+	bool "bluez sap plugin removed"
+	select BR2_LEGACY
+	help
+	  Build plugin for SAP profile.
+
+config BR2_PACKAGE_BLUEZ5_UTILS_PLUGINS_HEALTH
+	bool "bluez health plugin removed"
+	select BR2_LEGACY
+	help
+	  Build plugin for health profiles.
+
+config BR2_GCC_VERSION_13_X
+	bool "gcc 13.x support removed"
+	select BR2_LEGACY
+	help
+	  Support for building a toolchain based on GCC 13.x has been
+	  removed, chose a newer GCC version instead.
+
+config BR2_PACKAGE_QEMU_TARGET_MICROBLAZEEL
+	bool "qemu target microblazeel removed"
+	select BR2_PACKAGE_QEMU_TARGET_MICROBLAZE
+	select BR2_LEGACY
+	help
+	  Version 11.0.0 of qemu folded microblazeel support into
+	  the microblaze target.
+
 comment "Legacy options removed in 2026.05"
 
 config BR2_PACKAGE_PTPD2
@@ -6205,8 +6302,6 @@ config BR2_GCC_VERSION_4_8_ARC
 	help
 	  The option that selects the gcc version for the ARC
 	  architecture has been renamed to BR2_GCC_VERSION_ARC.
-# Note: BR2_GCC_VERSION_4_8_ARC is still referenced from
-# package/gcc/Config.in.host
 
 config BR2_KERNEL_HEADERS_4_0
 	bool "kernel headers version 4.0.x are no longer supported"
