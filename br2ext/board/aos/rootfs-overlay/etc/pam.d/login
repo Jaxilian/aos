@@ -1,0 +1,11 @@
+# Console login. Buildroot's default (/usr/lib/pam.d/login) plus pam_systemd,
+# which registers the login as a logind session -- and so gives it a seat and
+# an XDG_RUNTIME_DIR. Without it a compositor started from this login cannot
+# take the GPU or input devices through logind.
+auth		required	pam_unix.so nullok
+account		required	pam_unix.so
+password	required	pam_unix.so nullok
+session		required	pam_limits.so
+session		required	pam_env.so
+session		required	pam_unix.so
+session		optional	pam_systemd.so

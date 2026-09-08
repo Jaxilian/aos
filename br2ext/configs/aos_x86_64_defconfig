@@ -17,13 +17,46 @@ BR2_TOOLCHAIN_BUILDROOT_CXX=y
 # System.
 BR2_TARGET_GENERIC_HOSTNAME="aos"
 BR2_TARGET_GENERIC_ISSUE="AOS - kernel, libc, drivers. The rest is yours."
-BR2_INIT_BUSYBOX=y
-BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
-# Follow the kernel console= setting rather than pinning tty1, so the same
-# image gives a login on a VGA screen and on a serial console. A foundation
-# image gets driven headlessly at least as often as it gets a monitor.
-BR2_TARGET_GENERIC_GETTY_PORT="console"
+# Init is systemd. It is what the software people will build on AOS expects
+# to find underneath it -- units, journald, logind, udev, D-Bus, networkd --
+# and the point of a foundation is that nothing above it has to be taught a
+# second, non-standard way to start, log and find its seat.
+#
+# systemd brings its own udev. The /dev management choice is hidden while
+# BR2_INIT_SYSTEMD is set, which is why there is no eudev line here.
+BR2_INIT_SYSTEMD=y
+# Login on both the screen and the serial line. GETTY_PORT names the virtual
+# console explicitly; systemd's getty generator adds a serial getty for every
+# console= on the kernel command line by itself. ("console" here would make
+# Buildroot disable getty@tty1, leaving the screen without a login.)
+BR2_TARGET_GENERIC_GETTY_PORT="tty1"
+# The live ISO is read-only, so do not try to remount / read-write; the
+# installed system is mounted rw by the kernel from "rw" on its command line.
+# With this off Buildroot builds a /var "factory": on the ISO /var is a tmpfs
+# that systemd-tmpfiles populates from /usr/share/factory/var at boot. The
+# var.mount drop-in in the rootfs overlay turns that tmpfs off once the root
+# is writable, so an installed system keeps its real /var.
+# BR2_TARGET_GENERIC_REMOUNT_ROOTFS_RW is not set
+BR2_INIT_SYSTEMD_VAR_FACTORY=y
+# No BusyBox at all. Everything it used to cover has a real replacement:
+# init, udev and logging (systemd), sh (bash), login and passwd (shadow), su
+# (util-linux), ping (iputils), vi (vim), bzip2.
+# BR2_PACKAGE_BUSYBOX is not set
+BR2_SYSTEM_BIN_SH_BASH=y
 BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_AOS_PATH)/board/aos/rootfs-overlay"
+
+# systemd components beyond Buildroot's defaults. journald, udev, hwdb,
+# vconsole, hostnamed, timedated, timesyncd, networkd and resolved are on
+# already. logind is what gives a login session its seat and XDG_RUNTIME_DIR,
+# and a Wayland compositor and its clients need both.
+BR2_PACKAGE_SYSTEMD_LOGIND=y
+BR2_PACKAGE_SYSTEMD_BACKLIGHT=y
+BR2_PACKAGE_SYSTEMD_RFKILL=y
+BR2_PACKAGE_SYSTEMD_COREDUMP=y
+BR2_PACKAGE_SYSTEMD_RANDOMSEED=y
+# Sandboxing directives in unit files (SystemCallFilter= and friends) need
+# libseccomp; without it they are silently ignored.
+BR2_PACKAGE_LIBSECCOMP=y
 
 # Kernel: latest upstream, seeded from the mainline x86_64 defconfig so we
 # inherit its broad PC hardware coverage, then narrowed/widened by our
@@ -45,15 +78,11 @@ BR2_TARGET_ROOTFS_EXT2_SIZE="4G"
 ################################################################################
 # M1 -- GNU userland.
 #
-# BusyBox stays as init and for odds and ends, but the tools that build
-# systems actually invoke are the real GNU ones. This is not preference:
-# BusyBox applets diverge from GNU in ways that break ./configure, cargo
-# build.rs and kbuild, and a self-hosting image has to survive all three.
+# The real GNU tools, with no BusyBox to fall back on. This is not
+# preference: BusyBox applets diverge from GNU in ways that break
+# ./configure, cargo build.rs and kbuild, and a self-hosting image has to
+# survive all three.
 ################################################################################
-# Buildroot hides any package that duplicates a BusyBox applet unless this
-# is set. Shipping the real GNU tools alongside BusyBox is the entire point
-# of M1, so it has to be on.
-BR2_PACKAGE_BUSYBOX_SHOW_OTHERS=y
 BR2_PACKAGE_COREUTILS=y
 BR2_PACKAGE_BASH=y
 BR2_PACKAGE_GAWK=y
@@ -79,19 +108,23 @@ BR2_PACKAGE_MAKE=y
 BR2_PACKAGE_BINUTILS=y
 BR2_PACKAGE_BINUTILS_TARGET=y
 
-# Process and module handling. kmod rather than the BusyBox applets because
-# a modular kernel is central to the "boots on anything" goal.
+# Process and module handling. systemd needs kmod, and a modular kernel is
+# central to the "boots on anything" goal.
 BR2_PACKAGE_KMOD=y
 BR2_PACKAGE_KMOD_TOOLS=y
 BR2_PACKAGE_PROCPS_NG=y
 BR2_PACKAGE_PSMISC=y
 BR2_PACKAGE_UTIL_LINUX=y
 BR2_PACKAGE_UTIL_LINUX_BINARIES=y
-# Real mount/umount. BusyBox's applet cannot resolve UUID= or PARTUUID=
-# in /etc/fstab (it needs FEATURE_MOUNT_LABEL, which Buildroot leaves off),
-# so an fstab written by aos-install fails at boot with "Can't lookup
-# blockdev". util-linux mount understands both.
+# mount/umount: systemd selects them anyway, and the fstab that aos-install
+# writes uses UUID= entries, which util-linux mount resolves.
 BR2_PACKAGE_UTIL_LINUX_MOUNT=y
+# su, with PAM. shadow below is deliberately built without its own.
+BR2_PACKAGE_UTIL_LINUX_SU=y
+# Accounts: login, passwd, useradd and friends. PAM-enabled, so a console
+# login registers with logind -- see rootfs-overlay/etc/pam.d/login.
+BR2_PACKAGE_LINUX_PAM=y
+BR2_PACKAGE_SHADOW=y
 
 # Needed by aos-install: partitioning, filesystems, EFI boot entries.
 BR2_PACKAGE_E2FSPROGS=y
@@ -101,21 +134,28 @@ BR2_PACKAGE_DOSFSTOOLS=y
 BR2_PACKAGE_DOSFSTOOLS_MKFS_FAT=y
 BR2_PACKAGE_DOSFSTOOLS_FSCK_FAT=y
 BR2_PACKAGE_DOSFSTOOLS_FATLABEL=y
-# Console keymaps. BusyBox has a loadkmap applet but ships no keymap data, so
-# without kbd the console is stuck on the kernel's built-in US layout with no
-# way to change it. kbd provides loadkeys and the keymap files for every
-# common layout; /etc/init.d/S20keymap applies the one in /etc/vconsole.conf.
+# Console keymaps. kbd provides loadkeys and the keymap files for every
+# common layout; systemd-vconsole-setup applies the one named in
+# /etc/vconsole.conf at boot.
 BR2_PACKAGE_KBD=y
 BR2_PACKAGE_PARTED=y
 BR2_PACKAGE_EFIBOOTMGR=y
+# Things BusyBox used to cover. An editor above all: a machine you are meant
+# to write an operating system on cannot ship without one.
+BR2_PACKAGE_VIM=y
+BR2_PACKAGE_IPUTILS=y
+BR2_PACKAGE_BZIP2=y
 
 ################################################################################
 # M2 -- networking userland.
 #
 # Whoever writes the package manager needs a working TLS fetch on first boot,
 # so openssl, a CA bundle and curl are part of the foundation, not extras.
+#
+# Addresses and DNS come from systemd-networkd and systemd-resolved, which
+# Buildroot enables with BR2_INIT_SYSTEMD; the .network files in the rootfs
+# overlay put every wired and wireless interface on DHCP.
 ################################################################################
-BR2_PACKAGE_DHCPCD=y
 BR2_PACKAGE_IPROUTE2=y
 BR2_PACKAGE_IW=y
 BR2_PACKAGE_WPA_SUPPLICANT=y
@@ -237,7 +277,7 @@ BR2_PACKAGE_AOS_NVIDIA_SMI=y
 # machines. zisofs stores files compressed and expands them on read, so the
 # kernel needs CONFIG_ZISOFS (set in linux.config.fragment).
 #
-# /var is made writable at boot by etc/init.d/S00livevar.
+# /var is a tmpfs seeded from a factory copy -- see the System section.
 ################################################################################
 BR2_TARGET_ROOTFS_ISO9660=y
 BR2_TARGET_ROOTFS_ISO9660_GRUB2=y

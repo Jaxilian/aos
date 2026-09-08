@@ -8,6 +8,7 @@ Short guides for working on AOS. Start here.
 - [upgrading.md](upgrading.md) — how to move to a newer kernel or package
 - [keyboard.md](keyboard.md) — changing the console keyboard layout
 - [testing.md](testing.md) — how to run and test it
+- [roadmap.md](roadmap.md) — plan for building an init system, compositor and desktop on AOS
 - [publishing.md](publishing.md) — how to hand the image to someone else
 
 The platform contract — what AOS guarantees to software built on top of it —

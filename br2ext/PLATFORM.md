@@ -7,8 +7,7 @@
 
 AOS is a foundation, not a distribution. It gives you a kernel, a C library,
 drivers, a graphics stack and a working toolchain -- and then stops. There is
-no package manager, no init beyond BusyBox, no desktop, no applications. Those
-are yours to write.
+no package manager, no desktop, no applications. Those are yours to write.
 
 This document is the contract: what is guaranteed to be present, what is
 deliberately absent, and what you can rely on when building on top.
@@ -18,10 +17,11 @@ deliberately absent, and what you can rely on when building on top.
 | | |
 |---|---|
 | Architecture | x86_64, **x86-64-v2** baseline (SSE4.2 + POPCNT, ~2009 and later) |
-| C library | glibc 2.43 |
+| C library | glibc 2.44 |
 | C/C++ compiler | gcc 15.3.0 |
 | Rust | 1.96.1 (rustc + cargo) |
-| Kernel | Linux 7.0.11 |
+| Kernel | Linux 7.1.13 |
+| Init | systemd 258.7 |
 | binutils | as, ld and friends, on the target |
 
 The v2 baseline is a deliberate trade. It rules out pre-2009 CPUs and buys
@@ -34,10 +34,9 @@ an AOS image will panic on it with an invalid opcode inside `ld-linux`. Use
 
 ## Filesystem layout
 
-Standard FHS. Buildroot's skeleton decides whether `/usr` is merged; AOS does
-not override it. Programs live in `/usr/bin` and `/usr/sbin`, libraries in
-`/usr/lib`, and `/bin`, `/sbin` and `/lib` are symlinks into `/usr` when the
-merged layout is active.
+Standard FHS with a merged `/usr`, as systemd requires. Programs live in
+`/usr/bin` and `/usr/sbin`, libraries in `/usr/lib`, and `/bin`, `/sbin` and
+`/lib` are symlinks into `/usr`.
 
 Two things are worth knowing because they are not typical of an embedded image:
 
@@ -55,31 +54,41 @@ the staging sysroot by `board/aos/post-build.sh`.
 
 On an installed system, `/etc/fstab` has **no entry for `/`** — on purpose.
 The kernel mounts the root from `root=PARTUUID=` in `/boot/grub/grub.cfg`,
-and BusyBox init remounts it read-write before udev exists; a `UUID=` line
-there cannot be resolved that early and only produces a spurious error.
-`/boot/efi` is listed with `noauto` and is mounted by
-`/etc/init.d/S15mount-fstab` once udev is up. If you add entries by UUID,
-they will be picked up by that same script.
+read-write, and with no line to consult `systemd-remount-fs` leaves it alone.
+`/boot/efi` is listed by `UUID=` with `nofail`; systemd waits for udev to
+create the `/dev/disk/by-uuid` link before mounting it, and entries you add
+by UUID work the same way.
+
+On the live ISO the root is read-only and `/var` is a tmpfs, seeded at boot
+from `/usr/share/factory/var`. An installed system has a real `/var`; the
+drop-in in `/etc/systemd/system/var.mount.d/` keeps the tmpfs off there.
 
 ## What is guaranteed present
 
 **Toolchain.** gcc, g++, cpp, `cc`, binutils (as, ld, ar, nm, objdump,
 readelf), make, rustc, cargo, pkgconf, flex.
 
-**GNU userland**, not BusyBox applets: coreutils, bash, gawk, sed, grep,
-findutils, diffutils, tar, gzip, xz, zstd, patch, which, less, file.
-BusyBox is present, but only as init and as a fallback for applets nothing
-else provides. This matters because `./configure` scripts, `build.rs` and
-kbuild all depend on GNU behaviour that BusyBox does not reproduce exactly.
+**Init.** systemd: units, journald, udev with hwdb, logind, D-Bus,
+systemd-networkd, systemd-resolved, timesyncd and vconsole. Console logins
+go through PAM and register a logind session, so anything you start from one
+has a seat and an `XDG_RUNTIME_DIR` — which is what a Wayland compositor and
+its clients need.
+
+**GNU userland**: coreutils, bash (also `/bin/sh`), gawk, sed, grep,
+findutils, diffutils, tar, gzip, bzip2, xz, zstd, patch, which, less, file,
+vim; util-linux, procps, psmisc, kmod, kbd, shadow, iputils. There is no
+BusyBox. This matters because `./configure` scripts, `build.rs` and kbuild
+all depend on GNU behaviour that BusyBox does not reproduce exactly.
 
 **Kernel and drivers.** A modular kernel with broad PC coverage: SATA/AHCI,
 NVMe, legacy PATA, USB, HID, ext4/btrfs/xfs/f2fs/exfat/NTFS3/vfat, and wired
 and wireless networking for the common Intel, Atheros, Realtek, MediaTek and
 Broadcom parts, with firmware.
 
-**Networking.** dhcpcd, iproute2, iw, wpa_supplicant, OpenSSL, a CA bundle
-and curl. Enough that whatever fetches your first package can use TLS on
-first boot.
+**Networking.** systemd-networkd and systemd-resolved, with every wired and
+wireless interface on DHCP; iproute2, iw, wpa_supplicant, OpenSSL, a CA
+bundle and curl. Enough that whatever fetches your first package can use TLS
+on first boot.
 
 **Graphics.** libdrm, Mesa (GBM, EGL, OpenGL ES, Vulkan) and libglvnd.
 Gallium drivers: iris, crocus, radeonsi, r600, nouveau, llvmpipe, zink.
@@ -97,10 +106,8 @@ enable `BR2_PACKAGE_AOS_NVIDIA` to include them.
   update mechanism. Writing one is the intended first project.
 - **A display server.** No X11 and no Wayland compositor. You get DRM/KMS,
   GBM, EGL and Vulkan, and you write the compositor.
-- **systemd.** Init is BusyBox with `/etc/inittab` and shell scripts in
-  `/etc/init.d`. Replacing `/sbin/init` with your own is expected.
-- **Applications.** No editor beyond what BusyBox provides, no browser, no
-  language runtimes other than Rust.
+- **Applications.** No editor beyond vim, no browser, no language runtimes
+  other than Rust.
 - **A GUI installer.** `aos-install` is a shell script.
 
 ## Building on top
@@ -140,11 +147,6 @@ Two things people trip over:
   needs `/dev/kvm`. A root run leaves the disk image and OVMF variables owned
   by root, after which a normal run cannot open them. The script refuses to
   run as root and prints the cleanup command.
-- **One line of boot noise on the live ISO is expected.** Buildroot's
-  default inittab runs `mount -o remount,rw /` early; on the read-only ISO
-  that prints `mount: /: cannot remount /dev/root read-write, is
-  write-protected` and carries on. `/var` is made writable separately and
-  the system is fine. It does not appear on an installed system.
 - **Firmware variables are not kept between runs, on purpose.** OVMF saves
   its boot order in its variable store. Reusing one file across runs let a
   stale order put network boot (PXE) ahead of the ISO and the disk, so every

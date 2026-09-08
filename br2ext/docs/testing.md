@@ -49,6 +49,15 @@ ls /usr/share/vulkan/icd.d/          # intel, amd, llvmpipe, virtio, nvidia
 lsmod | grep nvidia
 ```
 
+Init and networking:
+
+```sh
+systemctl --failed                   # expect "0 loaded units listed"
+journalctl -b -p err                 # errors from this boot, kernel included
+loginctl                             # your login shows as a session with a seat
+networkctl                           # the NIC should be "routable"
+```
+
 ## Three traps
 
 **Never use `sudo`.** QEMU with KVM does not need root, and running as root
@@ -77,15 +86,3 @@ check the screen from a script:
 
 Then look at `/tmp/s.ppm`. A black screen is a few hundred bytes of solid
 colour; a working console is visibly text.
-
-## One expected message
-
-On the live ISO you will see:
-
-```
-mount: /: cannot remount /dev/root read-write, is write-protected
-```
-
-That is normal. BusyBox init tries to remount the root read-write, which
-cannot work on a read-only ISO. `/var` is made writable separately. It does
-not appear on an installed system.

@@ -3,10 +3,12 @@
 # Only put here what the mainline defconfig does not already give us.
 # M2 grows this considerably (DRM, wifi, legacy PATA, filesystems);
 # for M0 we only assert the handful of options Buildroot's userland
-# and eudev depend on, so that a defconfig change upstream cannot
-# silently break the boot.
+# depends on, so that a defconfig change upstream cannot silently
+# break the boot. systemd's own requirements -- cgroups, inotify,
+# signalfd, autofs, seccomp and so on -- are forced on by Buildroot's
+# package/systemd when the kernel is configured and need no lines here.
 
-# Device nodes: eudev needs devtmpfs mounted before it starts.
+# Device nodes: udev needs devtmpfs mounted before it starts.
 CONFIG_DEVTMPFS=y
 CONFIG_DEVTMPFS_MOUNT=y
 

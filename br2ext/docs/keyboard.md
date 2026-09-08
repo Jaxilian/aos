@@ -17,7 +17,7 @@ Reboot, or apply it straight away without one:
 loadkeys sv-latin1
 ```
 
-`/etc/init.d/S20keymap` reads that file at every boot.
+`systemd-vconsole-setup` reads that file at every boot.
 
 ## Finding your layout
 
@@ -54,13 +54,13 @@ keyboard data — Buildroot has `libxkbcommon` but not `xkeyboard-config`, so
 you will need to supply the layout data yourself.
 
 **Serial consoles are unaffected.** Key translation there happens in your
-terminal emulator, not in AOS, so `S20keymap` does nothing when you boot with
+terminal emulator, not in AOS, so the setting does nothing for a login on
 `console=ttyS0`.
 
 ## Why kbd is installed
 
-BusyBox has a `loadkmap` applet, and it is on the image, but it reads only a
-pre-compiled binary keymap and BusyBox ships no keymap data at all. Without
-the `kbd` package the console is stuck on the kernel's built-in US layout with
-no way to select another. `kbd` provides real `loadkeys` and the keymap files
-for every common layout, for a few MB.
+`systemd-vconsole-setup` does not load keymaps itself: it runs `loadkeys`,
+and the keymap files have to come from somewhere. Without the `kbd` package
+the console is stuck on the kernel's built-in US layout with no way to select
+another. `kbd` provides `loadkeys` and the keymap files for every common
+layout, for a few MB.

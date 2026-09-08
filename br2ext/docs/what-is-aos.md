@@ -31,12 +31,13 @@ legacy PATA. Roughly any x86-64 machine from 2009 onwards.
 
 | | |
 |---|---|
-| Kernel | Linux 7.0.11, modular, ~115 driver modules |
-| C library | glibc 2.43 |
+| Kernel | Linux 7.1.13, modular, ~115 driver modules |
+| C library | glibc 2.44 |
 | Compilers | gcc 15.3.0 (C and C++), Rust 1.96.1 with cargo |
-| Userland | Real GNU tools — coreutils, bash, gawk, sed, grep, tar, findutils |
-| Graphics | Mesa 26.1.2, Vulkan, libglvnd, NVIDIA 610.57.04 |
-| Networking | dhcpcd, wpa_supplicant, iw, OpenSSL, curl, CA certificates |
+| Init | systemd — journald, udev, logind, networkd, resolved |
+| Userland | Real GNU tools — coreutils, bash, gawk, sed, grep, tar, findutils, vim |
+| Graphics | Mesa 26.1.8, Vulkan, libglvnd, NVIDIA 610.57.04 |
+| Networking | systemd-networkd, wpa_supplicant, iw, OpenSSL, curl, CA certificates |
 | Keyboard | kbd, with every common console layout |
 | Architecture | x86-64-v2 (roughly 2009 and newer) |
 
@@ -45,8 +46,7 @@ Full list with versions: [packages.md](packages.md).
 ## What it does not include
 
 No package manager. No display server — no X11, no Wayland compositor. No
-systemd; init is BusyBox with shell scripts. No editor beyond BusyBox `vi`,
-no browser, no language runtimes other than Rust.
+editor beyond vim, no browser, no language runtimes other than Rust.
 
 ## The short answer
 

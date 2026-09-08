@@ -1,0 +1,7 @@
+# Every wired interface on DHCP. Matches both the predictable names udev
+# assigns (enp3s0, ens3) and the classic eth0.
+[Match]
+Name=en* eth*
+
+[Network]
+DHCP=yes

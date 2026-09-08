@@ -59,7 +59,7 @@ fi
 DISPLAY_OPTS=""
 [ "$SERIAL" = yes ] && DISPLAY_OPTS="-nographic"
 
-# Networking: keep a NIC so dhcpcd inside AOS gets an address, but strip its
+# Networking: keep a NIC so networkd inside AOS gets an address, but strip its
 # PXE option ROM (romfile=) so the firmware is never offered network boot.
 # OVMF's PXE on QEMU's user network gets a DHCP lease and then waits a very
 # long time, which looks exactly like "nothing to boot".

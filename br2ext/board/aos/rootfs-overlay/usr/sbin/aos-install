@@ -90,6 +90,17 @@ rmdir "$SRC"
 mkdir -p "$TARGET/proc" "$TARGET/sys" "$TARGET/dev" "$TARGET/run" "$TARGET/tmp"
 chmod 1777 "$TARGET/tmp"
 
+# /var. On the live ISO it is a tmpfs seeded from /usr/share/factory/var
+# (Buildroot's arrangement for a read-only root), and the /var underneath --
+# the one the bind-mount copy just installed -- is an empty directory. Fill
+# it from the factory so the installed system starts with a real /var. The
+# var.mount drop-in in /etc/systemd/system keeps the tmpfs off once the root
+# is writable.
+cp -a /usr/share/factory/var/. "$TARGET/var/"
+# journald keeps logs across reboots only if this directory exists. On the
+# ISO the journal is volatile because /var is.
+mkdir -p "$TARGET/var/log/journal"
+
 echo ">>> Writing /etc/fstab"
 ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
 ESP_UUID=$(blkid -s UUID -o value "$ESP")
@@ -101,28 +112,22 @@ ESP_UUID=$(blkid -s UUID -o value "$ESP")
 ROOT_PARTUUID=$(blkid -s PARTUUID -o value "$ROOT")
 # Why this fstab looks the way it does.
 #
-# BusyBox init runs, from inittab and before udev exists, both
-# "mount -o remount,rw /" and "mount -a". util-linux mount resolves UUID=
-# through the /dev/disk/by-uuid symlinks that udev creates, so at that point
-# any UUID= entry it touches fails with "can't find UUID=...": alarming, and
-# useless, since nothing is actually wrong.
-#
 #  - There is deliberately NO entry for "/". The kernel mounts the root from
-#    root=PARTUUID= on the GRUB command line, and with no fstab line to
-#    consult, the early remount just uses the live mount and stays quiet.
-#    (The cost is that root keeps the kernel's default relatime rather than
-#    noatime; acceptable for a foundation image.)
-#  - /boot/efi is "noauto" so the early "mount -a" skips it silently;
-#    /etc/init.d/S15mount-fstab mounts it explicitly once udev is up. noauto
-#    only affects "mount -a", never an explicit "mount /boot/efi".
+#    root=PARTUUID= on the GRUB command line, read-write because "rw" is
+#    there too, and with no fstab line to consult systemd-remount-fs leaves
+#    it alone. (The cost is that root keeps the kernel's default relatime
+#    rather than noatime; acceptable for a foundation image.)
+#  - /boot/efi is by UUID. systemd turns the line into a mount unit that
+#    waits for udev to create /dev/disk/by-uuid/... before mounting, so
+#    there is no "mount before udev" problem to work around. nofail makes a
+#    missing or damaged ESP degrade the boot rather than stop it.
+#  - /proc, /sys, /dev and /run are mounted by systemd itself; listing them
+#    here would only duplicate that.
 cat > "$TARGET/etc/fstab" <<FSTAB
 # <device>			<mount>		<type>	<options>			<dump>	<pass>
 # The root filesystem is mounted by the kernel from root=PARTUUID= in
 # /boot/grub/grub.cfg; it has no entry here on purpose (see aos-install).
-UUID=$ESP_UUID		/boot/efi	vfat	defaults,noatime,noauto		0	2
-proc				/proc		proc	defaults		0	0
-sysfs				/sys		sysfs	defaults		0	0
-devtmpfs			/dev		devtmpfs defaults		0	0
+UUID=$ESP_UUID		/boot/efi	vfat	defaults,noatime,nofail		0	2
 tmpfs				/tmp		tmpfs	defaults		0	0
 FSTAB
 
