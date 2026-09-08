@@ -1,0 +1,14 @@
+# Sets up /dev/zram0 so that dev-zram0.swap can activate it. Together these
+# two units do what systemd's zram-generator would, which Buildroot does not
+# package. Not inside a container: there is no block device to configure.
+[Unit]
+Description=Configure compressed swap device /dev/zram0
+DefaultDependencies=no
+After=systemd-modules-load.service
+ConditionVirtualization=!container
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/aos/zram-setup
+ExecStop=/usr/bin/zramctl --reset /dev/zram0

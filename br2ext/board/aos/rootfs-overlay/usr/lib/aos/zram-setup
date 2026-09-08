@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# Configure /dev/zram0 as a compressed swap device. Run by zram-setup.service
+# before dev-zram0.swap activates it.
+#
+# Size: half of RAM, at most 8 GiB -- the rule Fedora ships. Compressed pages
+# still live in RAM, so a bigger zram is not more memory, only more room to
+# compress into. The on-disk swap file that aos-install creates is what gives
+# an installed system real headroom; it sits behind this at a lower priority.
+
+set -e
+
+mem_kb=$(awk '/^MemTotal:/ { print $2 }' /proc/meminfo)
+size_kb=$((mem_kb / 2))
+max_kb=$((8 * 1024 * 1024))
+[ "$size_kb" -gt "$max_kb" ] && size_kb=$max_kb
+
+modprobe zram
+zramctl /dev/zram0 --algorithm zstd --size "${size_kb}K"
+mkswap -q -L zram0 /dev/zram0

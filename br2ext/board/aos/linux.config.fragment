@@ -38,6 +38,16 @@ CONFIG_PSTORE=y
 CONFIG_EFI_VARS_PSTORE=y
 CONFIG_AUDIT=y
 
+# --- Swap ----------------------------------------------------------------------
+# zram is the primary swap device on every AOS system, including the live
+# ISO, which has no disk to swap to at all. zstd rather than the lzo-rle
+# default: a noticeably better ratio, and the x86-64-v2 baseline guarantees
+# a CPU that can afford it. The device is set up by zram-setup.service in
+# the rootfs overlay; the on-disk swap file is added by aos-install.
+CONFIG_ZRAM=m
+CONFIG_ZRAM_BACKEND_ZSTD=y
+CONFIG_ZRAM_DEF_COMP_ZSTD=y
+
 # Module loading. Hardware support is shipped as modules so the kernel
 # image stays small and udev loads only what the machine actually has.
 CONFIG_MODULES=y

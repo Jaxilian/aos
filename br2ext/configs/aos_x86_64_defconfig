@@ -154,6 +154,9 @@ BR2_PACKAGE_UTIL_LINUX_BINARIES=y
 BR2_PACKAGE_UTIL_LINUX_MOUNT=y
 # su, with PAM. shadow below is deliberately built without its own.
 BR2_PACKAGE_UTIL_LINUX_SU=y
+# zramctl configures the compressed swap device (see board/aos/rootfs-overlay
+# and the Swap section of linux.config.fragment).
+BR2_PACKAGE_UTIL_LINUX_ZRAMCTL=y
 # Accounts: login, passwd, useradd and friends. PAM-enabled, so a console
 # login registers with logind -- see rootfs-overlay/etc/pam.d/login.
 BR2_PACKAGE_LINUX_PAM=y

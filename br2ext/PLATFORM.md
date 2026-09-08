@@ -64,6 +64,14 @@ On the live ISO the root is read-only and `/var` is a tmpfs, seeded at boot
 from `/usr/share/factory/var`. An installed system has a real `/var`; the
 drop-in in `/etc/systemd/system/var.mount.d/` keeps the tmpfs off there.
 
+**Swap** is two layers. `/dev/zram0` — zstd-compressed swap in RAM, half of
+memory up to 8 GB — is active on every system including the live ISO, at
+priority 100. An installed system also has `/swapfile` (RAM-sized, up to
+8 GB, created by `aos-install`) at priority 10, which is what gives a large
+build real headroom. `systemd-oomd` is configured the way Fedora ships it:
+it kills on sustained memory pressure in a user session and when swap is
+nearly full, before the kernel's own OOM killer has to.
+
 ## What is guaranteed present
 
 **Toolchain.** gcc, g++, cpp, `cc`, binutils (as, ld, ar, nm, objdump,

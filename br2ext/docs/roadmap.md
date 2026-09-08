@@ -9,7 +9,7 @@ the line — no init beyond BusyBox, no display server, no applications.
 This plan covers the next phase: the three things that turn that foundation into
 an operating system you can use.
 
-1. **An init system** you write yourself, in the spirit of systemd but yours.
+1. **Systemd** as init service
 2. **A Vulkan Wayland compositor**, built on Smithay in Rust.
 3. **A desktop environment**: compositor, terminal, launcher, status bar.
 

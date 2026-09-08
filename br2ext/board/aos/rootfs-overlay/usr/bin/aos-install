@@ -101,6 +101,32 @@ cp -a /usr/share/factory/var/. "$TARGET/var/"
 # ISO the journal is volatile because /var is.
 mkdir -p "$TARGET/var/log/journal"
 
+echo ">>> Creating swap file"
+# zram (set up by zram-setup.service) is the first swap device everywhere;
+# this file is the second, at a lower priority, and is what gives an
+# installed machine real headroom when a big build outgrows RAM.
+#
+# Size: the machine's RAM, at most 8 GiB, and never so much that less than
+# 4 GiB of the root filesystem is left free. There is no hibernation to size
+# for. Written with dd, NOT fallocate: fallocate leaves unwritten extents
+# and swapon then refuses the file with "it appears to have holes".
+mem_mb=$(( $(awk '/^MemTotal:/ { print $2 }' /proc/meminfo) / 1024 ))
+swap_mb=$mem_mb
+[ "$swap_mb" -gt 8192 ] && swap_mb=8192
+avail_mb=$(df -m --output=avail "$TARGET" | tail -1)
+max_by_disk=$(( avail_mb - 4096 ))
+[ "$swap_mb" -gt "$max_by_disk" ] && swap_mb=$max_by_disk
+if [ "$swap_mb" -ge 512 ]; then
+	dd if=/dev/zero of="$TARGET/swapfile" bs=1M count="$swap_mb" status=none
+	chmod 600 "$TARGET/swapfile"
+	mkswap -q "$TARGET/swapfile"
+	SWAP_LINE="/swapfile			none		swap	defaults,pri=10		0	0"
+	echo "    ${swap_mb} MiB at /swapfile"
+else
+	SWAP_LINE="# no swap file: the root filesystem is too small for one (see aos-install)"
+	echo "    skipped: not enough space on the root filesystem"
+fi
+
 echo ">>> Writing /etc/fstab"
 ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
 ESP_UUID=$(blkid -s UUID -o value "$ESP")
@@ -123,12 +149,14 @@ ROOT_PARTUUID=$(blkid -s PARTUUID -o value "$ROOT")
 #    missing or damaged ESP degrade the boot rather than stop it.
 #  - /proc, /sys, /dev and /run are mounted by systemd itself; listing them
 #    here would only duplicate that.
+#  - The swap file is pri=10, behind zram at pri=100.
 cat > "$TARGET/etc/fstab" <<FSTAB
 # <device>			<mount>		<type>	<options>			<dump>	<pass>
 # The root filesystem is mounted by the kernel from root=PARTUUID= in
 # /boot/grub/grub.cfg; it has no entry here on purpose (see aos-install).
 UUID=$ESP_UUID		/boot/efi	vfat	defaults,noatime,nofail		0	2
 tmpfs				/tmp		tmpfs	defaults		0	0
+$SWAP_LINE
 FSTAB
 
 echo ">>> Installing bootloader"

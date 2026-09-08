@@ -1,0 +1,14 @@
+# Compressed swap in RAM, on every AOS system including the live ISO. High
+# priority so the kernel fills it before the on-disk swap file (pri=10) that
+# aos-install adds to /etc/fstab on an installed system.
+[Unit]
+Description=Compressed swap on /dev/zram0
+Requires=zram-setup.service
+After=zram-setup.service
+
+[Swap]
+What=/dev/zram0
+Priority=100
+
+[Install]
+WantedBy=swap.target

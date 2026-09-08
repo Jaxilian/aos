@@ -56,6 +56,7 @@ systemctl --failed                   # expect "0 loaded units listed"
 journalctl -b -p err                 # errors from this boot, kernel included
 loginctl                             # your login shows as a session with a seat
 networkctl                           # the NIC should be "routable"
+swapon --show                        # zram0 everywhere; /swapfile too once installed
 ```
 
 ## Three traps
