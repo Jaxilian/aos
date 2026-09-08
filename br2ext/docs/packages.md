@@ -27,8 +27,9 @@ Installed size is **2.6 GB**. The ISO is 956 MB because it is compressed.
 |---|---|
 | linux | 7.1.13 |
 | glibc | 2.44 |
-| systemd | 258.7 (init, journald, udev, logind, networkd, resolved) |
-| dbus | 1.16.2 |
+| systemd | 258.7 (init, journald, udev, logind, networkd, resolved, oomd, machined, sysext, repart) |
+| dbus-broker | 37 |
+| polkit | 126 |
 | linux-pam | 1.7.2 |
 | grub2 | 2.14 (BIOS and UEFI) |
 | linux-firmware | 20260810 |
@@ -39,7 +40,7 @@ Installed size is **2.6 GB**. The ISO is 956 MB because it is compressed.
 |---|---|---|
 | aos-gcc | 15.3.0 | gcc and g++ that run *on* AOS. Custom package |
 | aos-rust | 1.96.1 | rustc and cargo on the target. Custom package |
-| binutils | 2.44 | as, ld, ar, nm, objdump |
+| binutils | 2.45.1 | as, ld, ar, nm, objdump |
 | make | 4.4.1 | |
 | gmp / mpfr / mpc | 6.3.0 / 4.2.2 / 1.4.1 | gcc's arithmetic libraries |
 | pkgconf | 2.3.0 | |

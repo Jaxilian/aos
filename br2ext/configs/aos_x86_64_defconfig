@@ -44,16 +44,49 @@ BR2_INIT_SYSTEMD_VAR_FACTORY=y
 # BR2_PACKAGE_BUSYBOX is not set
 BR2_SYSTEM_BIN_SH_BASH=y
 BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_AOS_PATH)/board/aos/rootfs-overlay"
+# Groups that udev rules expect and Buildroot does not create -- see the file.
+BR2_ROOTFS_USERS_TABLES="$(BR2_EXTERNAL_AOS_PATH)/board/aos/users_table.txt"
 
-# systemd components beyond Buildroot's defaults. journald, udev, hwdb,
-# vconsole, hostnamed, timedated, timesyncd, networkd and resolved are on
-# already. logind is what gives a login session its seat and XDG_RUNTIME_DIR,
-# and a Wayland compositor and its clients need both.
+# systemd runs the core, deliberately and in full. AOS is not trying to be
+# small; it is trying to be the base that is hardest to knock over, and the
+# whole systemd ecosystem -- one supervisor, one log, one seat manager, one
+# network stack, one OOM policy -- is the most widely tested way to get
+# there. journald, udev, hwdb, vconsole, hostnamed, timedated, timesyncd,
+# networkd and resolved are Buildroot's defaults; the rest is below.
+#
+# logind gives a login session its seat and XDG_RUNTIME_DIR; a Wayland
+# compositor and its clients need both. polkit is what lets a user at that
+# seat power the machine off or manage units without being root.
 BR2_PACKAGE_SYSTEMD_LOGIND=y
+BR2_PACKAGE_SYSTEMD_POLKIT=y
+# oomd kills the offending cgroup on memory pressure before the kernel OOM
+# killer has to pick something at random. Needs PSI and memcg (asserted in
+# linux.config.fragment; Buildroot forces them on too).
+BR2_PACKAGE_SYSTEMD_OOMD=y
+# localectl, so locale and keymap are managed the same way as everything
+# else. machined + nspawn: run an AOS tree, or anything else, as a container
+# -- the cheapest place to test a package or an init change.
+BR2_PACKAGE_SYSTEMD_LOCALED=y
+BR2_PACKAGE_SYSTEMD_MACHINED=y
+BR2_PACKAGE_SYSTEMD_NSPAWN=y
+# sysext layers extension images over the read-only /usr; repart partitions
+# disks from declarative repart.d files. Both are the modern primitives an
+# image-based update story is built from, and a package manager for AOS may
+# well want them.
+BR2_PACKAGE_SYSTEMD_SYSEXT=y
+BR2_PACKAGE_SYSTEMD_REPART=y
+BR2_PACKAGE_SYSTEMD_EFI=y
+BR2_PACKAGE_SYSTEMD_BINFMT=y
+BR2_PACKAGE_SYSTEMD_USERDB=y
+BR2_PACKAGE_SYSTEMD_ANALYZE=y
 BR2_PACKAGE_SYSTEMD_BACKLIGHT=y
 BR2_PACKAGE_SYSTEMD_RFKILL=y
 BR2_PACKAGE_SYSTEMD_COREDUMP=y
 BR2_PACKAGE_SYSTEMD_RANDOMSEED=y
+# dbus-broker instead of the reference daemon: same protocol, a fraction of
+# the latency, and what the major distributions ship. Buildroot drops the
+# reference daemon automatically when this is set.
+BR2_PACKAGE_DBUS_BROKER=y
 # Sandboxing directives in unit files (SystemCallFilter= and friends) need
 # libseccomp; without it they are silently ignored.
 BR2_PACKAGE_LIBSECCOMP=y

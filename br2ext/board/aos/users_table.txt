@@ -1,0 +1,8 @@
+# Extra groups, in Buildroot's makeusers format (see docs/manual). A line
+# whose username is "-" creates only the group.
+#
+# udev's default rules hand /dev/rtc* to group "clock"; systemd's own
+# sysusers would create it at boot, but that needs a writable /etc, which
+# the live ISO does not have. Without it udevd logs "Unknown group 'clock'"
+# on every boot and the device stays root-only.
+-	-1	clock	-1	*	-	-	-	Real-time clock access

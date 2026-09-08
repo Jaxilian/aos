@@ -12,6 +12,32 @@
 CONFIG_DEVTMPFS=y
 CONFIG_DEVTMPFS_MOUNT=y
 
+# --- systemd -----------------------------------------------------------------
+# Buildroot's package/systemd forces on the options systemd cannot run
+# without. These are the ones it runs *worse* without: unit-file resource
+# control and sandboxing (memory, pids, io, device and BPF cgroup
+# controllers), oomd's pressure signal, coredump/pstore capture, and
+# binfmt. Each degrades silently when absent, so they are asserted here.
+CONFIG_CGROUPS=y
+CONFIG_MEMCG=y
+CONFIG_CGROUP_PIDS=y
+CONFIG_CGROUP_FREEZER=y
+CONFIG_CGROUP_DEVICE=y
+CONFIG_CGROUP_CPUACCT=y
+CONFIG_CGROUP_SCHED=y
+CONFIG_CFS_BANDWIDTH=y
+CONFIG_BLK_CGROUP=y
+CONFIG_CGROUP_BPF=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_PSI=y
+CONFIG_SECCOMP=y
+CONFIG_SECCOMP_FILTER=y
+CONFIG_KCMP=y
+CONFIG_BINFMT_MISC=m
+CONFIG_PSTORE=y
+CONFIG_EFI_VARS_PSTORE=y
+CONFIG_AUDIT=y
+
 # Module loading. Hardware support is shipped as modules so the kernel
 # image stays small and udev loads only what the machine actually has.
 CONFIG_MODULES=y

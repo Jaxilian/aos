@@ -34,9 +34,10 @@ an AOS image will panic on it with an invalid opcode inside `ld-linux`. Use
 
 ## Filesystem layout
 
-Standard FHS with a merged `/usr`, as systemd requires. Programs live in
-`/usr/bin` and `/usr/sbin`, libraries in `/usr/lib`, and `/bin`, `/sbin` and
-`/lib` are symlinks into `/usr`.
+Standard FHS with a merged `/usr` and a merged `bin`, as systemd requires.
+Every program lives in `/usr/bin`, libraries in `/usr/lib`; `/bin`, `/sbin`,
+`/lib` and `/usr/sbin` are all symlinks. Anything you install belongs in
+`/usr/bin` too — a real `/usr/sbin` directory would shadow the symlink.
 
 Two things are worth knowing because they are not typical of an embedded image:
 
@@ -68,11 +69,15 @@ drop-in in `/etc/systemd/system/var.mount.d/` keeps the tmpfs off there.
 **Toolchain.** gcc, g++, cpp, `cc`, binutils (as, ld, ar, nm, objdump,
 readelf), make, rustc, cargo, pkgconf, flex.
 
-**Init.** systemd: units, journald, udev with hwdb, logind, D-Bus,
-systemd-networkd, systemd-resolved, timesyncd and vconsole. Console logins
-go through PAM and register a logind session, so anything you start from one
-has a seat and an `XDG_RUNTIME_DIR` — which is what a Wayland compositor and
-its clients need.
+**Init.** systemd, and deliberately all of it: units, journald, udev with
+hwdb, logind, polkit, dbus-broker, systemd-networkd, systemd-resolved,
+timesyncd, oomd, localed, vconsole, machined and nspawn, sysext, repart,
+coredump and binfmt. AOS is not trying to be small; it is trying to be the
+base that is hardest to knock over, and one supervisor, one log, one seat
+manager, one network stack and one memory-pressure policy is the most widely
+tested way to get there. Console logins go through PAM and register a logind
+session, so anything you start from one has a seat and an `XDG_RUNTIME_DIR`
+— which is what a Wayland compositor and its clients need.
 
 **GNU userland**: coreutils, bash (also `/bin/sh`), gawk, sed, grep,
 findutils, diffutils, tar, gzip, bzip2, xz, zstd, patch, which, less, file,

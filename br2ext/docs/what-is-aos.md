@@ -34,7 +34,7 @@ legacy PATA. Roughly any x86-64 machine from 2009 onwards.
 | Kernel | Linux 7.1.13, modular, ~115 driver modules |
 | C library | glibc 2.44 |
 | Compilers | gcc 15.3.0 (C and C++), Rust 1.96.1 with cargo |
-| Init | systemd — journald, udev, logind, networkd, resolved |
+| Init | systemd, all of it — journald, udev, logind, polkit, networkd, resolved, oomd, nspawn |
 | Userland | Real GNU tools — coreutils, bash, gawk, sed, grep, tar, findutils, vim |
 | Graphics | Mesa 26.1.8, Vulkan, libglvnd, NVIDIA 610.57.04 |
 | Networking | systemd-networkd, wpa_supplicant, iw, OpenSSL, curl, CA certificates |
