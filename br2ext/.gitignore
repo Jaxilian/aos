@@ -1,0 +1,4 @@
+# Per-builder SSH access keys. Never committed: a published image carrying
+# the maintainer's key would give them root on every machine that installs
+# it. See docs/ssh.md.
+/board/aos/authorized_keys

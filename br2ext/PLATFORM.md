@@ -53,12 +53,17 @@ the staging sysroot by `board/aos/post-build.sh`.
 
 `/etc/os-release` identifies the system as `ID=aos`.
 
-On an installed system, `/etc/fstab` has **no entry for `/`** — on purpose.
-The kernel mounts the root from `root=PARTUUID=` in `/boot/grub/grub.cfg`,
-read-write, and with no line to consult `systemd-remount-fs` leaves it alone.
-`/boot/efi` is listed by `UUID=` with `nofail`; systemd waits for udev to
-create the `/dev/disk/by-uuid` link before mounting it, and entries you add
-by UUID work the same way.
+On an installed system the kernel mounts the root **read-only** from
+`root=PARTUUID=` in `/boot/grub/grub.cfg`, `systemd-fsck-root` checks it, and
+`systemd-remount-fs` makes it writable from its `/etc/fstab` line. That is
+how the root gets an fsck without an initramfs; do not change the `ro` on
+the kernel command line. `/boot/efi` is listed by `UUID=` with `nofail`;
+systemd waits for udev to create the `/dev/disk/by-uuid` link before mounting
+it, and entries you add by UUID work the same way.
+
+There is no initramfs. The `initrd` GRUB passes is `/boot/microcode.img`,
+CPU microcode only; the kernel applies it and, finding no `/init`, mounts
+the root itself. That is also why the root cannot live on LVM, RAID or LUKS.
 
 On the live ISO the root is read-only and `/var` is a tmpfs, seeded at boot
 from `/usr/share/factory/var`. An installed system has a real `/var`; the
@@ -87,6 +92,13 @@ tested way to get there. Console logins go through PAM and register a logind
 session, so anything you start from one has a seat and an `XDG_RUNTIME_DIR`
 — which is what a Wayland compositor and its clients need.
 
+**Self-recovery.** A hardware watchdog (iTCO, WDAT, SP5100, or QEMU's
+i6300esb) petted by systemd every 30 s; a panic reboots after 10 s; a hard
+lockup is a panic; oomd acts on memory pressure before the kernel's OOM
+killer has to. Machine checks, ACPI platform errors and EDAC memory-controller
+drivers put hardware faults in the journal by name. CPU microcode is applied
+at boot, the frequency governor is `schedutil`, and `fstrim` runs weekly.
+
 **GNU userland**: coreutils, bash (also `/bin/sh`), gawk, sed, grep,
 findutils, diffutils, tar, gzip, bzip2, xz, zstd, patch, which, less, file,
 vim; util-linux, procps, psmisc, kmod, kbd, shadow, iputils. There is no
@@ -102,6 +114,12 @@ Broadcom parts, with firmware.
 wireless interface on DHCP; iproute2, iw, wpa_supplicant, OpenSSL, a CA
 bundle and curl. Enough that whatever fetches your first package can use TLS
 on first boot.
+
+**SSH.** An OpenSSH server, key authentication only — root has no password
+and password authentication is off. A published image carries no key and so
+accepts no login; the builder supplies one in
+`board/aos/authorized_keys` before building. See [docs/ssh.md](docs/ssh.md).
+An SSH login is a logind session, with a seat and an `XDG_RUNTIME_DIR`.
 
 **Graphics.** libdrm, Mesa (GBM, EGL, OpenGL ES, Vulkan) and libglvnd.
 Gallium drivers: iris, crocus, radeonsi, r600, nouveau, llvmpipe, zink.
@@ -174,24 +192,48 @@ Two things people trip over:
 
 ## USB booting
 
-**Not yet supported, and untested.** The ISO boots from optical media and in
-VMs (BIOS and UEFI). Written to a USB stick with `dd` it has no partition
-table, so a BIOS has nothing to boot and UEFI firmware finds no EFI system
-partition. Buildroot's `HYBRID` option only exists for the isolinux path,
-not the GRUB2 one this image uses.
+**Supported for UEFI**, which is what any machine of the last decade uses.
+Write the ISO to a stick with `dd` and it boots there from the same image
+that boots an optical drive. Legacy BIOS from a stick is untested: GRUB's
+hybrid MBR code is present, but `-appended_part_as_gpt` leaves a protective
+MBR with no active partition, and some BIOSes want one.
 
-Do not "fix" this by regenerating the ISO from a post-image script. Buildroot
-builds images inside a fakeroot session so everything is owned by root, and
-post-image scripts run outside it: the rebuilt ISO comes out owned by the
-build user, `/dev/console` becomes unopenable, and the system boots into a
-cascade of permission errors. That was tried and reverted.
+```sh
+sudo dd if=output/images/rootfs.iso9660 of=/dev/sdX bs=4M oflag=direct status=progress conv=fsync
+```
 
-The workable approach, when a stick is available to test against, is
-`xorriso -indev … -outdev … -boot_image any replay` plus the isohybrid MBR
-and GPT options, which rewrites only the boot records and copies the
-filesystem image verbatim, preserving ownership. UEFI-from-USB additionally
-needs the embedded GRUB config to *search* for its medium rather than assume
-`(cd0)`, which `grub-embedded.cfg` already does.
+Three things in `br2ext/external.mk` make that work, and all three are
+needed:
+
+- `-append_partition 2 0xef … -appended_part_as_gpt` puts the EFI system
+  partition Buildroot already builds for El Torito into a real GPT entry, so
+  firmware finds `/EFI/BOOT/bootx64.efi` on a stick. `--grub2-mbr` adds
+  GRUB's hybrid MBR for a legacy BIOS.
+- A **FAT16** EFI system partition, 16 MiB, built by the override of
+  `ROOTFS_ISO9660_INSTALL_BOOTLOADER_EFI` in `br2ext/external.mk`. Buildroot
+  makes a 1 MiB image, which `mkfs.vfat` formats FAT12. OVMF under QEMU
+  reads FAT12 without complaint; real firmware frequently does not, and the
+  symptom is that the stick never appears in the boot menu at all. Every
+  distribution ships FAT16 here.
+- `-partition_offset 16` gives the ISO partition a second superblock of its
+  own, making it a mountable `iso9660` filesystem rather than a window 32 KiB
+  into one.
+- `--gpt_disk_guid` pins the disk GUID so the ISO partition's PARTUUID is
+  known before the image exists, since the boot menu has to name it. A
+  post-generation hook reads the finished image back and fails the build if
+  the two ever disagree.
+
+The boot menu then picks the right `root=` for the medium it finds itself on:
+`/dev/sr0` for an optical drive, whose partition table the kernel does not
+read, and `root=PARTUUID=` for a stick, where there is no `/dev/sr0` at all.
+`rootwait` is on both, because USB enumeration finishes long after the kernel
+first looks for the root device.
+
+Do not regenerate the ISO from a post-image script to change any of this.
+Buildroot builds images inside a fakeroot session so everything is owned by
+root, and post-image scripts run outside it: the rebuilt ISO comes out owned
+by the build user, `/dev/console` becomes unopenable, and the system boots
+into a cascade of permission errors. That was tried and reverted.
 
 ## Rebuilding AOS itself
 

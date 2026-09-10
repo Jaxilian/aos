@@ -138,11 +138,12 @@ ESP_UUID=$(blkid -s UUID -o value "$ESP")
 ROOT_PARTUUID=$(blkid -s PARTUUID -o value "$ROOT")
 # Why this fstab looks the way it does.
 #
-#  - There is deliberately NO entry for "/". The kernel mounts the root from
-#    root=PARTUUID= on the GRUB command line, read-write because "rw" is
-#    there too, and with no fstab line to consult systemd-remount-fs leaves
-#    it alone. (The cost is that root keeps the kernel's default relatime
-#    rather than noatime; acceptable for a foundation image.)
+#  - "/" is listed, with fsck pass 1. The kernel mounts the root read-only
+#    from root=PARTUUID= (it cannot resolve UUID= without an initramfs);
+#    systemd-fsck-root then checks it -- which is only possible while it is
+#    still read-only -- and systemd-remount-fs makes it writable using this
+#    line. Without the line the root would never be checked, and after an
+#    unclean shutdown errors would accumulate silently behind journal replay.
 #  - /boot/efi is by UUID. systemd turns the line into a mount unit that
 #    waits for udev to create /dev/disk/by-uuid/... before mounting, so
 #    there is no "mount before udev" problem to work around. nofail makes a
@@ -152,8 +153,9 @@ ROOT_PARTUUID=$(blkid -s PARTUUID -o value "$ROOT")
 #  - The swap file is pri=10, behind zram at pri=100.
 cat > "$TARGET/etc/fstab" <<FSTAB
 # <device>			<mount>		<type>	<options>			<dump>	<pass>
-# The root filesystem is mounted by the kernel from root=PARTUUID= in
-# /boot/grub/grub.cfg; it has no entry here on purpose (see aos-install).
+# The kernel mounts / read-only from root=PARTUUID= in /boot/grub/grub.cfg;
+# this line is what gets it checked and then remounted read-write.
+UUID=$ROOT_UUID		/		ext4	defaults		0	1
 UUID=$ESP_UUID		/boot/efi	vfat	defaults,noatime,nofail		0	2
 tmpfs				/tmp		tmpfs	defaults		0	0
 $SWAP_LINE
@@ -192,12 +194,19 @@ terminal_output console serial
 set default="0"
 set timeout="5"
 
+# "ro": the root is checked by systemd-fsck-root before systemd-remount-fs
+# makes it writable from /etc/fstab. The initrd is CPU microcode only.
+# rootwait: harmless on an internal disk, and required when the system was
+# installed onto a USB stick, whose enumeration finishes long after the
+# kernel first looks for the root device.
 menuentry "AOS" {
-	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID rw console=ttyS0,115200 console=tty1
+	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait console=ttyS0,115200 console=tty1
+	initrd /boot/microcode.img
 }
 
 menuentry "AOS (serial console)" {
-	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID rw console=ttyS0,115200
+	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait console=ttyS0,115200
+	initrd /boot/microcode.img
 }
 GRUBCFG
 

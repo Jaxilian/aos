@@ -81,3 +81,48 @@ if [ -d "${HOST_DIR}/${GCC_TRIPLET}/include/c++" ]; then
 		"${HOST_DIR}/${GCC_TRIPLET}/include/c++/" \
 		"${TARGET_DIR}/usr/include/c++/"
 fi
+
+# CPU microcode as an early initrd.
+#
+# The kernel applies microcode at the very start of boot if it finds it at
+# the head of the initrd: an uncompressed cpio with kernel/x86/microcode/
+# <vendor>.bin, each of which is simply that vendor's blobs concatenated.
+# AOS has no real initramfs, and does not need one for this -- GRUB passes
+# this file as the initrd, the kernel takes the microcode, finds no /init in
+# it, and goes on to mount the root from root= exactly as before.
+#
+# Written into the target's /boot so that it is on the ISO next to bzImage
+# and gets copied to an installed disk by aos-install along with the rest.
+ucode=$(mktemp -d)
+mkdir -p "${ucode}/kernel/x86/microcode"
+if [ -d "${TARGET_DIR}/lib/firmware/intel-ucode" ]; then
+	cat "${TARGET_DIR}"/lib/firmware/intel-ucode/* \
+		> "${ucode}/kernel/x86/microcode/GenuineIntel.bin"
+fi
+if [ -d "${TARGET_DIR}/lib/firmware/amd-ucode" ]; then
+	cat "${TARGET_DIR}"/lib/firmware/amd-ucode/microcode_amd*.bin \
+		> "${ucode}/kernel/x86/microcode/AuthenticAMD.bin"
+fi
+mkdir -p "${TARGET_DIR}/boot"
+( cd "${ucode}" && find kernel | LC_ALL=C sort | \
+	cpio --quiet -o -H newc -R 0:0 --reproducible ) \
+	> "${TARGET_DIR}/boot/microcode.img"
+rm -rf "${ucode}"
+
+# Authorized SSH keys for root, if the builder supplied any.
+#
+# Deliberately an untracked, optional file: a published AOS image must not
+# carry anyone's key, or whoever built it can log into every machine that
+# installs it. With no key the image still runs sshd, and simply refuses
+# every login until someone adds one. See docs/ssh.md.
+keys="${BR2_EXTERNAL_AOS_PATH}/board/aos/authorized_keys"
+if [ -s "${keys}" ]; then
+	mkdir -p "${TARGET_DIR}/root/.ssh"
+	chmod 700 "${TARGET_DIR}/root/.ssh"
+	grep -v '^[[:space:]]*#' "${keys}" | grep -v '^[[:space:]]*$' \
+		> "${TARGET_DIR}/root/.ssh/authorized_keys"
+	chmod 600 "${TARGET_DIR}/root/.ssh/authorized_keys"
+	echo "post-build.sh: installed $(wc -l < "${TARGET_DIR}/root/.ssh/authorized_keys") SSH key(s) for root"
+else
+	echo "post-build.sh: no board/aos/authorized_keys -- SSH will accept no logins"
+fi

@@ -30,8 +30,11 @@ BR2_INIT_SYSTEMD=y
 # console= on the kernel command line by itself. ("console" here would make
 # Buildroot disable getty@tty1, leaving the screen without a login.)
 BR2_TARGET_GENERIC_GETTY_PORT="tty1"
-# The live ISO is read-only, so do not try to remount / read-write; the
-# installed system is mounted rw by the kernel from "rw" on its command line.
+# The live ISO is read-only, so do not try to remount / read-write. An
+# installed system is mounted read-only by the kernel too ("ro" on its
+# command line), checked by systemd-fsck-root, and then made writable by
+# systemd-remount-fs from its /etc/fstab line -- the only way the root ever
+# gets an fsck without an initramfs.
 # With this off Buildroot builds a /var "factory": on the ISO /var is a tmpfs
 # that systemd-tmpfiles populates from /usr/share/factory/var at boot. The
 # var.mount drop-in in the rootfs overlay turns that tmpfs off once the root
@@ -201,6 +204,18 @@ BR2_PACKAGE_OPENSSL=y
 BR2_PACKAGE_CA_CERTIFICATES=y
 BR2_PACKAGE_LIBCURL=y
 BR2_PACKAGE_LIBCURL_CURL=y
+# SSH. The intended way to work on AOS is to install it on real hardware and
+# then drive it from another machine -- a foundation has no desktop to sit at,
+# and a real machine is the only place the drivers, the GPU and the microcode
+# are actually exercised. Key authentication only: the root account has no
+# password, and sshd rejects empty ones. Put a public key in
+# br2ext/board/aos/authorized_keys before building (see docs/ssh.md).
+BR2_PACKAGE_OPENSSH=y
+BR2_PACKAGE_OPENSSH_SERVER=y
+BR2_PACKAGE_OPENSSH_CLIENT=y
+# ssh-keygen, which sshd's own start-up needs to make its host keys.
+BR2_PACKAGE_OPENSSH_KEY_UTILS=y
+BR2_PACKAGE_OPENSSH_SANDBOX=y
 
 ################################################################################
 # M2 -- firmware.
@@ -210,6 +225,14 @@ BR2_PACKAGE_LIBCURL_CURL=y
 # fifteen years or so.
 ################################################################################
 BR2_PACKAGE_LINUX_FIRMWARE=y
+# CPU microcode. Errata are a leading cause of the unreproducible hangs a
+# foundation exists to rule out, and new silicon has the most of them.
+# post-build.sh packs both vendors' blobs into /boot/microcode.img, which
+# GRUB loads as an early initrd. Intel's is under its own licence, in the
+# same class as the other firmware blobs here; every distribution ships it.
+BR2_PACKAGE_INTEL_MICROCODE=y
+BR2_PACKAGE_INTEL_MICROCODE_INSTALL_TARGET=y
+BR2_PACKAGE_LINUX_FIRMWARE_AMD_UCODE=y
 BR2_PACKAGE_LINUX_FIRMWARE_I915=y
 BR2_PACKAGE_LINUX_FIRMWARE_AMDGPU=y
 BR2_PACKAGE_LINUX_FIRMWARE_RADEON=y
@@ -327,8 +350,8 @@ BR2_TARGET_GRUB2_X86_64_EFI=y
 # 'cd' and the iso9660 module are what let the BIOS GRUB core find its
 # configuration on the optical medium rather than on a disk partition.
 BR2_TARGET_GRUB2_BOOT_PARTITION="cd"
-BR2_TARGET_GRUB2_BUILTIN_MODULES_PC="boot linux ext2 fat squash4 part_msdos part_gpt normal biosdisk iso9660 serial terminal search search_fs_file"
-BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat squash4 part_msdos part_gpt normal efi_gop iso9660 serial terminal search search_fs_file"
+BR2_TARGET_GRUB2_BUILTIN_MODULES_PC="boot linux ext2 fat squash4 part_msdos part_gpt normal biosdisk iso9660 serial terminal search search_fs_file test regexp echo"
+BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat squash4 part_msdos part_gpt normal efi_gop iso9660 serial terminal search search_fs_file test regexp echo"
 BR2_TARGET_GRUB2_BUILTIN_CONFIG_EFI="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-embedded.cfg"
 BR2_TARGET_GRUB2_BUILTIN_CONFIG_PC="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-embedded.cfg"
 # aos-install runs grub-install and grub-mkconfig on the installed system.

@@ -204,3 +204,97 @@ CONFIG_ZLIB_INFLATE=y
 # which is what made this hard to spot.
 CONFIG_DRM_FBDEV_EMULATION=y
 CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY=y
+
+# --- CPU frequency and idle ---------------------------------------------------
+# The mainline x86_64_defconfig picks the "userspace" governor, which scales
+# nothing unless a daemon drives it. intel_pstate and amd_pstate in active
+# mode ignore the choice, but everything that falls back to acpi-cpufreq --
+# the older hardware AOS explicitly targets, and virtual machines -- sits at
+# one frequency forever. schedutil is what every distribution ships.
+CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
+CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+# CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE is not set
+CONFIG_CPU_FREQ_GOV_PERFORMANCE=y
+CONFIG_CPU_FREQ_GOV_POWERSAVE=y
+CONFIG_X86_INTEL_PSTATE=y
+CONFIG_X86_AMD_PSTATE=y
+CONFIG_X86_ACPI_CPUFREQ=y
+# Intel's own idle driver knows the real C-states; acpi_idle only knows what
+# the firmware admits to.
+CONFIG_INTEL_IDLE=y
+
+# --- Microcode ----------------------------------------------------------------
+# Applied early from /boot/microcode.img, a microcode-only initrd that
+# post-build.sh assembles and GRUB hands to the kernel. There is no real
+# initramfs: the kernel applies the microcode, finds no /init, and mounts the
+# root from root= as it always has. Late loading stays off -- Intel documents
+# it as unsafe on some parts.
+CONFIG_MICROCODE=y
+CONFIG_BLK_DEV_INITRD=y
+# CONFIG_MICROCODE_LATE_LOADING is not set
+
+# --- Watchdog -----------------------------------------------------------------
+# A hardware watchdog turns a hung kernel into a reboot instead of a machine
+# waiting for someone to hold the power button. systemd pets it
+# (RuntimeWatchdogSec= in system.conf.d). iTCO is Intel's, WDAT the
+# ACPI-described one on most modern boards, SP5100 AMD's, and i6300esb the
+# device QEMU and libvirt give a virtual machine.
+CONFIG_WATCHDOG=y
+CONFIG_WATCHDOG_CORE=y
+CONFIG_WATCHDOG_SYSFS=y
+CONFIG_LPC_ICH=m
+CONFIG_ITCO_WDT=m
+CONFIG_WDAT_WDT=m
+CONFIG_SP5100_TCO=m
+CONFIG_I6300ESB_WDT=m
+
+# --- Panic and lockup policy --------------------------------------------------
+# A panic reboots after ten seconds instead of sitting on a dead screen, and
+# a hard lockup (a CPU that has stopped taking interrupts) is a panic. Soft
+# lockups are logged, not fatal: they are usually a misbehaving driver rather
+# than a dead machine. Same policy the major distributions use.
+CONFIG_PANIC_TIMEOUT=10
+CONFIG_SOFTLOCKUP_DETECTOR=y
+CONFIG_HARDLOCKUP_DETECTOR=y
+CONFIG_BOOTPARAM_HARDLOCKUP_PANIC=y
+# CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC is not set
+# CONFIG_PANIC_ON_OOPS is not set
+
+# --- Hardware error reporting -------------------------------------------------
+# Machine checks, ACPI platform errors (GHES) and the EDAC memory-controller
+# drivers turn a failing DIMM or a flaky PCIe link into a journal entry that
+# names the part, instead of silent corruption. amd64 covers AMD; the rest
+# are Intel's controllers from Sandy Bridge to the current client parts.
+CONFIG_X86_MCE=y
+CONFIG_RAS=y
+CONFIG_ACPI_APEI=y
+CONFIG_ACPI_APEI_GHES=y
+CONFIG_ACPI_APEI_PCIEAER=y
+CONFIG_ACPI_APEI_MEMORY_FAILURE=y
+CONFIG_MEMORY_FAILURE=y
+CONFIG_PCIEAER=y
+CONFIG_EDAC=y
+CONFIG_EDAC_AMD64=m
+CONFIG_EDAC_SBRIDGE=m
+CONFIG_EDAC_SKX=m
+CONFIG_EDAC_I10NM=m
+CONFIG_EDAC_PND2=m
+CONFIG_EDAC_IE31200=m
+CONFIG_EDAC_IGEN6=m
+# Temperature sensors, so thermal trouble is visible before it is fatal.
+CONFIG_HWMON=y
+CONFIG_SENSORS_CORETEMP=m
+CONFIG_SENSORS_K10TEMP=m
+
+# --- Memory-corruption detection ----------------------------------------------
+# These make heap and list corruption fail loudly and at once, instead of
+# propagating until something unrelated falls over. The cost is a percent or
+# two; Fedora's kernel carries the same set.
+CONFIG_SLAB_FREELIST_HARDENED=y
+CONFIG_SLAB_FREELIST_RANDOM=y
+CONFIG_FORTIFY_SOURCE=y
+CONFIG_HARDENED_USERCOPY=y
+CONFIG_BUG_ON_DATA_CORRUPTION=y
+CONFIG_DEBUG_LIST=y
+CONFIG_SCHED_STACK_END_CHECK=y
+CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y

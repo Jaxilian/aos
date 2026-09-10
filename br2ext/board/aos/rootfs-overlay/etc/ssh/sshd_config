@@ -1,0 +1,31 @@
+# AOS sshd configuration.
+#
+# Keys only. The root account has no password at all, and sshd refuses empty
+# passwords in any case, so a key is the only way in. Add yours to
+# br2ext/board/aos/authorized_keys at build time -- see docs/ssh.md.
+PermitRootLogin prohibit-password
+PubkeyAuthentication yes
+PasswordAuthentication no
+PermitEmptyPasswords no
+KbdInteractiveAuthentication no
+
+# Host keys.
+#
+# On an installed system these live in /etc/ssh and persist, so the machine
+# keeps one identity across reboots. The live ISO has a read-only /etc, so
+# there they are generated into /run/ssh on every boot and differ each time;
+# ssh will warn about a changed host key when you reboot the ISO, which is
+# expected. sshd skips any of these paths that does not exist.
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /run/ssh/ssh_host_ed25519_key
+HostKey /run/ssh/ssh_host_rsa_key
+
+# PAM runs the account and session stack, which is what registers the login
+# with logind and gives it a seat and an XDG_RUNTIME_DIR -- the same thing a
+# console login gets. Authentication itself stays with the key above.
+UsePAM yes
+
+X11Forwarding no
+PrintMotd no
+Subsystem sftp /usr/libexec/sftp-server

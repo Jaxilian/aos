@@ -1,7 +1,12 @@
 # Testing AOS
 
-Everything runs in QEMU. You do not need a spare machine, and you do not need
-root.
+Most of this runs in QEMU. You do not need a spare machine, and you do not
+need root.
+
+Four things QEMU cannot test at all, because it does not emulate them: CPU
+microcode application, frequency scaling, a real chipset watchdog, and the
+GPU drivers. Those need real hardware — install AOS on a machine and work on
+it over SSH, see [ssh.md](ssh.md).
 
 ```sh
 ./br2ext/board/aos/run-qemu.sh            # live ISO, UEFI, in a window
@@ -57,6 +62,11 @@ journalctl -b -p err                 # errors from this boot, kernel included
 loginctl                             # your login shows as a session with a seat
 networkctl                           # the NIC should be "routable"
 swapon --show                        # zram0 everywhere; /swapfile too once installed
+journalctl -k | grep -i microcode    # the early initrd was found and applied
+systemctl status systemd-fsck-root   # ran, on an installed disk
+systemctl show -p RuntimeWatchdogUSec  # 30s where a watchdog device exists
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor   # schedutil (no cpufreq in a VM)
+systemctl list-timers                # fstrim weekly
 ```
 
 ## Three traps

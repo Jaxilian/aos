@@ -1,0 +1,6 @@
+# The live ISO. The kernel mounts the root read-only from root=/dev/sr0 and
+# there is nothing to check or remount, so fsck pass 0: Buildroot's skeleton
+# writes this line with pass 1, which only makes systemd-fsck-root complain
+# that fsck.iso9660 does not exist. An installed system gets its own fstab
+# from aos-install.
+/dev/root	/	auto	ro	0	0

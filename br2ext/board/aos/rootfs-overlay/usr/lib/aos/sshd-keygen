@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# Make sure sshd has host keys, wherever they can be written.
+#
+# Buildroot's sshd.service runs "ssh-keygen -A", which only ever writes to
+# /etc/ssh. That works on an installed system and fails on the live ISO,
+# whose /etc is read-only -- and sshd with no host key at all refuses to
+# start. So: use /etc/ssh when it is writable, and a tmpfs under /run
+# otherwise. Both paths are listed in sshd_config.
+
+set -e
+
+if mkdir -p /etc/ssh 2>/dev/null && [ -w /etc/ssh ]; then
+	dir=/etc/ssh
+else
+	dir=/run/ssh
+	mkdir -p "$dir"
+fi
+chmod 0755 "$dir"
+
+for type in ed25519 rsa; do
+	key="${dir}/ssh_host_${type}_key"
+	[ -f "$key" ] && continue
+	ssh-keygen -q -t "$type" -f "$key" -N "" -C "root@aos"
+done
