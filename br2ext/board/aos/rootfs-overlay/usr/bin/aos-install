@@ -39,6 +39,23 @@ printf "Type YES to continue: "
 read -r confirm
 [ "$confirm" = "YES" ] || { echo "Aborted."; exit 1; }
 
+echo ">>> Wiping old partition tables and signatures from $DISK"
+# A disk that has been a live ISO, an installed system, or anything else
+# carries more than one description of itself: an MBR with boot code, a
+# GPT, sometimes an Apple map or hybrid entries, plus a backup GPT at the
+# far end. parted's mklabel rewrites only the table it owns, and GRUB's
+# BIOS installer refuses a disk on which it can still see a second
+# partition map ("multiple partition labels"). So scrub first: every known
+# signature, then the first and last 2 MiB outright, which is where all of
+# those structures live.
+wipefs -a "$DISK" >/dev/null
+# In 512-byte sectors, not MiB: the backup GPT header sits in the very last
+# sector, and a size that is not a whole number of MiB would leave it.
+DISK_SECTORS=$(blockdev --getsz "$DISK")
+dd if=/dev/zero of="$DISK" bs=512 count=4096 status=none
+dd if=/dev/zero of="$DISK" bs=512 count=4096 seek=$(( DISK_SECTORS - 4096 )) status=none
+sync
+
 echo ">>> Partitioning $DISK"
 # Three partitions, because booting the same disk on both firmwares needs
 # two different things from it:
@@ -199,13 +216,28 @@ set timeout="5"
 # rootwait: harmless on an internal disk, and required when the system was
 # installed onto a USB stick, whose enumeration finishes long after the
 # kernel first looks for the root device.
+#
+# loglevel=4 on the entries that own the screen: kernel messages of warning
+# severity and below go to the journal only, errors and worse still reach
+# the screen. Without it every correctable PCIe error and driver notice
+# scrolls over the console. The serial entry keeps the default 7 -- serial
+# is the channel you watch a boot on.
 menuentry "AOS" {
-	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait console=ttyS0,115200 console=tty1
+	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
 	initrd /boot/microcode.img
 }
 
 menuentry "AOS (serial console)" {
 	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait console=ttyS0,115200
+	initrd /boot/microcode.img
+}
+
+# nomodeset keeps every DRM driver off the display, so the console stays on
+# the firmware framebuffer no matter what the GPU driver does. This is the
+# way back in when a graphics driver fails: log in, read journalctl -b -1,
+# fix, reboot normally.
+menuentry "AOS (safe graphics, no GPU driver)" {
+	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait nomodeset loglevel=4 console=ttyS0,115200 console=tty1
 	initrd /boot/microcode.img
 }
 GRUBCFG

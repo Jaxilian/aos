@@ -160,6 +160,10 @@ BR2_PACKAGE_UTIL_LINUX_SU=y
 # zramctl configures the compressed swap device (see board/aos/rootfs-overlay
 # and the Swap section of linux.config.fragment).
 BR2_PACKAGE_UTIL_LINUX_ZRAMCTL=y
+# wipefs: aos-install scrubs every old partition table and filesystem
+# signature from a disk before partitioning it. Not in util-linux's basic
+# set despite what its help text lists.
+BR2_PACKAGE_UTIL_LINUX_WIPEFS=y
 # Accounts: login, passwd, useradd and friends. PAM-enabled, so a console
 # login registers with logind -- see rootfs-overlay/etc/pam.d/login.
 BR2_PACKAGE_LINUX_PAM=y
@@ -233,7 +237,14 @@ BR2_PACKAGE_LINUX_FIRMWARE=y
 BR2_PACKAGE_INTEL_MICROCODE=y
 BR2_PACKAGE_INTEL_MICROCODE_INSTALL_TARGET=y
 BR2_PACKAGE_LINUX_FIRMWARE_AMD_UCODE=y
+# Intel GPUs need two firmware directories, not one. i915/ serves the i915
+# driver (up to Meteor Lake); everything Lunar Lake and newer is driven by
+# xe, which loads its GuC, HuC and GSC blobs from xe/ -- and cannot bring up
+# the GPU at all without GuC. Missing xe/ is a black screen a few seconds
+# into boot on such a machine: the driver evicts the firmware framebuffer,
+# then fails, and nothing owns the display any more.
 BR2_PACKAGE_LINUX_FIRMWARE_I915=y
+BR2_PACKAGE_LINUX_FIRMWARE_XE=y
 BR2_PACKAGE_LINUX_FIRMWARE_AMDGPU=y
 BR2_PACKAGE_LINUX_FIRMWARE_RADEON=y
 BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_3160=y
@@ -244,6 +255,11 @@ BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_8000C=y
 BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_8265=y
 BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_9XXX=y
 BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_22000=y
+# Wi-Fi 6E (AX210/AX211) and Wi-Fi 7 (BE200). Buildroot has no option for
+# the Wi-Fi 7 CNVi in Core Ultra Series 3 laptops; br2ext/external.mk adds
+# its files to the same list.
+BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_6E=y
+BR2_PACKAGE_LINUX_FIRMWARE_IWLWIFI_7=y
 BR2_PACKAGE_LINUX_FIRMWARE_ATHEROS_9271=y
 BR2_PACKAGE_LINUX_FIRMWARE_ATHEROS_10K_QCA998X=y
 BR2_PACKAGE_LINUX_FIRMWARE_ATHEROS_11K_WCN6855=y
@@ -352,6 +368,16 @@ BR2_TARGET_GRUB2_X86_64_EFI=y
 BR2_TARGET_GRUB2_BOOT_PARTITION="cd"
 BR2_TARGET_GRUB2_BUILTIN_MODULES_PC="boot linux ext2 fat squash4 part_msdos part_gpt normal biosdisk iso9660 serial terminal search search_fs_file test regexp echo"
 BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat squash4 part_msdos part_gpt normal efi_gop iso9660 serial terminal search search_fs_file test regexp echo"
+# grub-embedded.cfg is compiled into the GRUB core image. Its only job is to
+# find the medium GRUB was booted from and hand over to the real menu in
+# /boot/grub/grub.cfg. It must not hardcode a device: "set root=(cd0)" works
+# from a disc but not from a USB stick, which appears as a hard disk, and
+# GRUB would drop to a rescue prompt. Searching for a file that exists only
+# on our own medium works in both cases.
+#
+# It carries no comments on purpose. The core image parses it before the
+# script parser is available, and every "#" line comes out on the console as
+# "Unknown command `#'" at each boot.
 BR2_TARGET_GRUB2_BUILTIN_CONFIG_EFI="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-embedded.cfg"
 BR2_TARGET_GRUB2_BUILTIN_CONFIG_PC="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-embedded.cfg"
 # aos-install runs grub-install and grub-mkconfig on the installed system.

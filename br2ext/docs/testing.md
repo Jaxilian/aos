@@ -6,7 +6,10 @@ need root.
 Four things QEMU cannot test at all, because it does not emulate them: CPU
 microcode application, frequency scaling, a real chipset watchdog, and the
 GPU drivers. Those need real hardware — install AOS on a machine and work on
-it over SSH, see [ssh.md](ssh.md).
+it over SSH, see [ssh.md](ssh.md). The first real-hardware boots found
+three gaps of exactly that kind — the `xe` GPU firmware, the `iwlmld` Wi-Fi
+driver, and a card reader that floods the bus with correctable PCIe errors
+when it has no driver — that every QEMU run had passed over.
 
 ```sh
 ./br2ext/board/aos/run-qemu.sh            # live ISO, UEFI, in a window

@@ -67,19 +67,13 @@ define AOS_ISO9660_SET_ROOT_PARTUUID
 endef
 ROOTFS_ISO9660_PRE_GEN_HOOKS += AOS_ISO9660_SET_ROOT_PARTUUID
 
-# Read the GPT back out of the finished ISO and confirm partition 1 really
-# has the PARTUUID the boot menu now tells the kernel to look for. Without
-# this check a change in xorriso's GUID derivation would produce an image
-# that builds cleanly and then panics at boot.
+# After xorriso: cut the GPT entry array to the standard 128 entries (some
+# firmware rejects any other count, and rejection means no ESP and no boot
+# entry), then read the table back and confirm partition 1 really has the
+# PARTUUID the boot menu tells the kernel to look for. See the script.
 define AOS_ISO9660_CHECK_PARTUUID
-	$(Q)python3 -c "import struct, sys, uuid; \
-f = open('$(BINARIES_DIR)/rootfs.iso9660', 'rb'); \
-f.seek(512); h = f.read(92); \
-sys.exit('AOS: no GPT in the ISO') if h[:8] != b'EFI PART' else None; \
-f.seek(struct.unpack('<Q', h[72:80])[0] * 512); \
-got = str(uuid.UUID(bytes_le=f.read(struct.unpack('<I', h[84:88])[0])[16:32])); \
-sys.exit('AOS: ISO partition 1 is PARTUUID=%s, but the boot menu says $(AOS_ISO_ROOT_PARTUUID). xorriso changed how it derives partition GUIDs; update AOS_ISO_ROOT_PARTUUID in br2ext/external.mk.' % got) \
-	if got != '$(AOS_ISO_ROOT_PARTUUID)' else print('AOS: ISO root PARTUUID=%s, as the boot menu expects' % got)"
+	$(Q)python3 $(BR2_EXTERNAL_AOS_PATH)/board/aos/iso-gpt.py \
+		$(BINARIES_DIR)/rootfs.iso9660 $(AOS_ISO_ROOT_PARTUUID)
 endef
 ROOTFS_ISO9660_POST_GEN_HOOKS += AOS_ISO9660_CHECK_PARTUUID
 endif
@@ -114,3 +108,18 @@ define ROOTFS_ISO9660_INSTALL_BOOTLOADER_EFI
 		$(ROOTFS_ISO9660_EFI_PARTITION_CONTENT)/* ::/
 	$(ROOTFS_ISO9660_FIX_TIME) $(ROOTFS_ISO9660_EFI_PARTITION_PATH)
 endef
+
+# Intel Wi-Fi firmware Buildroot has no option for.
+#
+# Its IWLWIFI_* options stop at BE200 ("gl"). Three later families are what
+# laptops of 2022-2026 actually carry, and each is a chip with no Wi-Fi at
+# all without its blobs:
+#   ma  AX211 CNVi on 12th/13th-gen Core         ~15 MiB
+#   bz  BE201 on Lunar Lake / Arrow Lake         ~47 MiB
+#   sc  the CNVi in Core Ultra Series 3          ~21 MiB
+# The first real machine AOS booted on had "sc". linux-firmware's file list
+# is expanded when its build step runs, so appending here is seen.
+LINUX_FIRMWARE_FILES += \
+	intel/iwlwifi/iwlwifi-ma-* \
+	intel/iwlwifi/iwlwifi-bz-* \
+	intel/iwlwifi/iwlwifi-sc-*

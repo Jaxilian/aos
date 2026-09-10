@@ -110,6 +110,16 @@ CONFIG_USB_STORAGE=y
 CONFIG_MMC=m
 CONFIG_MMC_SDHCI=m
 CONFIG_MMC_SDHCI_PCI=m
+# Realtek card readers, PCIe and USB. Nearly every laptop has one, and the
+# PCIe kind must have a driver even if no card is ever inserted: unbound, it
+# never enters runtime suspend, its link keeps dropping in and out of ASPM
+# states, and every exit is a correctable PCIe error -- tens of thousands a
+# second on an RTS525A, enough to flood the console and stall a shutdown.
+# With rtsx_pci bound the reader sleeps and the errors stop.
+CONFIG_MISC_RTSX_PCI=m
+CONFIG_MMC_REALTEK_PCI=m
+CONFIG_MISC_RTSX_USB=m
+CONFIG_MMC_REALTEK_USB=m
 # Legacy PATA, for the genuinely old machines in scope.
 CONFIG_ATA_GENERIC=y
 CONFIG_PATA_LEGACY=m
@@ -145,6 +155,10 @@ CONFIG_WLAN=y
 CONFIG_IWLWIFI=m
 CONFIG_IWLMVM=m
 CONFIG_IWLDVM=m
+# iwlmld is the op mode for Intel's Wi-Fi 7 parts -- BE200 and the CNVi
+# in Core Ultra Series 3 laptops. Without it those chips have no driver at
+# all, firmware or not; the first real machine AOS booted on had one.
+CONFIG_IWLMLD=m
 CONFIG_ATH9K=m
 CONFIG_ATH10K=m
 CONFIG_ATH10K_PCI=m
@@ -158,6 +172,22 @@ CONFIG_BRCMFMAC=m
 # Regulatory data is loaded as firmware; without this wifi comes up
 # restricted to the most conservative channel set.
 CONFIG_CFG80211_CRDA_SUPPORT=y
+
+# --- USB network adapters -------------------------------------------------
+# A laptop's wired connection is a USB-C adapter or a dock, and it is the
+# most reliable way to SSH into one. These cover what such adapters
+# actually are: ASIX (the AX88179 is everywhere), Realtek RTL8152/8153,
+# Microchip LAN78xx, and the class drivers for anything that speaks
+# CDC Ethernet/NCM/MBIM or RNDIS.
+CONFIG_USB_USBNET=m
+CONFIG_USB_NET_AX8817X=m
+CONFIG_USB_NET_AX88179_178A=m
+CONFIG_USB_RTL8152=m
+CONFIG_USB_LAN78XX=m
+CONFIG_USB_NET_CDC_ETHER=m
+CONFIG_USB_NET_CDC_NCM=m
+CONFIG_USB_NET_CDC_MBIM=m
+CONFIG_USB_NET_RNDIS_HOST=m
 
 # --- Input / laptop --------------------------------------------------------
 CONFIG_SERIO_I8042=y
@@ -257,7 +287,8 @@ CONFIG_PANIC_TIMEOUT=10
 CONFIG_SOFTLOCKUP_DETECTOR=y
 CONFIG_HARDLOCKUP_DETECTOR=y
 CONFIG_BOOTPARAM_HARDLOCKUP_PANIC=y
-# CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC is not set
+# An int since 6.x, not a bool: 0 keeps soft lockups non-fatal.
+CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC=0
 # CONFIG_PANIC_ON_OOPS is not set
 
 # --- Hardware error reporting -------------------------------------------------

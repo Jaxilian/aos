@@ -27,6 +27,58 @@ post-build.sh: installed 1 SSH key(s) for root
 post-build.sh: no board/aos/authorized_keys -- SSH will accept no logins
 ```
 
+## Getting AOS onto a machine to SSH into
+
+Install it on a USB stick and boot the machine from that — nothing on the
+machine's own disk is touched, and the stick is a full, persistent AOS:
+
+```sh
+sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --install
+```
+
+Log in as root in the QEMU window it opens, run `aos-install /dev/vda`,
+then `poweroff`. Boot the target from the stick; it is an ordinary installed
+system with its own host keys, so the changed-host-key warning below does
+not apply.
+
+## Getting on the network
+
+Every wired interface, including a USB-C Ethernet adapter, gets an address
+by DHCP with no configuration -- plug it in and it is up. That is the
+reliable path on a laptop.
+
+Wi-Fi needs the network's credentials once. Find the interface name, write
+the configuration, start the supplicant; networkd then does DHCP on it:
+
+```sh
+ip link                                   # the wireless one is wl...
+wpa_passphrase 'MyNetwork' 'the passphrase' \
+    > /etc/wpa_supplicant/wpa_supplicant-wlo1.conf
+systemctl enable --now wpa_supplicant@wlo1
+networkctl status wlo1                    # "routable" once it has an address
+```
+
+Use the real interface name in both the file name and the unit instance;
+`wlo1` here is one laptop's. The unit is enabled, so it comes back on every
+boot.
+
+## If the screen goes black after boot
+
+A GPU driver that binds and then fails leaves nothing owning the display,
+and the console with it. The boot menu has an entry for exactly this:
+**AOS (safe graphics, no GPU driver)** boots with `nomodeset`, which keeps
+every DRM driver off the screen. Log in there, read the failed boot's log --
+it is persistent on an installed system -- and fix what it names:
+
+```sh
+journalctl -b -1 -p err --no-pager
+journalctl -b -1 -k --no-pager | grep -iE 'xe|i915|nvidia|drm|firmware'
+```
+
+Blind, with no console at all: the power button once is a clean poweroff
+(logind), and Ctrl+Alt+Del a clean reboot. There is no `sudo` on AOS; you
+are root, so `poweroff` typed blind also works.
+
 ## Connecting
 
 ```sh

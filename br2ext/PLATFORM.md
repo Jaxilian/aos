@@ -108,7 +108,22 @@ all depend on GNU behaviour that BusyBox does not reproduce exactly.
 **Kernel and drivers.** A modular kernel with broad PC coverage: SATA/AHCI,
 NVMe, legacy PATA, USB, HID, ext4/btrfs/xfs/f2fs/exfat/NTFS3/vfat, and wired
 and wireless networking for the common Intel, Atheros, Realtek, MediaTek and
-Broadcom parts, with firmware.
+Broadcom parts, with firmware — including Intel Wi-Fi 6E and Wi-Fi 7
+(AX210/AX211, BE200/BE201 and the Core Ultra Series 3 CNVi, which needs the
+`iwlmld` driver) and the USB Ethernet adapters laptops actually use (ASIX,
+Realtek, Microchip, CDC/RNDIS class). Intel GPUs from Lunar Lake on use the
+`xe` driver and its `xe/` firmware; both are present alongside `i915`.
+Realtek card readers (PCIe and USB) have their driver even though no card
+may ever be inserted: an unbound PCIe reader never sleeps and floods the
+machine with correctable PCIe errors.
+
+On the screen the kernel logs at `loglevel=4`: errors and worse are shown,
+warnings and below go to the journal. Serial consoles get everything.
+
+**Getting back in.** The boot menu carries an *AOS (safe graphics, no GPU
+driver)* entry — `nomodeset` — so a GPU driver that binds and then fails
+cannot lock you out: boot that, read `journalctl -b -1`, fix. See
+[docs/ssh.md](docs/ssh.md).
 
 **Networking.** systemd-networkd and systemd-resolved, with every wired and
 wireless interface on DHCP; iproute2, iw, wpa_supplicant, OpenSSL, a CA
@@ -192,18 +207,40 @@ Two things people trip over:
 
 ## USB booting
 
-**Supported for UEFI**, which is what any machine of the last decade uses.
-Write the ISO to a stick with `dd` and it boots there from the same image
-that boots an optical drive. Legacy BIOS from a stick is untested: GRUB's
-hybrid MBR code is present, but `-appended_part_as_gpt` leaves a protective
-MBR with no active partition, and some BIOSes want one.
+**Two ways, and the second is the one that works everywhere.**
+
+*Install AOS onto the stick* with `board/aos/write-usb.sh /dev/sdX
+--install`. It boots the live ISO in QEMU with the physical stick attached
+as a disk and runs `aos-install` on it, so the stick ends up an ordinary
+installed system: GPT, a FAT32 EFI system partition at the front, an ext4
+root, GRUB for UEFI and BIOS. That is the same shape as any installed OS,
+which is why every firmware boots it, and it is persistent and writable —
+what a machine you SSH into to build on needs.
+
+*Write the live ISO* with `dd` (or `write-usb.sh /dev/sdX`). The image is
+a hybrid: it boots from a stick under UEFI in QEMU, verified by attaching
+the physical stick to OVMF (`--test`). But real firmware is choosier than
+OVMF. One ASUS ROG Zephyrus G14 (GU405AP, AMI Aptio, BIOS 305 of June 2026)
+never lists the stick at all — same port, same stick, Secure Boot and Fast
+Boot off — while it lists a Fedora live stick, and the cause has not been
+found. If a machine will not show it, use `--install` rather than fighting
+the firmware. Legacy BIOS from the live ISO is untested either way: GRUB's
+hybrid MBR code is present, but `-appended_part_as_gpt` leaves a
+protective MBR with no active partition, and some BIOSes want one.
 
 ```sh
-sudo dd if=output/images/rootfs.iso9660 of=/dev/sdX bs=4M oflag=direct status=progress conv=fsync
+sudo ./br2ext/board/aos/write-usb.sh /dev/sdX          # live ISO, verified
+sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --test   # ...and booted in QEMU
+sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --install
 ```
 
-Three things in `br2ext/external.mk` make that work, and all three are
-needed:
+The script refuses anything that is not a removable USB whole disk, reads
+the written bytes back and compares them to the image, and moves the backup
+GPT to the end of the medium — after `dd` it sits where the image ends,
+which the kernel tolerates and some firmware does not.
+
+Four things in `br2ext/external.mk` make the live ISO bootable from a stick
+at all:
 
 - `-append_partition 2 0xef … -appended_part_as_gpt` puts the EFI system
   partition Buildroot already builds for El Torito into a real GPT entry, so
