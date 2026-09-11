@@ -6,3 +6,10 @@
 # the live ISO does not have. Without it udevd logs "Unknown group 'clock'"
 # on every boot and the device stays root-only.
 -	-1	clock	-1	*	-	-	-	Real-time clock access
+
+# Owner of the graphical session. ade.service runs the compositor as this
+# user with PAMName=login, so logind opens a session on seat0 for it and
+# hands over the DRM and input fds. No group memberships are needed for
+# that -- device access follows the session, not the group -- and the
+# account has no usable password because nothing logs into it directly.
+ade	-1	ade	-1	*	/home/ade	/bin/sh	-	ade desktop session owner

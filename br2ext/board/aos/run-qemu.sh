@@ -10,6 +10,12 @@
 # Add "serial" as a second word to run headless on the terminal instead of
 # opening a window, e.g.  run-qemu.sh bios serial
 #
+# One thing the script cannot fix: on a desktop that uses the Super key
+# itself -- GNOME opens the overview with it -- Super never reaches the QEMU
+# window, so ade's Super+Return does nothing however correct the guest is.
+# Test that binding from "boot-test.py desktop", which injects the key
+# through the QEMU monitor, or rebind it.
+#
 # The -cpu choice is not cosmetic. AOS is built to an x86-64-v2 baseline, and
 # QEMU's default "qemu64" model predates SSE4.2, so the image panics inside
 # ld-linux with an invalid opcode before it reaches userspace.
@@ -65,6 +71,24 @@ DISPLAY_OPTS=""
 # long time, which looks exactly like "nothing to boot".
 NET="-netdev user,id=n0 -device virtio-net-pci,netdev=n0,romfile="
 
+# Display and input, which only start to matter once something graphical is
+# on the image.
+#
+# virtio-vga rather than QEMU's default std VGA. Both give the guest a KMS
+# device, but ade composites with damage tracking -- it repaints only what
+# changed -- and on bochs-drm (what std VGA gives you) that leaves the
+# screen wrong: the cursor smears a trail behind it, text is eaten, and the
+# background never gets painted at all. The same ade binary on virtio-vga
+# draws correctly, so this is about the virtual display, not the compositor.
+#
+# usb-tablet is an ABSOLUTE pointing device, and it needs the xHCI
+# controller because the "pc" machine has no USB bus of its own. QEMU's
+# default mouse is a relative PS/2 one, and a relative device does nothing
+# at all until you click inside the window to let QEMU grab the pointer --
+# which looks exactly like a desktop with a dead mouse and no cursor.
+VIDEO="-device virtio-vga"
+INPUT="-device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0"
+
 OVMF_CODE=/usr/share/edk2/ovmf/OVMF_CODE.fd
 OVMF_VARS_SRC=/usr/share/edk2/ovmf/OVMF_VARS.fd
 
@@ -100,13 +124,13 @@ case "$MODE" in
 		need_iso
 		# shellcheck disable=SC2086
 		exec qemu-system-x86_64 $ACCEL -m 4G -smp 4 \
-			$(cdrom_dev 0) $NET $DISPLAY_OPTS
+			$(cdrom_dev 0) $NET $VIDEO $INPUT $DISPLAY_OPTS
 		;;
 	uefi)
 		need_iso
 		# shellcheck disable=SC2086
 		exec qemu-system-x86_64 $ACCEL -m 4G -smp 4 \
-			$(uefi_flags) $(cdrom_dev 0) $NET $DISPLAY_OPTS
+			$(uefi_flags) $(cdrom_dev 0) $NET $VIDEO $INPUT $DISPLAY_OPTS
 		;;
 	disk)
 		IMG="${IMG_ARG:-$IMAGES/aos-disk.img}"
@@ -122,7 +146,7 @@ case "$MODE" in
 		echo "Booting installed disk $IMG"
 		# shellcheck disable=SC2086
 		exec qemu-system-x86_64 $ACCEL -m 4G -smp 4 \
-			$(uefi_flags) $(disk_dev "$IMG" 0) $NET $DISPLAY_OPTS
+			$(uefi_flags) $(disk_dev "$IMG" 0) $NET $VIDEO $INPUT $DISPLAY_OPTS
 		;;
 	install)
 		need_iso
@@ -137,7 +161,7 @@ case "$MODE" in
 		echo "Blank disk at $IMG -- log in as root and run: aos-install /dev/vda"
 		# shellcheck disable=SC2086
 		exec qemu-system-x86_64 $ACCEL -m 4G -smp 4 \
-			$(uefi_flags) $(cdrom_dev 0) $(disk_dev "$IMG" 1) $NET $DISPLAY_OPTS
+			$(uefi_flags) $(cdrom_dev 0) $(disk_dev "$IMG" 1) $NET $VIDEO $INPUT $DISPLAY_OPTS
 		;;
 	*)
 		echo "usage: $0 [uefi|bios|disk [image]|install] [serial]"

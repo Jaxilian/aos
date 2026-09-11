@@ -30,6 +30,15 @@ BR2_INIT_SYSTEMD=y
 # console= on the kernel command line by itself. ("console" here would make
 # Buildroot disable getty@tty1, leaving the screen without a login.)
 BR2_TARGET_GENERIC_GETTY_PORT="tty1"
+# A UTF-8 locale has to exist before anything can select one. glibc ships
+# the locale *sources*; nothing is usable until localedef compiles one, and
+# with an empty list Buildroot compiles none -- leaving only "C", whose
+# charset is ASCII. foot checks LC_CTYPE at startup and refuses to run
+# without UTF-8, and box drawing, block glyphs and every non-ASCII character
+# in a filename depend on it besides. /etc/locale.conf in the rootfs overlay
+# is what actually selects this one; systemd reads it and puts LANG into the
+# environment of every service, ade.service included.
+BR2_GENERATE_LOCALE="en_US.UTF-8"
 # The live ISO is read-only, so do not try to remount / read-write. An
 # installed system is mounted read-only by the kernel too ("ro" on its
 # command line), checked by systemd-fsck-root, and then made writable by
@@ -137,6 +146,17 @@ BR2_PACKAGE_LESS=y
 BR2_PACKAGE_FILE=y
 BR2_PACKAGE_PKGCONF=y
 BR2_PACKAGE_NCURSES=y
+# clear, reset, tput, tset, infocmp, tic. clear is the one anybody notices
+# is missing; the rest is what scripts use to ask the terminal about itself.
+BR2_PACKAGE_NCURSES_TARGET_PROGS=y
+# ncurses wipes /usr/share/terminfo on every target install and puts back
+# only its own whitelist -- so a terminfo file installed by another package
+# survives only until the next time ncurses is reinstalled. foot's entry is
+# in ncurses' own database as well, so naming it here is what actually keeps
+# it on the image, whatever order the two packages are built in. Without it
+# foot sets TERM=foot for a terminfo that may not be there, and every
+# ncurses program inside the terminal falls back to dumb behaviour.
+BR2_PACKAGE_NCURSES_ADDITIONAL_TERMINFO="f/foot f/foot+base f/foot-direct"
 BR2_PACKAGE_READLINE=y
 BR2_PACKAGE_MAKE=y
 
@@ -321,6 +341,42 @@ BR2_PACKAGE_VULKAN_LOADER=y
 
 BR2_PACKAGE_WAYLAND=y
 BR2_PACKAGE_WAYLAND_PROTOCOLS=y
+
+# The compositor's session plumbing. libseat is the seat library out of the
+# seatd package; with systemd-logind present it talks to logind rather than
+# building the daemon, so no extra service runs. libinput needs libudev,
+# which systemd provides.
+BR2_PACKAGE_LIBINPUT=y
+BR2_PACKAGE_LIBXKBCOMMON=y
+BR2_PACKAGE_SEATD=y
+
+# The keymap data libxkbcommon compiles at startup. Data only -- the X11
+# pieces its Config.in selects are all conditional on BR2_PACKAGE_XORG7,
+# which stays off.
+BR2_PACKAGE_XKEYBOARD_CONFIG=y
+
+# The desktop environment itself. Takes tty1, so getty@tty1 does not run.
+BR2_PACKAGE_ADE=y
+
+# Super+T spawns this. Without a terminal on the image the session has no
+# way to reach a shell, reboot or shut down. foot needs a font to ask
+# fontconfig for; BR2_GENERATE_LOCALE above gives it the UTF-8 locale.
+BR2_PACKAGE_FOOT=y
+BR2_PACKAGE_DEJAVU=y
+
+# A terminal, and therefore the first thing on the image that is a Wayland
+# client at all. Without one a correct boot is indistinguishable from a
+# broken one: the compositor comes up, paints its background, draws a cursor,
+# and has nothing to show. foot is also what Super+Return is bound to, so it
+# is what makes the compositor's spawn path reachable from the keyboard.
+BR2_PACKAGE_FOOT=y
+BR2_PACKAGE_FOOT_GRAPHEME_CLUSTERING=y
+
+# Fonts, and the library that finds them. foot asks fontconfig for
+# "monospace" and exits if the match comes back empty, so a font on the
+# image is not decoration -- it is a startup dependency. fontconfig itself
+# is pulled in by foot; dejavu is the family it resolves to.
+BR2_PACKAGE_DEJAVU=y
 
 ################################################################################
 # M4 -- self-hosting.

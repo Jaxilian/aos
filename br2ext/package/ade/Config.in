@@ -1,0 +1,61 @@
+config BR2_PACKAGE_ADE
+	bool "ade (desktop environment)"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on !BR2_STATIC_LIBS
+	depends on BR2_PACKAGE_MESA3D_OPENGL_EGL
+	depends on BR2_PACKAGE_MESA3D_GBM
+	select BR2_PACKAGE_HOST_RUSTC
+	select BR2_PACKAGE_LIBDRM
+	select BR2_PACKAGE_LIBINPUT
+	select BR2_PACKAGE_LIBXKBCOMMON
+	select BR2_PACKAGE_SEATD
+	select BR2_PACKAGE_WAYLAND
+	select BR2_PACKAGE_WAYLAND_PROTOCOLS
+	select BR2_PACKAGE_XKEYBOARD_CONFIG
+	select BR2_PACKAGE_FOOT
+	select BR2_PACKAGE_DEJAVU
+	help
+	  The AOS desktop environment: a Wayland compositor (ade-comp)
+	  built on smithay, driving DRM/KMS directly with libinput for
+	  input and logind, through libseat, for device access.
+
+	  Clients render with Vulkan and hand the compositor a dmabuf;
+	  the compositor composites with GLES and scans fullscreen
+	  surfaces out directly on a KMS plane where it can.
+
+	  Installed as a systemd unit that takes tty1, so it conflicts
+	  with getty@tty1.
+
+	  xkeyboard-config is not optional: libxkbcommon compiles the
+	  keymap from its rules at startup, and with no rules present
+	  the seat gets no keyboard and the compositor exits. It brings
+	  no X11 with it -- its xlib selects are conditional on XORG7.
+
+	  foot is equally not optional, for a different reason: it is
+	  what Super+T spawns, and with no terminal on the image there
+	  is no way to reach a shell, shut down or reboot from the
+	  session. dejavu comes with it because fontconfig ships no
+	  fonts and foot asks for "monospace".
+
+comment "ade needs a glibc toolchain w/ threads and dynamic libs, and mesa3d w/ EGL and GBM"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS \
+		|| !BR2_PACKAGE_MESA3D_OPENGL_EGL || !BR2_PACKAGE_MESA3D_GBM
+
+if BR2_PACKAGE_ADE
+
+config BR2_PACKAGE_ADE_PATH
+	string "ade source tree"
+	default "$(BR2_EXTERNAL_AOS_PATH)/../../ade"
+	help
+	  Absolute path to the ade checkout to build from. The default
+	  is the sibling of the aos tree, which is where it lives on a
+	  development machine.
+
+	  This is a local path rather than a download because ade is
+	  co-developed with the OS: a build tracks the working tree,
+	  including uncommitted state. Point it elsewhere, or switch
+	  ADE_SITE to a git URL in ade.mk, for a reproducible build.
+
+endif

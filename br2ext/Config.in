@@ -10,6 +10,10 @@ comment "staging sysroot by board/aos/post-build.sh."
 source "$BR2_EXTERNAL_AOS_PATH/package/aos-gcc/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/aos-rust/Config.in"
 
+comment "Desktop"
+
+source "$BR2_EXTERNAL_AOS_PATH/package/ade/Config.in"
+
 comment "Graphics"
 
 source "$BR2_EXTERNAL_AOS_PATH/package/aos-nvidia-open/Config.in"

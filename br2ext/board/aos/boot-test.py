@@ -9,6 +9,12 @@ screendump the VGA output.
     ./br2ext/board/aos/boot-test.py install   live ISO + a blank 16G disk,
                                               then runs aos-install on it
     ./br2ext/board/aos/boot-test.py disk      boot what install left behind
+    ./br2ext/board/aos/boot-test.py desktop   live ISO, but checks the ade
+                                              session instead of the shell:
+                                              screendumps the autostarted
+                                              terminal, presses Super+Return
+                                              through the QEMU monitor, and
+                                              screendumps again
 
 Same QEMU arrangement as run-qemu.sh -- UEFI, -cpu host, no PXE ROM, a fresh
 OVMF variable store each run -- plus a virtual watchdog and a forward from
@@ -23,6 +29,7 @@ Writes <mode>.serial.txt and <mode>.screen.png next to the images.
 """
 
 import os
+import re
 import shutil
 import signal
 import socket
@@ -44,6 +51,9 @@ VARS = os.path.join(OUT, "OVMF_VARS.test.fd")
 SER = os.path.join(OUT, "boot-test-serial.sock")
 MON = os.path.join(OUT, "boot-test-monitor.sock")
 LOGIN_TIMEOUT = 180
+# How long the desktop gets to put its first window on the screen. Generous
+# because QEMU has no GPU: every pixel here goes through llvmpipe.
+WINDOW_TIMEOUT = 60
 SSH_PORT = 2222
 
 CHECKS = [
@@ -64,6 +74,38 @@ CHECKS = [
 INSTALL = [
     "lsblk -o NAME,SIZE,TYPE /dev/vda",
     "printf 'YES\\n' | aos-install /dev/vda 2>&1 | tail -20",
+]
+
+# The desktop session, checked from the serial login -- which is the only way
+# in, since ade.service has taken tty1 away from getty. The order is the
+# order things have to work in: a logind session on seat0, the DRM and input
+# devices that session hands over, the compositor process, then the client.
+DESKTOP = [
+    "systemctl is-active ade.service; systemctl is-active getty@tty1.service",
+    "loginctl list-sessions --no-pager",
+    "loginctl show-session "
+    "$(loginctl list-sessions --no-pager --no-legend | awk '$3==\"ade\"{print $1}') "
+    "-p Id -p User -p Seat -p Active -p State -p TTY -p Type -p Class",
+    "ls -l /dev/dri/",
+    "ls /dev/input/",
+    "localectl status 2>&1 | head -3; echo \"LANG in ade: "
+    "$(tr '\\0' '\\n' </proc/$(pgrep -x ade-comp)/environ | grep ^LANG=)\"",
+    "pgrep -a ade-comp; pgrep -a foot",
+    "for p in $(pgrep -x foot); do echo \"foot $p ->\"; pgrep -aP $p; done",
+    "journalctl -b _COMM=foot --no-pager | tail -10",
+    # Not "journalctl -u ade": pam_systemd hands the process to logind, which
+    # moves it into its own session scope, and from that point journald files
+    # everything it prints under that scope instead of the service. The unit
+    # log keeps the two systemd lines and loses every line the compositor
+    # wrote. Matching on the executable finds it wherever it ended up.
+    "journalctl -b _COMM=ade-comp --no-pager | tail -20",
+    "ls -l /run/user/$(id -u ade)/wayland-* 2>&1",
+    "fc-match monospace 2>&1",
+    # foot sets TERM=foot, so clear/tput and every ncurses program inside the
+    # terminal need that entry present -- see the ncurses note in the
+    # defconfig for why it is easy to lose.
+    "TERM=foot clear | wc -c; TERM=foot tput cols; infocmp -1 foot | head -2",
+    "journalctl -u ade -b --no-pager | tail -5",
 ]
 
 
@@ -87,8 +129,27 @@ def png_from_ppm(ppm, png):
     with open(png, "wb") as f:
         f.write(out)
     # a blank console is one flat colour; sample rather than scan it all
-    distinct = len(set(raw[i:i + 3] for i in range(0, len(raw), 3 * 97)))
-    return w, h, distinct
+    px = [raw[i:i + 3] for i in range(0, len(raw), 3 * 97)]
+    distinct = len(set(px))
+    # "ink": how much of the screen is not the single most common colour.
+    # A compositor that came up but mapped nothing paints one flat clear
+    # colour and a cursor -- a couple of hundred pixels out of a million --
+    # so this separates "a desktop with a window on it" from "a desktop",
+    # which distinct colours alone does not.
+    bg = max(set(px), key=px.count) if px else b""
+    ink = sum(1 for p in px if p != bg) / len(px) if px else 0.0
+    return w, h, distinct, ink, raw
+
+
+# Colour, cursor positioning, and the OSC 3008 shell-integration reports
+# bash emits around every prompt. Harmless to read, but they are inside the
+# text of every captured command, so anything that parses output -- a number
+# of processes, say -- sees them too and gets nonsense.
+ANSI = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-Z\\-_]|\x1b\[[0-9;:?]*[ -/]*[@-~]")
+
+
+def unescape(s):
+    return ANSI.sub("", s)
 
 
 class Serial:
@@ -133,7 +194,7 @@ class Serial:
         out = self.read_until(marker.encode(), timeout)
         if out is None:
             return "!! TIMEOUT waiting for: " + cmd
-        lines = out.decode(errors="replace").replace("\r", "").split("\n")
+        lines = unescape(out.decode(errors="replace")).replace("\r", "").split("\n")
         return "\n".join(l for l in lines[1:] if marker not in l).strip()
 
 
@@ -174,14 +235,27 @@ def qemu_command():
            "-drive", "if=pflash,format=raw,file=%s" % VARS,
            "-netdev", "user,id=n0,hostfwd=tcp:127.0.0.1:%d-:22" % SSH_PORT,
            "-device", "virtio-net-pci,netdev=n0,romfile=",
-           "-display", "none", "-vga", "std", "-no-reboot",
+           "-display", "none", "-no-reboot",
            "-device", "i6300esb", "-action", "watchdog=reset",
            "-chardev", "socket,id=ser0,path=%s,server=on,wait=off" % SER,
            "-serial", "chardev:ser0",
            "-monitor", "unix:%s,server,nowait" % MON]
+    # std VGA everywhere except the desktop: it is the harsher case for a
+    # text console, being what a machine with no KMS driver falls back to.
+    # ade cannot use it, though -- damage-tracked compositing on bochs-drm
+    # smears the cursor and eats the background (see run-qemu.sh) -- so the
+    # desktop gets virtio-vga, which is also what run-qemu.sh hands you.
+    # usb-tablet comes with it so the pointer is absolute; the xHCI
+    # controller is needed because "pc" has no USB bus of its own.
+    if MODE == "desktop":
+        cmd += ["-device", "virtio-vga",
+                "-device", "qemu-xhci,id=xhci",
+                "-device", "usb-tablet,bus=xhci.0"]
+    else:
+        cmd += ["-vga", "std"]
     cdrom = ["-drive", "if=none,id=cd0,media=cdrom,format=raw,file=%s" % ISO,
              "-device", "ide-cd,drive=cd0,bootindex=0"]
-    if MODE == "live":
+    if MODE in ("live", "desktop"):
         return cmd + cdrom
     if MODE == "usb":
         # what a dd'd stick looks like: no El Torito, so firmware must find
@@ -199,7 +273,108 @@ def qemu_command():
     if MODE == "disk":
         return cmd + ["-drive", "if=none,id=hd0,format=raw,file=%s" % DISK,
                       "-device", "virtio-blk-pci,drive=hd0,bootindex=0"]
-    sys.exit("usage: boot-test.py live|usb|install|disk")
+    sys.exit("usage: boot-test.py live|usb|install|disk|desktop")
+
+
+def shot(tag, quiet=False):
+    """Screendump the VGA output and report how much is on it."""
+    ppm = os.path.join(OUT, "%s.screen.ppm" % tag)
+    png = os.path.join(OUT, "%s.screen.png" % tag)
+    r = monitor("screendump %s" % ppm)
+    time.sleep(1)
+    if not os.path.exists(ppm):
+        if not quiet:
+            print("!! screendump failed: %s" % r.strip())
+        return None
+    w, h, n, ink, raw = png_from_ppm(ppm, png)
+    os.unlink(ppm)
+    if not quiet:
+        print("\n== screendump %dx%d, ~%d distinct sampled colours, %.1f%% ink -> %s"
+              % (w, h, n, ink * 100, png))
+    return ink, raw
+
+
+def count(ser, prog):
+    """How many processes of this name are running in the guest.
+
+    The captured output still carries the shell prompt that preceded it, so
+    take the last number in it rather than trying to parse the whole string.
+    """
+    n = re.findall(r"\d+", ser.run("pgrep -c -x %s" % prog))
+    return int(n[-1]) if n else 0
+
+
+def desktop(ser):
+    """Screendump the session, press Super+Return, screendump again.
+
+    The keypress goes in through the QEMU monitor rather than the serial
+    line on purpose: it travels the whole path a real key does -- emulated
+    PS/2 controller, atkbd, evdev, libinput, xkbcommon, the compositor's
+    binding table -- and none of that is exercised by anything else here.
+
+    A pass needs both halves. Ink on the first dump means the autostarted
+    terminal was mapped and composited; more windows after the keypress
+    means input reached the compositor and its spawn path ran.
+    """
+    # Wait for something to reach the screen, rather than for the log line
+    # that says a window was mapped. Those are not the same moment: mapping
+    # happens when the client asks, the first frame when it has actually
+    # rendered one, and under llvmpipe that gap is seconds. Polling the
+    # screen itself puts a bound on the thing that matters -- how long after
+    # boot there is a desktop to look at -- instead of racing it.
+    first = None
+    for _ in range(WINDOW_TIMEOUT // 2):
+        first = shot("desktop", quiet=True)
+        if first and first[0] >= 0.005:
+            break
+        time.sleep(2)
+    if first is None:
+        print("!! screendump failed")
+        return False
+    before, raw0 = first
+    print("\n== first window on screen -> %s (%.1f%% ink)"
+          % (os.path.join(OUT, "desktop.screen.png"), before * 100))
+
+    n0 = count(ser, "foot")
+    print("\n== Super+Return (sendkey meta_l-ret)")
+    monitor("sendkey meta_l-ret")
+    time.sleep(6)
+    n1 = count(ser, "foot")
+    print("\n$ pgrep -c -x foot: %d before, %d after" % (n0, n1))
+    print("\n$ journalctl -b _COMM=ade-comp | tail -10\n%s"
+          % ser.run("journalctl -b _COMM=ade-comp --no-pager | tail -10"))
+
+    spawned = shot("desktop-spawned")
+    after, raw1 = spawned if spawned else (0.0, b"")
+
+    # Type into the terminal. The shell being alive is not the same as its
+    # output reaching the screen: the window can be mapped and composited
+    # while the client never draws a glyph. Echoed text is the only thing
+    # that proves the whole round trip -- key to libinput, to the focused
+    # client, to a buffer, to the scanout.
+    print("\n== typing 'echo AOS' into the focused terminal")
+    for k in ["e", "c", "h", "o", "spc", "shift-a", "shift-o", "shift-s", "ret"]:
+        monitor("sendkey %s" % k)
+        time.sleep(0.3)
+    time.sleep(5)
+    typed = shot("desktop-typed")
+    changed = 0
+    if typed and raw1:
+        changed = sum(1 for i in range(0, min(len(raw1), len(typed[1])), 3)
+                      if raw1[i:i + 3] != typed[1][i:i + 3])
+    print("\n== %d pixels changed after typing" % changed)
+
+    grew = n1 > n0
+
+    print("\n== desktop: %.1f%% ink before, %.1f%% after; foot %d -> %d"
+          % (before * 100, after * 100, n0, n1))
+    if before < 0.005:
+        print("!! nothing was composited -- the screen is effectively blank")
+    if not grew:
+        print("!! Super+Return spawned nothing")
+    if not changed:
+        print("!! typing changed nothing on screen -- the terminal is not live")
+    return before >= 0.005 and grew and changed > 0
 
 
 def main():
@@ -239,18 +414,17 @@ def main():
                         print("\n$ %s\n%s" % (c, ser.run(c, timeout=900)))
                     ser.send("poweroff\n")
                     ser.read_until(b"reboot: Power down", 90)
-        if MODE != "install" or not ok:
-            ppm = os.path.join(OUT, "%s.screen.ppm" % MODE)
-            png = os.path.join(OUT, "%s.screen.png" % MODE)
-            r = monitor("screendump %s" % ppm)
-            time.sleep(1)
-            if os.path.exists(ppm):
-                w, h, n = png_from_ppm(ppm, png)
-                os.unlink(ppm)
-                print("\n== screendump %dx%d, ~%d distinct sampled colours -> %s"
-                      % (w, h, n, png))
-            else:
-                print("!! screendump failed: %s" % r.strip())
+                if MODE == "desktop":
+                    for c in DESKTOP:
+                        print("\n$ %s\n%s" % (c, ser.run(c)))
+                    ok = desktop(ser)
+        # desktop mode takes its own pair of screendumps, before and after
+        # the keypress; re-dumping here would overwrite the "before" one.
+        if MODE == "desktop":
+            if not ok:
+                shot("desktop-failed")
+        elif MODE != "install" or not ok:
+            shot(MODE)
     finally:
         try:
             monitor("quit")

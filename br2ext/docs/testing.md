@@ -72,6 +72,39 @@ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor   # schedutil (no cpuf
 systemctl list-timers                # fstrim weekly
 ```
 
+## Unattended runs
+
+`boot-test.py` boots the image in QEMU with no one watching: it drives the
+serial console, runs a list of checks over it, and always ends in a
+screendump, because a boot can look perfect on serial while the screen stays
+black.
+
+```sh
+./br2ext/board/aos/boot-test.py live      # the ISO in an optical drive
+./br2ext/board/aos/boot-test.py usb       # the ISO as a USB mass-storage device
+./br2ext/board/aos/boot-test.py install   # live ISO + blank disk, runs aos-install
+./br2ext/board/aos/boot-test.py disk      # boot what install left behind
+./br2ext/board/aos/boot-test.py desktop   # the ade session
+```
+
+It writes `<mode>.serial.txt` and `<mode>.screen.png` next to the images.
+
+`desktop` checks the graphical session rather than the shell — necessary
+because `ade.service` takes tty1, so the serial line is the only way in. It
+waits for a window to reach the screen (not merely for the compositor to log
+that it mapped one: under llvmpipe those are seconds apart), then presses
+Super+Return and types into the terminal, both through the QEMU monitor's
+`sendkey`. Going in that way is the point — the keystrokes travel the whole
+path a real key does, through the emulated PS/2 controller, evdev, libinput,
+xkbcommon and the compositor's binding table, none of which anything else
+here exercises. It leaves three screendumps: `desktop`, `desktop-spawned`
+and `desktop-typed`.
+
+One thing to know when reading its output: the compositor's own log lines are
+not under `journalctl -u ade`. `PAMName=login` hands the process to logind,
+which moves it into a session scope, and journald files its output there.
+Use `journalctl -b _COMM=ade-comp`.
+
 ## Three traps
 
 **Never use `sudo`.** QEMU with KVM does not need root, and running as root
