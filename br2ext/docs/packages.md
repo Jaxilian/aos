@@ -31,6 +31,7 @@ Installed size is **2.6 GB**. The ISO is 956 MB because it is compressed.
 | dbus-broker | 37 |
 | polkit | 126 |
 | linux-pam | 1.7.2 |
+| sudo | 1.9.17p2 |
 | grub2 | 2.14 (BIOS and UEFI) |
 | linux-firmware | 20260810 |
 

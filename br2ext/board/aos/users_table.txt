@@ -7,9 +7,17 @@
 # on every boot and the device stays root-only.
 -	-1	clock	-1	*	-	-	-	Real-time clock access
 
-# Owner of the graphical session. ade.service runs the compositor as this
-# user with PAMName=login, so logind opens a session on seat0 for it and
-# hands over the DRM and input fds. No group memberships are needed for
-# that -- device access follows the session, not the group -- and the
-# account has no usable password because nothing logs into it directly.
-ade	-1	ade	-1	*	/home/ade	/bin/sh	-	ade desktop session owner
+# The demo account, and the owner of the graphical session: ade.service
+# runs the compositor as this user (through the drop-in in
+# rootfs-overlay/etc/systemd/system/ade.service.d, which overrides the
+# unit's own "ade" service account) with PAMName=login, so logind opens a
+# session on seat0 for it and hands over the DRM and input fds. The
+# terminal the session opens is therefore this user's shell in this user's
+# home, and sudo asks this user's password.
+#
+# A member of wheel, which is what both sudo (10-aos-wheel) and polkit's
+# default rules treat as administrators. The password is usable only at the
+# keyboard: sshd refuses password authentication. An install made with
+# "aos-install --release" (./usb.sh --release) deletes this account and
+# creates the real one in its place.
+admin	1000	admin	1000	=123321	/home/admin	/bin/bash	wheel	Demo account

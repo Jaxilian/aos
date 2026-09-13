@@ -16,8 +16,10 @@ Run it as yourself. It lists the sticks it can see and picks the only one
 the live ISO in QEMU with the stick attached and types the install for you.
 Ten minutes, most of it the build and the copy; the guest's transcript is
 in `output/images/usb-install.txt`. `./usb.sh --no-build` skips the make,
-`./usb.sh --test` boots the finished stick in QEMU afterwards as proof, and
-`./usb.sh /dev/sdX` names the stick instead of being asked.
+`./usb.sh --test` boots the finished stick in QEMU afterwards as proof,
+`./usb.sh --release` makes it your own machine rather than a demo (see
+"Accounts" below), and `./usb.sh /dev/sdX` names the stick instead of
+being asked.
 
 Then: stick into a **USB-A port on the machine itself**, machine fully **off**,
 power on, open the **one-time boot menu** (Esc or F8 on ASUS, F12 on most
@@ -232,6 +234,36 @@ That happened five times here before it worked. The order to check:
    boots it. It is the ISO's check, and on an installed stick it erases the
    install.
 
+## Accounts: the demo one, and yours
+
+The desktop session is a real user's, not root's. What you get in the
+terminal is that user's shell, in that user's home, and `sudo` asks that
+user's password.
+
+**Demo (the default).** The account is `admin`, password `123321`, a
+member of `wheel`. `sudo` works with that password. Powering off,
+rebooting and suspending need no password at all: `systemctl poweroff`
+(or `shutdown now`, or `reboot`) typed in the terminal just does it,
+because a polkit rule of ours lets the active seat session do those —
+logind's own policy would demand an administrator's password through a
+polkit agent the moment anyone else is logged in, over SSH say, and there
+is no agent to ask. That password is only usable at the keyboard: sshd
+refuses password authentication, so a stick with the demo account on it is
+not a remote root hole. Root itself has no password on the console.
+
+**Release (`./usb.sh --release`).** For a machine you will actually use.
+Before the build it asks for a user name and a password; the install then
+deletes `admin`, creates your account in its place (same `wheel`
+membership, same session ownership) and locks root's console login. Root
+stays reachable over SSH with your key, and `sudo` covers the rest. The
+password is hashed on the host and only the hash reaches the guest, typed
+with echo off, so it is in no transcript.
+
+There is no login screen yet: the session starts as its owner at boot.
+Which account that is lives in
+`/etc/systemd/system/ade.service.d/10-aos-user.conf`, and a release
+install writes it there.
+
 ## Why not the live ISO
 
 Writing `rootfs.iso9660` to a stick with `dd` is the obvious thing, and it is
@@ -276,6 +308,14 @@ line names it (`device [10ec:525a]`); the fix is its driver, not silencing
 the message. The screen entries now run at `loglevel=4`, so warnings go to
 the journal and only errors reach the console.
 
+**Touchpad dead, USB mouse fine.** Nothing is wrong with input handling;
+the touchpad is not a USB device. It is an I2C-HID device behind the
+chipset's I2C controller and the SoC's GPIO pinctrl, and with any of those
+drivers missing it never appears (`ls /sys/bus/i2c/devices` is empty).
+All of them are in the kernel now, see the "Input / laptop" section of
+`linux.config.fragment`; if a new machine shows the same, `journalctl -k |
+grep -iE 'i2c|hid|pinctrl'` says which link is missing.
+
 **No network.** A USB-C Ethernet adapter gets DHCP with no setup. Wi-Fi
 needs credentials once — the recipe is in [ssh.md](ssh.md). If neither
 interface exists at all (`ip link`), it is a missing driver, and it was
@@ -305,6 +345,7 @@ disk; every tool that guesses which one it is looking at can guess wrong.
 | `-bash: /dev/sda: No such file or directory` inside the VM | Inside the VM it is `aos-install /dev/vda` |
 | Booted, then black screen; `sudo shutdown now` blind did nothing | `xe/` firmware missing; no `sudo` on AOS; power button or Ctrl+Alt+Del |
 | Console flooded with correctable PCIe errors | Card reader had no driver; every PCIe device needs one even if unused |
+| Touchpad dead, USB mouse worked | The touchpad is I2C-HID: it needs the I2C controller, the LPSS and pinctrl drivers, and i2c-hid-acpi, all four |
 | BIOS loader refused a reinstalled stick; firmware stopped listing it | Stale ISO signature at sector 64; the installer now scrubs first |
 | Two fixes rebuilt, stick still had the old image | `make` before `write-usb.sh`, and read post-build's last line — or `./usb.sh`, which does both |
 | Unattended install driven through QEMU's stdin on a pty died at GRUB | Drive the guest over a serial socket, as `boot-test.py` and `auto-install.py` do |

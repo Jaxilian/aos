@@ -10,18 +10,44 @@ set -e
 
 usage() {
 	cat <<USAGE
-Usage: aos-install <disk>
+Usage: aos-install [--release --user NAME --hash HASH] <disk>
 
   <disk>  the whole disk to install onto, e.g. /dev/sda or /dev/nvme0n1
+
+  --release   a machine of your own rather than a demo: the demo account
+              (admin, password 123321) is deleted, NAME is created in its
+              place as the session owner and a wheel member, with HASH as
+              its crypt(3) password, and root's console login is locked.
+              Root stays reachable over SSH with a key, and everything
+              else through sudo.
 
 This ERASES the target disk completely.
 USAGE
 	exit 1
 }
 
+RELEASE=no
+NEWUSER=""
+NEWHASH=""
+while [ $# -gt 1 ]; do
+	case "$1" in
+		--release) RELEASE=yes ;;
+		--user)    NEWUSER="$2"; shift ;;
+		--hash)    NEWHASH="$2"; shift ;;
+		*)         usage ;;
+	esac
+	shift
+done
 [ $# -eq 1 ] || usage
 DISK="$1"
 [ -b "$DISK" ] || { echo "aos-install: $DISK is not a block device" >&2; exit 1; }
+if [ "$RELEASE" = yes ]; then
+	[ -n "$NEWUSER" ] && [ -n "$NEWHASH" ] || {
+		echo "aos-install: --release needs --user and --hash" >&2; exit 1; }
+	echo "$NEWUSER" | grep -qE '^[a-z_][a-z0-9_-]{0,31}$' || {
+		echo "aos-install: '$NEWUSER' is not a usable user name" >&2; exit 1; }
+	[ "$NEWUSER" != root ] || { echo "aos-install: the account cannot be root" >&2; exit 1; }
+fi
 
 # Partition naming differs between /dev/sda2 and /dev/nvme0n1p2.
 case "$DISK" in
@@ -180,6 +206,23 @@ FSTAB
 
 echo ">>> Installing bootloader"
 for d in proc sys dev; do mount --bind "/$d" "$TARGET/$d"; done
+
+# Accounts, inside the installed tree so its own passwd, shadow and home
+# are what change -- the live system running this stays as it was.
+if [ "$RELEASE" = yes ]; then
+	echo ">>> Release: replacing the demo account with $NEWUSER, locking root's login"
+	chroot "$TARGET" userdel -r admin 2>/dev/null || true
+	chroot "$TARGET" useradd -m -G wheel -s /bin/bash "$NEWUSER"
+	chroot "$TARGET" usermod -p "$NEWHASH" "$NEWUSER"
+	# A locked password refuses the console and nothing else: sshd's key
+	# login for root goes through pam account, which a lock does not touch.
+	chroot "$TARGET" passwd -l root >/dev/null
+	cat > "$TARGET/etc/systemd/system/ade.service.d/10-aos-user.conf" <<USERCONF
+# Written by aos-install --release: the desktop session is this account's.
+[Service]
+User=$NEWUSER
+USERCONF
+fi
 
 # UEFI. --removable writes EFI/BOOT/BOOTX64.EFI, which firmware will boot
 # without needing an NVRAM entry -- important for a disk that may be moved

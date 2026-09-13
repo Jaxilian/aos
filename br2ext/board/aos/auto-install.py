@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Drive the guest that write-usb.sh starts, so nobody has to type at it.
 
-    auto-install.py install <serial socket> <monitor socket> <log>
+    auto-install.py install <serial socket> <monitor socket> <log> [<account file>]
     auto-install.py boot    <serial socket> <monitor socket> <log>
 
 install: wait for the live ISO's login prompt, log in as root, run
 aos-install /dev/vda with its own YES piped in, and power the guest off once
-it reports success. This is what "write-usb.sh --install --auto" runs.
+it reports success. This is what "write-usb.sh --install --auto" runs. With
+an account file -- two lines, a user name and a crypt(3) password hash --
+it is a release install: aos-install --release with that account, which
+replaces the demo one. The guest's echo is turned off before the command
+is typed, so the hash appears in no transcript.
 
 boot: wait for a login prompt, then quit QEMU. That is the whole check
 "write-usb.sh --boot --auto" makes of a stick: the firmware found it, GRUB
@@ -28,6 +32,7 @@ import sys
 import time
 
 MODE, SER, MON, LOG = sys.argv[1:5]
+ACCOUNT = sys.argv[5] if len(sys.argv) > 5 else None
 
 LOGIN_TIMEOUT = 300
 # A slow stick: ~2.8 GB copied, then a swap file written with no output at
@@ -139,17 +144,31 @@ def login(ser):
     if ser.wait_for(rb"# $", 60) is None:
         say("no shell prompt after logging in")
         return False
+    # No echo from here on: what gets typed next may carry a password hash,
+    # and the transcript is a plain file next to the images.
+    ser.send("stty -echo\n")
+    if ser.wait_for(rb"# $", 10) is None:
+        say("shell stopped answering after stty")
+        return False
     return True
 
 
 def install(ser):
     if not login(ser):
         return 1
-    say("running aos-install /dev/vda -- several minutes, two of them silent")
+    opts = ""
+    if ACCOUNT:
+        with open(ACCOUNT) as f:
+            name, hash_ = [l.strip() for l in f.read().split("\n")[:2]]
+        # The hash is $6$...: single quotes keep the shell off it, and a
+        # crypt(3) hash never contains a quote.
+        opts = "--release --user %s --hash '%s' " % (name, hash_)
+        say("running aos-install --release for account '%s' -- several minutes, two of them silent" % name)
+    else:
+        say("running aos-install /dev/vda -- several minutes, two of them silent")
     # The exit status comes back on its own line so a failure inside
-    # aos-install (set -e) is seen as such and not as a hang. The echoed
-    # command line shows "$?" unexpanded, so it cannot match the digits.
-    ser.send("printf 'YES\\n' | aos-install /dev/vda; echo AOS-INSTALL-EXIT=$?\n")
+    # aos-install (set -e) is seen as such and not as a hang.
+    ser.send("printf 'YES\\n' | aos-install %s/dev/vda; echo AOS-INSTALL-EXIT=$?\n" % opts)
     m = ser.wait_for(rb"AOS-INSTALL-EXIT=(\d+)", INSTALL_TIMEOUT)
     if m is None:
         say("aos-install did not finish within %ds; quitting QEMU" % INSTALL_TIMEOUT)

@@ -6,8 +6,12 @@
 #   ./usb.sh /dev/sdX         the same, onto that stick
 #   ./usb.sh --no-build       skip make; install the image already built
 #   ./usb.sh --test           afterwards boot the stick in QEMU to prove it
+#   ./usb.sh --release        a machine of your own: asks for a user name and
+#                             password, and the install creates that account
+#                             instead of the demo one (admin / 123321) and
+#                             locks root's console login. Nothing else differs.
 #
-# Options combine: "./usb.sh /dev/sda --no-build --test".
+# Options combine: "./usb.sh /dev/sda --no-build --release --test".
 #
 # Run it as yourself, not under sudo. The build must not run as root, and
 # the one step that needs root -- opening the block device -- asks for your
@@ -38,10 +42,13 @@ fi
 DEV=""
 BUILD=yes
 TEST=no
+RELEASE=no
+ACCOUNT=""
 for a in "$@"; do
 	case "$a" in
 		--no-build) BUILD=no ;;
 		--test)     TEST=yes ;;
+		--release)  RELEASE=yes ;;
 		--help|-h)  sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 		/dev/*)     DEV="$a" ;;
 		*)          echo "make-usb.sh: unknown argument '$a'" >&2; exit 1 ;;
@@ -97,13 +104,45 @@ read -r confirm
 [ "$confirm" = "YES" ] || { echo "Aborted."; exit 1; }
 echo
 
+# The release account: asked for here, on the host, before anything slow
+# happens. The password never leaves this shell in the clear -- it is
+# hashed with sha512-crypt and only the hash travels, through a file only
+# this user can read, into the guest with its echo turned off.
+cleanup() {
+	[ -z "$ACCOUNT" ] || rm -f "$ACCOUNT"
+	kill "${KEEPALIVE:-}" 2>/dev/null
+}
+trap cleanup EXIT
+if [ "$RELEASE" = yes ]; then
+	echo ">>> Release install: your own account replaces the demo one."
+	printf "User name: "
+	read -r NEWUSER
+	echo "$NEWUSER" | grep -qE '^[a-z_][a-z0-9_-]{0,31}$' || {
+		echo "make-usb.sh: '$NEWUSER' is not a usable user name (lowercase, digits, - _)" >&2
+		exit 1
+	}
+	[ "$NEWUSER" != root ] || { echo "make-usb.sh: not root" >&2; exit 1; }
+	stty -echo
+	printf "Password: "; read -r PW1; echo
+	printf "Again:    "; read -r PW2; echo
+	stty echo
+	[ "$PW1" = "$PW2" ] || { echo "make-usb.sh: passwords differ" >&2; exit 1; }
+	[ -n "$PW1" ] || { echo "make-usb.sh: empty password" >&2; exit 1; }
+	HASH=$(printf '%s' "$PW1" | openssl passwd -6 -stdin)
+	unset PW1 PW2
+	ACCOUNT=$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/aos-account.XXXXXX")
+	chmod 600 "$ACCOUNT"
+	printf '%s\n%s\n' "$NEWUSER" "$HASH" > "$ACCOUNT"
+	unset HASH
+	echo
+fi
+
 # Root, now rather than later. sudo's ticket normally lasts a few minutes,
 # less than a build; the loop renews it until this script exits.
 echo ">>> Writing $DEV needs root; asking once now so the build is not interrupted."
 sudo -v
 ( while sudo -n -v 2>/dev/null; do sleep 50; done ) &
 KEEPALIVE=$!
-trap 'kill $KEEPALIVE 2>/dev/null' EXIT
 
 if [ "$BUILD" = yes ]; then
 	echo ">>> Building (make in $BASE)"
@@ -135,7 +174,8 @@ echo
 
 # The stick was confirmed above; write-usb.sh asks the same question once
 # more, and the answer travels down the pipe.
-printf 'YES\n' | sudo "$WRITE" "$DEV" --install --auto
+# shellcheck disable=SC2086
+printf 'YES\n' | sudo "$WRITE" "$DEV" --install --auto ${ACCOUNT:+--account "$ACCOUNT"}
 
 if [ "$TEST" = yes ]; then
 	echo
@@ -143,6 +183,9 @@ if [ "$TEST" = yes ]; then
 fi
 
 cat <<EOF
+
+$([ "$RELEASE" = yes ] && echo "Log in as $NEWUSER; the demo account is gone and root's console login is locked." \
+                         || echo "The demo account is admin, password 123321; sudo asks for it.")
 
 Next, on the machine you are booting:
   1. power fully off, not restart

@@ -76,8 +76,11 @@ journalctl -b -1 -k --no-pager | grep -iE 'xe|i915|nvidia|drm|firmware'
 ```
 
 Blind, with no console at all: the power button once is a clean poweroff
-(logind), and Ctrl+Alt+Del a clean reboot. There is no `sudo` on AOS; you
-are root, so `poweroff` typed blind also works.
+(logind), and Ctrl+Alt+Del a clean reboot. Over SSH you are root, so
+`poweroff` typed blind also works. At the keyboard you are the session's
+user, not root: `systemctl poweroff` and `reboot` work there without a
+password (polkit lets the active seat), and everything else goes through
+`sudo` -- see "Accounts" in [usb.md](usb.md).
 
 ## Connecting
 

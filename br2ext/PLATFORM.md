@@ -113,6 +113,8 @@ Broadcom parts, with firmware — including Intel Wi-Fi 6E and Wi-Fi 7
 `iwlmld` driver) and the USB Ethernet adapters laptops actually use (ASIX,
 Realtek, Microchip, CDC/RNDIS class). Intel GPUs from Lunar Lake on use the
 `xe` driver and its `xe/` firmware; both are present alongside `i915`.
+Laptop touchpads (I2C-HID behind Intel LPSS or AMD DesignWare I2C, with
+the SoC's pinctrl for their interrupt) and ASUS's HID dialect are covered.
 Realtek card readers (PCIe and USB) have their driver even though no card
 may ever be inserted: an unbound PCIe reader never sleeps and floods the
 machine with correctable PCIe errors.
@@ -135,6 +137,23 @@ and password authentication is off. A published image carries no key and so
 accepts no login; the builder supplies one in
 `board/aos/authorized_keys` before building. See [docs/ssh.md](docs/ssh.md).
 An SSH login is a logind session, with a seat and an `XDG_RUNTIME_DIR`.
+
+**Accounts.** The desktop session belongs to a real user, not to root or to
+a service account: the terminal it opens is that user's shell in that
+user's home. The image ships one such account, `admin` with password
+`123321`, a member of `wheel` — which is what both sudo
+(`/etc/sudoers.d/10-aos-wheel`) and polkit's default rules treat as
+administrators. Powering off, rebooting and suspending need no password at
+all from the active seat (`/etc/polkit-1/rules.d/10-aos-seat.rules`);
+everything else is `sudo`. That rule can only work because AOS builds
+polkit against logind: Buildroot's own polkit tracks sessions through
+ConsoleKit, so on a stock Buildroot system polkit sees no session behind
+any request and every `allow_active` in every policy silently becomes
+`auth_admin` — the reason is a dependency cycle, and the override that
+breaks it is in `external.mk`. That password opens nothing remotely, since
+sshd refuses passwords. `aos-install --release` (`./usb.sh --release`)
+replaces the demo account with one of your choosing and locks root's
+console login; root stays reachable over SSH with a key.
 
 **Graphics.** libdrm, Mesa (GBM, EGL, OpenGL ES, Vulkan) and libglvnd.
 Gallium drivers: iris, crocus, radeonsi, r600, nouveau, llvmpipe, zink.

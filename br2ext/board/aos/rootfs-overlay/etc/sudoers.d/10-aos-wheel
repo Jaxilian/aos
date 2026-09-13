@@ -1,0 +1,5 @@
+# Members of wheel administer the machine; sudo asks for their own password.
+# Upstream's /etc/sudoers ships this line commented out, and Buildroot only
+# uncomments the one for a "sudo" group. wheel is the group polkit's default
+# rules already treat as administrators, so AOS uses one group for both.
+%wheel ALL=(ALL:ALL) ALL

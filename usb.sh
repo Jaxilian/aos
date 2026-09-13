@@ -5,6 +5,7 @@
 #   ./usb.sh /dev/sdX        onto that stick
 #   ./usb.sh --no-build      skip make
 #   ./usb.sh --test          then boot the stick in QEMU to prove it
+#   ./usb.sh --release       your own account instead of the demo one
 #
 # This file is only a front door: the repository root is an unmodified
 # Buildroot checkout, and everything AOS lives under br2ext/ so that pulling

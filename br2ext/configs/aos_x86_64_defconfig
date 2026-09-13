@@ -187,6 +187,13 @@ BR2_PACKAGE_UTIL_LINUX_WIPEFS=y
 # login registers with logind -- see rootfs-overlay/etc/pam.d/login.
 BR2_PACKAGE_LINUX_PAM=y
 BR2_PACKAGE_SHADOW=y
+# sudo, so the person at the keyboard -- a member of wheel -- administers
+# the machine with their own password rather than by logging in as root.
+# PAM-enabled, with pam_wheel in its stack; the grant itself is
+# rootfs-overlay/etc/sudoers.d/10-aos-wheel. Power-off and reboot do not
+# need it: rootfs-overlay/etc/polkit-1/rules.d lets the active seat do
+# those directly, which is also what a future power menu in ade will use.
+BR2_PACKAGE_SUDO=y
 
 # Needed by aos-install: partitioning, filesystems, EFI boot entries.
 BR2_PACKAGE_E2FSPROGS=y

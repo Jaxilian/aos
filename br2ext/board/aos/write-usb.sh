@@ -9,6 +9,8 @@
 #   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --verify-only
 #   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --install  INSTALL AOS onto the stick
 #   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --install --auto   ... with nobody typing
+#   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --install --auto --account FILE
+#                                                            ... a release install (see below)
 #   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --boot     boot the stick as it is, in QEMU
 #   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --boot --auto      ... just to a login prompt
 #
@@ -16,6 +18,11 @@
 # type the commands, so the whole install is one command with no one at the
 # keyboard; make-usb.sh (./usb.sh at the top of the tree) is what runs it.
 # Without --auto the guest's console is this terminal and you type them.
+#
+# --account FILE makes the unattended install a release one: FILE holds two
+# lines, a user name and a crypt(3) password hash, and aos-install --release
+# creates that account in place of the demo one. make-usb.sh --release
+# writes the file (mode 0600) and removes it afterwards.
 #
 # --boot is the check to make after --install: the physical stick, booted
 # behind the same UEFI firmware a PC uses, with writes diverted to a
@@ -51,9 +58,10 @@ DEV="$1"
 [ $# -gt 0 ] && shift
 MODE=""
 AUTO=no
+ACCOUNT=""
 
 usage() {
-	echo "usage: $0 /dev/sdX [--test|--verify-only|--install [--auto]|--boot [--auto]]" >&2
+	echo "usage: $0 /dev/sdX [--test|--verify-only|--install [--auto [--account FILE]]|--boot [--auto]]" >&2
 	echo >&2
 	echo "Removable USB disks currently attached:" >&2
 	found=no
@@ -71,13 +79,20 @@ usage() {
 
 [ -n "$DEV" ] || usage
 [ -b "$DEV" ] || { echo "$0: $DEV is not a block device" >&2; usage; }
-for a in "$@"; do
-	case "$a" in
-		--test|--verify-only|--install|--boot) MODE="$a" ;;
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--test|--verify-only|--install|--boot) MODE="$1" ;;
 		--auto) AUTO=yes ;;
-		*) echo "$0: unknown option '$a'" >&2; usage ;;
+		--account) ACCOUNT="$2"; shift ;;
+		*) echo "$0: unknown option '$1'" >&2; usage ;;
 	esac
+	shift
 done
+if [ -n "$ACCOUNT" ]; then
+	[ "$MODE" = "--install" ] && [ "$AUTO" = yes ] || {
+		echo "$0: --account only makes sense with --install --auto" >&2; exit 1; }
+	[ -r "$ACCOUNT" ] || { echo "$0: cannot read account file $ACCOUNT" >&2; exit 1; }
+fi
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 BASE=$(cd "$HERE/../../.." && pwd)
@@ -172,7 +187,9 @@ auto_setup() {
 # background. Returns the driver's verdict.
 auto_drive() {
 	rc=0
-	python3 "$HERE/auto-install.py" "$1" "$AUTO_RUN/serial" "$AUTO_RUN/monitor" "$AUTO_LOG" || rc=$?
+	# shellcheck disable=SC2086
+	python3 "$HERE/auto-install.py" "$1" "$AUTO_RUN/serial" "$AUTO_RUN/monitor" "$AUTO_LOG" \
+		${ACCOUNT:+"$ACCOUNT"} || rc=$?
 	wait "$2" 2>/dev/null || true
 	rm -rf "$AUTO_RUN"
 	# Under sudo the transcript would be root's, in a directory that is not.

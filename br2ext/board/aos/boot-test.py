@@ -94,6 +94,11 @@ DESKTOP = [
     "localectl status 2>&1 | head -3; echo \"LANG in ade: "
     "$(tr '\\0' '\\n' </proc/$(pgrep -x ade-comp)/environ | grep ^LANG=)\"",
     "pgrep -a ade-comp; pgrep -a terminal",
+    # The session is the user's own: the compositor, and so the terminal and
+    # the shell in it, run as the demo account, a wheel member with sudo.
+    "ps -o user=,comm= -p $(pgrep -x ade-comp) $(pgrep -x terminal | head -1); id admin",
+    "grep -E '^[@#]includedir' /etc/sudoers; sudo -l -U admin 2>&1 | tail -1",
+    "ls /etc/polkit-1/rules.d/",
     "ls -l /usr/bin/ade-comp /usr/bin/terminal /usr/bin/notepad",
     "ls /usr/share/vulkan/icd.d/",
     "for p in $(pgrep -x terminal); do echo \"terminal $p ->\"; pgrep -aP $p; done",
@@ -104,7 +109,7 @@ DESKTOP = [
     # log keeps the two systemd lines and loses every line the compositor
     # wrote. Matching on the executable finds it wherever it ended up.
     "journalctl -b _COMM=ade-comp --no-pager | tail -20",
-    "ls -l /run/user/$(id -u ade)/wayland-* 2>&1",
+    "ls -l /run/user/$(id -u admin)/wayland-* 2>&1",
     "fc-match monospace 2>&1",
     # The terminal reports TERM=xterm-256color, so clear/tput and every
     # ncurses program running inside it need that entry present -- see the
@@ -286,7 +291,13 @@ def shot(tag, quiet=False):
     """Screendump the VGA output and report how much is on it."""
     ppm = os.path.join(OUT, "%s.screen.ppm" % tag)
     png = os.path.join(OUT, "%s.screen.png" % tag)
-    r = monitor("screendump %s" % ppm)
+    try:
+        r = monitor("screendump %s" % ppm)
+    except OSError:
+        # QEMU has already exited (a power-off, or a watchdog reset)
+        if not quiet:
+            print("!! screendump %s: QEMU is gone" % tag)
+        return None
     time.sleep(1)
     if not os.path.exists(ppm):
         if not quiet:
@@ -336,7 +347,7 @@ def count(ser, prog):
     return int(n[-1]) if n else 0
 
 
-def desktop(ser):
+def desktop(ser, q):
     """Screendump the session, press Super+Return, screendump again.
 
     The keypress goes in through the QEMU monitor rather than the serial
@@ -418,6 +429,58 @@ def desktop(ser):
     if not npad:
         print("!! notepad did not start")
 
+    # Super+N: the compositor's own binding for notepad, through the same
+    # key path as Super+Return above.
+    print("\n== Super+N (sendkey meta_l-n)")
+    monitor("sendkey meta_l-n")
+    npad2 = 0
+    for _ in range(NOTEPAD_TIMEOUT // 3):
+        time.sleep(3)
+        npad2 = count(ser, "notepad")
+        if npad2 > npad:
+            break
+    print("\n$ pgrep -c -x notepad: %d before, %d after Super+N" % (npad, npad2))
+    shot("desktop-super-n")
+    if npad2 <= npad:
+        print("!! Super+N spawned no notepad")
+
+    # Power off from the session, as the person at the keyboard would. This
+    # is the polkit rule under test, and the harder case of it: root is also
+    # logged in on the serial line here, so logind asks for the
+    # "-multiple-sessions" action. A fresh terminal takes focus first --
+    # the last window mapped was notepad, and typing there edits a file.
+    # First the verdict without the act: CanPowerOff is logind asking polkit
+    # on behalf of the caller, and answers "yes" only if that caller may do
+    # it with no authentication. Asked from the session's own shell -- a
+    # script, because typing the D-Bus call key by key would take half a
+    # minute -- and read back over serial. Then the real thing: neither the
+    # kernel's "Power down" nor logind's wall message reliably reaches the
+    # serial socket before QEMU exits (-no-reboot), so QEMU exiting is the
+    # signal that the guest went down.
+    print("\n== Super+Return, then CanPowerOff asked from the session's shell")
+    ser.run("printf '%s\\n' '#!/bin/sh' 'busctl call org.freedesktop.login1 /org/freedesktop/login1"
+            " org.freedesktop.login1.Manager CanPowerOff >/tmp/can 2>&1' >/tmp/can.sh; chmod 755 /tmp/can.sh")
+    monitor("sendkey meta_l-ret")
+    time.sleep(6)
+    typekeys("sh /tmp/can.sh\n")
+    time.sleep(4)
+    can = ser.run("cat /tmp/can")
+    print("\n$ CanPowerOff from the session: %s" % can)
+    allowed = '"yes"' in can
+
+    print("\n== 'systemctl poweroff' typed into the same terminal")
+    typekeys("systemctl poweroff\n")
+    down = False
+    for _ in range(45):
+        time.sleep(2)
+        if q.poll() is not None:
+            down = True
+            break
+    print("\n== %s" % ("guest powered down from the session (QEMU exited)" if down
+                        else "!! guest still up: the session may not power off"))
+    if not allowed:
+        print("!! polkit would not let the session power off without a password")
+
     grew = n1 > n0
 
     print("\n== desktop: %.1f%% ink before, %.1f%% after; terminal %d -> %d"
@@ -428,7 +491,10 @@ def desktop(ser):
         print("!! Super+Return spawned nothing")
     if not changed:
         print("!! typing changed nothing on screen -- the terminal is not live")
-    return before >= 0.005 and grew and changed > 0 and npad > 0
+    if npad2 <= npad:
+        print("!! Super+N failed")
+    return (before >= 0.005 and grew and changed > 0 and npad > 0
+            and npad2 > npad and allowed and down)
 
 
 def main():
@@ -471,7 +537,7 @@ def main():
                 if MODE == "desktop":
                     for c in DESKTOP:
                         print("\n$ %s\n%s" % (c, ser.run(c)))
-                    ok = desktop(ser)
+                    ok = desktop(ser, q)
         # desktop mode takes its own pair of screendumps, before and after
         # the keypress; re-dumping here would overwrite the "before" one.
         if MODE == "desktop":

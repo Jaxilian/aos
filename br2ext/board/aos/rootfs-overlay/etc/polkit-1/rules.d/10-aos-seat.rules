@@ -1,0 +1,29 @@
+/* The person at the keyboard may power the machine off, reboot it, suspend
+ * or hibernate it -- without a password, and even when someone else is
+ * logged in over SSH or the serial line.
+ *
+ * logind's own policy already allows the active seat session the plain
+ * actions, but the moment a second session exists it switches to the
+ * "-multiple-sessions" variants, which want an administrator to
+ * authenticate through a polkit agent. AOS has no such agent, so the
+ * request is refused with "interactive authentication required" -- the
+ * same refusal a wheel member gets, since polkit then asks for *their*
+ * password through the agent that is not there. Hence a rule of our own:
+ * local and active is enough, exactly as every desktop environment sets
+ * it. Everything else keeps polkit's defaults, and for that there is sudo.
+ */
+polkit.addRule(function(action, subject) {
+    var seat = [
+        "org.freedesktop.login1.power-off",
+        "org.freedesktop.login1.power-off-multiple-sessions",
+        "org.freedesktop.login1.reboot",
+        "org.freedesktop.login1.reboot-multiple-sessions",
+        "org.freedesktop.login1.suspend",
+        "org.freedesktop.login1.suspend-multiple-sessions",
+        "org.freedesktop.login1.hibernate",
+        "org.freedesktop.login1.hibernate-multiple-sessions",
+    ];
+    if (seat.indexOf(action.id) >= 0 && subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

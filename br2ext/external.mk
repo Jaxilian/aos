@@ -123,3 +123,31 @@ LINUX_FIRMWARE_FILES += \
 	intel/iwlwifi/iwlwifi-ma-* \
 	intel/iwlwifi/iwlwifi-bz-* \
 	intel/iwlwifi/iwlwifi-sc-*
+
+# polkit tracking sessions through logind.
+#
+# Buildroot builds polkit with -Dsession_tracking=ConsoleKit, because its
+# systemd recipe depends on polkit (only so that systemd's own rule files
+# land in /usr/share/polkit-1/rules.d after polkit has created it) and
+# polkit built for logind needs libsystemd -- a cycle, resolved upstream by
+# giving polkit no session tracking at all. On a systemd system the cost is
+# large and silent: polkitd can attach no session to any request, so
+# subject.local and subject.active are always false, and every
+# "allow_active=yes" in every policy file -- systemd's power-off, reboot and
+# suspend included -- quietly becomes "auth_admin". The person at the
+# keyboard is then refused a power-off with "interactive authentication
+# required", and no rule under /etc/polkit-1/rules.d can say otherwise,
+# because none of them ever sees a local or active subject.
+#
+# AOS breaks the cycle the other way round. systemd stops waiting for polkit:
+# its rules are plain files installed with -D, and polkit's own install step
+# fixes the directory's ownership afterwards. polkit then builds after
+# systemd, against libsystemd, with logind tracking -- what polkit's own
+# default is. Both variables are read lazily by the package infrastructure,
+# which is why appending here, after the recipes were included, takes.
+ifeq ($(BR2_PACKAGE_SYSTEMD_LOGIND)$(BR2_PACKAGE_POLKIT),yy)
+SYSTEMD_DEPENDENCIES := $(filter-out polkit,$(SYSTEMD_DEPENDENCIES))
+POLKIT_DEPENDENCIES += systemd
+POLKIT_CONF_OPTS := $(filter-out -Dsession_tracking=ConsoleKit,$(POLKIT_CONF_OPTS)) \
+	-Dsession_tracking=logind
+endif
