@@ -8,6 +8,20 @@
 #   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --test     ... and boot it in QEMU
 #   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --verify-only
 #   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --install  INSTALL AOS onto the stick
+#   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --install --auto   ... with nobody typing
+#   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --boot     boot the stick as it is, in QEMU
+#   sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --boot --auto      ... just to a login prompt
+#
+# --auto puts the guest's serial console on a socket and lets auto-install.py
+# type the commands, so the whole install is one command with no one at the
+# keyboard; make-usb.sh (./usb.sh at the top of the tree) is what runs it.
+# Without --auto the guest's console is this terminal and you type them.
+#
+# --boot is the check to make after --install: the physical stick, booted
+# behind the same UEFI firmware a PC uses, with writes diverted to a
+# snapshot so the stick is left exactly as it was. (--test also boots the
+# stick, but only after writing the live ISO to it -- it is the ISO's
+# check, and would erase an installed stick.)
 #
 # --install is the one to use for a machine to work on. It boots the live ISO
 # in QEMU with the physical stick attached as a disk, and you run
@@ -34,10 +48,12 @@
 set -e
 
 DEV="$1"
-MODE="$2"
+[ $# -gt 0 ] && shift
+MODE=""
+AUTO=no
 
 usage() {
-	echo "usage: $0 /dev/sdX [--test|--verify-only|--install]" >&2
+	echo "usage: $0 /dev/sdX [--test|--verify-only|--install [--auto]|--boot [--auto]]" >&2
 	echo >&2
 	echo "Removable USB disks currently attached:" >&2
 	found=no
@@ -55,6 +71,13 @@ usage() {
 
 [ -n "$DEV" ] || usage
 [ -b "$DEV" ] || { echo "$0: $DEV is not a block device" >&2; usage; }
+for a in "$@"; do
+	case "$a" in
+		--test|--verify-only|--install|--boot) MODE="$a" ;;
+		--auto) AUTO=yes ;;
+		*) echo "$0: unknown option '$a'" >&2; usage ;;
+	esac
+done
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 BASE=$(cd "$HERE/../../.." && pwd)
@@ -121,18 +144,72 @@ verify() {
 	fi
 }
 
+# The desktop auto-mounts whatever it recognises on the stick -- the old
+# vfat, or the ESP and root of a previous install -- and a guest writing to a
+# filesystem the host has mounted corrupts it.
+unmount_dev() {
+	echo ">>> Unmounting anything mounted from $DEV"
+	for part in $(lsblk -rno NAME "$DEV" | tail -n +2); do
+		umount "/dev/$part" 2>/dev/null || true
+	done
+}
+
+# --auto: the serial console and the QEMU monitor go on unix sockets in a
+# private directory, there is no display, and auto-install.py sits at the
+# other end of the console instead of a person. Its transcript is kept next
+# to the images, under the name of what it did.
+auto_setup() {
+	AUTO_RUN=$(mktemp -d /tmp/aos-usb.XXXXXX)
+	AUTO_LOG="$BASE/output/images/usb-$1.txt"
+	AUTO_QEMU="-display none \
+		-chardev socket,id=ser0,path=$AUTO_RUN/serial,server=on,wait=off \
+		-serial chardev:ser0 \
+		-monitor unix:$AUTO_RUN/monitor,server,nowait"
+	echo ">>> Unattended: transcript in $AUTO_LOG"
+}
+
+# $1 is install or boot, $2 the pid of the QEMU just started in the
+# background. Returns the driver's verdict.
+auto_drive() {
+	rc=0
+	python3 "$HERE/auto-install.py" "$1" "$AUTO_RUN/serial" "$AUTO_RUN/monitor" "$AUTO_LOG" || rc=$?
+	wait "$2" 2>/dev/null || true
+	rm -rf "$AUTO_RUN"
+	# Under sudo the transcript would be root's, in a directory that is not.
+	[ -z "$SUDO_UID" ] || chown "$SUDO_UID:${SUDO_GID:-$SUDO_UID}" "$AUTO_LOG" 2>/dev/null || true
+	return $rc
+}
+
 boot_test() {
 	echo ">>> Booting the physical stick in QEMU under UEFI."
 	echo "    A login prompt means the stick is bootable and any failure on"
 	echo "    the target machine is that machine's firmware, not this image."
-	echo "    Ctrl-A X to quit."
-	# shellcheck disable=SC2046
-	qemu-system-x86_64 -enable-kvm -cpu host -m 2G -smp 2 \
-		$(ovmf_args) \
-		-drive if=none,id=usb0,format=raw,file="$DEV" \
-		-device qemu-xhci,id=xhci \
-		-device usb-storage,bus=xhci.0,drive=usb0,bootindex=0 \
-		-nographic -no-reboot || true
+	# snapshot=on: the guest's writes go to a throwaway file, so a boot
+	# check leaves the stick byte for byte as it was.
+	if [ "$AUTO" = yes ]; then
+		auto_setup boot
+		# shellcheck disable=SC2046,SC2086
+		qemu-system-x86_64 -enable-kvm -cpu host -m 2G -smp 2 \
+			$(ovmf_args) \
+			-drive if=none,id=usb0,format=raw,snapshot=on,file="$DEV" \
+			-device qemu-xhci,id=xhci \
+			-device usb-storage,bus=xhci.0,drive=usb0,bootindex=0 \
+			$AUTO_QEMU -no-reboot &
+		auto_drive boot $! || {
+			rm -f /tmp/aos-ovmf-vars.*.fd
+			echo ">>> $DEV did not reach a login prompt. Transcript: $AUTO_LOG" >&2
+			exit 1
+		}
+	else
+		echo "    Ctrl-A X to quit."
+		# shellcheck disable=SC2046
+		qemu-system-x86_64 -enable-kvm -cpu host -m 2G -smp 2 \
+			$(ovmf_args) \
+			-drive if=none,id=usb0,format=raw,snapshot=on,file="$DEV" \
+			-device qemu-xhci,id=xhci \
+			-device usb-storage,bus=xhci.0,drive=usb0,bootindex=0 \
+			-nographic -no-reboot || true
+	fi
 	rm -f /tmp/aos-ovmf-vars.*.fd
 }
 
@@ -154,10 +231,7 @@ install_mode() {
 	read -r confirm
 	[ "$confirm" = "YES" ] || { echo "Aborted."; exit 1; }
 
-	echo ">>> Unmounting anything mounted from $DEV"
-	for part in $(lsblk -rno NAME "$DEV" | tail -n +2); do
-		umount "/dev/$part" 2>/dev/null || true
-	done
+	unmount_dev
 
 	# The stick goes in as a virtio disk, so inside the VM it is /dev/vda:
 	# a plain disk name that aos-install partitions as vda1, vda2, vda3.
@@ -166,7 +240,25 @@ install_mode() {
 	#
 	# 4G of RAM sizes the swap file aos-install creates (it uses the
 	# machine's RAM, up to 8G); on a stick, smaller is kinder.
-	cat <<EOF
+	if [ "$AUTO" = yes ]; then
+		echo ">>> Booting the live ISO in QEMU with $DEV attached as /dev/vda;"
+		echo "    auto-install.py logs in and runs aos-install. A few minutes."
+		auto_setup install
+		# shellcheck disable=SC2046,SC2086
+		qemu-system-x86_64 -enable-kvm -cpu host -m 4G -smp 4 \
+			$(ovmf_args) \
+			-drive if=none,id=cd0,media=cdrom,format=raw,file="$ISO" \
+			-device ide-cd,drive=cd0,bootindex=0 \
+			-drive if=none,id=hd0,format=raw,cache=none,file="$DEV" \
+			-device virtio-blk-pci,drive=hd0 \
+			$AUTO_QEMU -no-reboot &
+		auto_drive install $! || {
+			rm -f /tmp/aos-ovmf-vars.*.fd
+			echo ">>> Install failed; $DEV is not usable. Transcript: $AUTO_LOG" >&2
+			exit 1
+		}
+	else
+		cat <<EOF
 >>> Booting the live ISO in QEMU with $DEV attached as /dev/vda.
 
     At the "aos login:" prompt, log in as root (no password) and run:
@@ -179,14 +271,15 @@ install_mode() {
     Ctrl-A X aborts.
 
 EOF
-	# shellcheck disable=SC2046
-	qemu-system-x86_64 -enable-kvm -cpu host -m 4G -smp 4 \
-		$(ovmf_args) \
-		-drive if=none,id=cd0,media=cdrom,format=raw,file="$ISO" \
-		-device ide-cd,drive=cd0,bootindex=0 \
-		-drive if=none,id=hd0,format=raw,cache=none,file="$DEV" \
-		-device virtio-blk-pci,drive=hd0 \
-		-nographic -no-reboot || true
+		# shellcheck disable=SC2046
+		qemu-system-x86_64 -enable-kvm -cpu host -m 4G -smp 4 \
+			$(ovmf_args) \
+			-drive if=none,id=cd0,media=cdrom,format=raw,file="$ISO" \
+			-device ide-cd,drive=cd0,bootindex=0 \
+			-drive if=none,id=hd0,format=raw,cache=none,file="$DEV" \
+			-device virtio-blk-pci,drive=hd0 \
+			-nographic -no-reboot || true
+	fi
 	rm -f /tmp/aos-ovmf-vars.*.fd
 
 	echo ">>> Re-reading the partition table"
@@ -219,6 +312,12 @@ if [ "$MODE" = "--verify-only" ]; then
 	exit 0
 fi
 
+if [ "$MODE" = "--boot" ]; then
+	unmount_dev
+	boot_test
+	exit 0
+fi
+
 echo "About to ERASE $DEV:"
 lsblk -o NAME,SIZE,TYPE,TRAN,MODEL,LABEL "$DEV"
 echo
@@ -227,10 +326,7 @@ printf "Type YES to continue: "
 read -r confirm
 [ "$confirm" = "YES" ] || { echo "Aborted."; exit 1; }
 
-echo ">>> Unmounting anything mounted from $DEV"
-for part in $(lsblk -rno NAME "$DEV" | tail -n +2); do
-	umount "/dev/$part" 2>/dev/null || true
-done
+unmount_dev
 
 echo ">>> Writing"
 dd if="$ISO" of="$DEV" bs=4M oflag=direct conv=fsync status=progress

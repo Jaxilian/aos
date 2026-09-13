@@ -54,6 +54,9 @@ LOGIN_TIMEOUT = 180
 # How long the desktop gets to put its first window on the screen. Generous
 # because QEMU has no GPU: every pixel here goes through llvmpipe.
 WINDOW_TIMEOUT = 60
+# Longer again for notepad: it brings up a Vulkan instance and device, and
+# in QEMU that is lavapipe doing it in software.
+NOTEPAD_TIMEOUT = 60
 SSH_PORT = 2222
 
 CHECKS = [
@@ -90,9 +93,11 @@ DESKTOP = [
     "ls /dev/input/",
     "localectl status 2>&1 | head -3; echo \"LANG in ade: "
     "$(tr '\\0' '\\n' </proc/$(pgrep -x ade-comp)/environ | grep ^LANG=)\"",
-    "pgrep -a ade-comp; pgrep -a foot",
-    "for p in $(pgrep -x foot); do echo \"foot $p ->\"; pgrep -aP $p; done",
-    "journalctl -b _COMM=foot --no-pager | tail -10",
+    "pgrep -a ade-comp; pgrep -a terminal",
+    "ls -l /usr/bin/ade-comp /usr/bin/terminal /usr/bin/notepad",
+    "ls /usr/share/vulkan/icd.d/",
+    "for p in $(pgrep -x terminal); do echo \"terminal $p ->\"; pgrep -aP $p; done",
+    "journalctl -b _COMM=terminal --no-pager | tail -10",
     # Not "journalctl -u ade": pam_systemd hands the process to logind, which
     # moves it into its own session scope, and from that point journald files
     # everything it prints under that scope instead of the service. The unit
@@ -101,10 +106,11 @@ DESKTOP = [
     "journalctl -b _COMM=ade-comp --no-pager | tail -20",
     "ls -l /run/user/$(id -u ade)/wayland-* 2>&1",
     "fc-match monospace 2>&1",
-    # foot sets TERM=foot, so clear/tput and every ncurses program inside the
-    # terminal need that entry present -- see the ncurses note in the
-    # defconfig for why it is easy to lose.
-    "TERM=foot clear | wc -c; TERM=foot tput cols; infocmp -1 foot | head -2",
+    # The terminal reports TERM=xterm-256color, so clear/tput and every
+    # ncurses program running inside it need that entry present -- see the
+    # ncurses note in the defconfig for why terminfo is easy to lose.
+    "TERM=xterm-256color clear | wc -c; TERM=xterm-256color tput colors; "
+    "infocmp -1 xterm-256color | head -2",
     "journalctl -u ade -b --no-pager | tail -5",
 ]
 
@@ -294,6 +300,32 @@ def shot(tag, quiet=False):
     return ink, raw
 
 
+# QEMU key names for the characters this file needs to type. Anything not
+# here would be sent as its own name, which is right for letters and digits
+# and wrong for everything else.
+# The shifted ones are the reason this table exists at all: "sendkey >" is
+# not an error QEMU reports, it is a key that never arrives, so a mistyped
+# command runs anyway with a word missing from it.
+KEYNAMES = {
+    " ": "spc", "-": "minus", ".": "dot", "/": "slash", "\n": "ret",
+    ">": "shift-dot", "<": "shift-comma", "_": "shift-minus",
+    "=": "equal", "|": "shift-backslash", "~": "shift-grave_accent",
+}
+
+
+def typekeys(text):
+    """Type a string into the guest through the monitor, key by key."""
+    for c in text:
+        if c in KEYNAMES:
+            k = KEYNAMES[c]
+        elif c.isupper():
+            k = "shift-%s" % c.lower()
+        else:
+            k = c
+        monitor("sendkey %s" % k)
+        time.sleep(0.3)
+
+
 def count(ser, prog):
     """How many processes of this name are running in the guest.
 
@@ -335,12 +367,12 @@ def desktop(ser):
     print("\n== first window on screen -> %s (%.1f%% ink)"
           % (os.path.join(OUT, "desktop.screen.png"), before * 100))
 
-    n0 = count(ser, "foot")
+    n0 = count(ser, "terminal")
     print("\n== Super+Return (sendkey meta_l-ret)")
     monitor("sendkey meta_l-ret")
     time.sleep(6)
-    n1 = count(ser, "foot")
-    print("\n$ pgrep -c -x foot: %d before, %d after" % (n0, n1))
+    n1 = count(ser, "terminal")
+    print("\n$ pgrep -c -x terminal: %d before, %d after" % (n0, n1))
     print("\n$ journalctl -b _COMM=ade-comp | tail -10\n%s"
           % ser.run("journalctl -b _COMM=ade-comp --no-pager | tail -10"))
 
@@ -353,9 +385,7 @@ def desktop(ser):
     # that proves the whole round trip -- key to libinput, to the focused
     # client, to a buffer, to the scanout.
     print("\n== typing 'echo AOS' into the focused terminal")
-    for k in ["e", "c", "h", "o", "spc", "shift-a", "shift-o", "shift-s", "ret"]:
-        monitor("sendkey %s" % k)
-        time.sleep(0.3)
+    typekeys("echo AOS\n")
     time.sleep(5)
     typed = shot("desktop-typed")
     changed = 0
@@ -364,9 +394,33 @@ def desktop(ser):
                       if raw1[i:i + 3] != typed[1][i:i + 3])
     print("\n== %d pixels changed after typing" % changed)
 
+    # Launch notepad the way a user would, by typing its name at the shell
+    # in the focused terminal. It is a second, independent client on the
+    # awin + tgn stack -- one the compositor did not spawn itself -- so it
+    # covers a client connecting to an already-running session. Under
+    # llvmpipe it is slow to appear, hence the wait.
+    # stderr goes to a file rather than the terminal so it can be read back
+    # here: notepad is a child of the shell inside the terminal, so what it prints
+    # reaches the journal, and whatever it says is behind its own window.
+    print("\n== launching notepad from the terminal")
+    typekeys("notepad 2>/tmp/notepad.err\n")
+    npad = 0
+    for _ in range(NOTEPAD_TIMEOUT // 3):
+        time.sleep(3)
+        npad = count(ser, "notepad")
+        if npad:
+            break
+    print("\n$ pgrep -c -x notepad: %d" % npad)
+    time.sleep(8)
+    shot("desktop-notepad")
+    print("\n$ cat /tmp/notepad.err\n%s"
+          % ser.run("cat /tmp/notepad.err 2>&1 | tail -20"))
+    if not npad:
+        print("!! notepad did not start")
+
     grew = n1 > n0
 
-    print("\n== desktop: %.1f%% ink before, %.1f%% after; foot %d -> %d"
+    print("\n== desktop: %.1f%% ink before, %.1f%% after; terminal %d -> %d"
           % (before * 100, after * 100, n0, n1))
     if before < 0.005:
         print("!! nothing was composited -- the screen is effectively blank")
@@ -374,7 +428,7 @@ def desktop(ser):
         print("!! Super+Return spawned nothing")
     if not changed:
         print("!! typing changed nothing on screen -- the terminal is not live")
-    return before >= 0.005 and grew and changed > 0
+    return before >= 0.005 and grew and changed > 0 and npad > 0
 
 
 def main():

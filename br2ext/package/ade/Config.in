@@ -13,8 +13,7 @@ config BR2_PACKAGE_ADE
 	select BR2_PACKAGE_WAYLAND
 	select BR2_PACKAGE_WAYLAND_PROTOCOLS
 	select BR2_PACKAGE_XKEYBOARD_CONFIG
-	select BR2_PACKAGE_FOOT
-	select BR2_PACKAGE_DEJAVU
+	select BR2_PACKAGE_TERMINAL
 	help
 	  The AOS desktop environment: a Wayland compositor (ade-comp)
 	  built on smithay, driving DRM/KMS directly with libinput for
@@ -32,11 +31,11 @@ config BR2_PACKAGE_ADE
 	  the seat gets no keyboard and the compositor exits. It brings
 	  no X11 with it -- its xlib selects are conditional on XORG7.
 
-	  foot is equally not optional, for a different reason: it is
-	  what Super+T spawns, and with no terminal on the image there
-	  is no way to reach a shell, shut down or reboot from the
-	  session. dejavu comes with it because fontconfig ships no
-	  fonts and foot asks for "monospace".
+	  terminal is equally not optional, for a different reason: it
+	  is what Super+Return and Super+T spawn, and with no terminal
+	  on the image there is no way to reach a shell, shut down or
+	  reboot from the session. It carries its own font, so nothing
+	  font-related comes with it.
 
 comment "ade needs a glibc toolchain w/ threads and dynamic libs, and mesa3d w/ EGL and GBM"
 	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS

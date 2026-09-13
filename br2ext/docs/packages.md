@@ -77,7 +77,29 @@ libseccomp 2.6.0
 
 Gallium drivers: iris, crocus, radeonsi, r600, nouveau, llvmpipe, zink.
 Vulkan drivers: Intel, AMD, llvmpipe (lvp), virtio, and NVIDIA from the blob.
-There is no X server and no Wayland compositor — you write that.
+There is no X server. The Wayland compositor is ade, below.
+
+## Desktop
+
+| Package | Version |
+|---|---|
+| ade | 0.1.0 (the compositor — a custom package) |
+| terminal | 0.1.0 (a custom package) |
+| notepad | 0.1.0 (a custom package) |
+| libinput | 1.31.3 |
+| libxkbcommon | 1.9.2 |
+| seatd | 0.9.1 (libseat only; it talks to logind) |
+| xkeyboard-config | 2.38 (keymap data, no X11) |
+
+`ade.service` takes tty1 as the `ade` user, so `getty@tty1` does not run
+there. A UTF-8 locale is generated (`BR2_GENERATE_LOCALE`) and selected in
+`/etc/locale.conf`: the terminal decodes UTF-8 itself, but everything
+running inside it goes through the C library's idea of the charset.
+
+There are no fonts and no fontconfig on the image. Every program that draws
+text here is an awin + tgn one and compiles in the face it needs — tgn its
+own, the terminal Liberation Mono, because a grid cannot use a proportional
+face.
 
 ## Networking and storage
 
@@ -85,7 +107,7 @@ wpa_supplicant 2.12 · iw 6.17 · iproute2 7.1.0 · libnl 3.12.0 ·
 openssl 3.6.4 · ca-certificates 20260223 · libcurl 8.22.0 ·
 e2fsprogs 1.47.4 · dosfstools 4.2 · parted 3.6 · efibootmgr 18
 
-## The four custom packages
+## The seven custom packages
 
 Everything above comes from Buildroot except these, which live in
 `br2ext/package/`:
@@ -98,3 +120,14 @@ Everything above comes from Buildroot except these, which live in
 - **aos-nvidia-open** — NVIDIA's open kernel modules, dual MIT/GPL.
 - **aos-nvidia** — NVIDIA userspace and GSP firmware. Proprietary, off by
   default.
+- **ade** — the desktop environment: a Wayland compositor on smithay driving
+  DRM/KMS directly. Built from a local path rather than a download, because
+  it is co-developed with the OS.
+- **terminal** — the terminal emulator: an awin + tgn window with a pty
+  behind it and its own escape-sequence parser. ade selects it, because
+  Super+Return spawning nothing would leave the session with no way to reach
+  a shell.
+- **notepad** — a text editor on the same stack. Both are local paths, and
+  for both the awin and tgn dependencies are absolute paths inside their own
+  `Cargo.toml` — so those come from the developer's tree, not from the
+  package path.

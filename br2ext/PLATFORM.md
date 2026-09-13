@@ -207,6 +207,9 @@ Two things people trip over:
 
 ## USB booting
 
+The step-by-step procedure, with the mistakes it prevents, is
+[docs/usb.md](docs/usb.md). This section is the mechanism.
+
 **Two ways, and the second is the one that works everywhere.**
 
 *Install AOS onto the stick* with `board/aos/write-usb.sh /dev/sdX
@@ -229,9 +232,11 @@ hybrid MBR code is present, but `-appended_part_as_gpt` leaves a
 protective MBR with no active partition, and some BIOSes want one.
 
 ```sh
+./usb.sh                                               # build + --install, unattended
 sudo ./br2ext/board/aos/write-usb.sh /dev/sdX          # live ISO, verified
 sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --test   # ...and booted in QEMU
 sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --install
+sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --boot   # boot an installed stick in QEMU, unchanged
 ```
 
 The script refuses anything that is not a removable USB whole disk, reads

@@ -13,6 +13,8 @@ source "$BR2_EXTERNAL_AOS_PATH/package/aos-rust/Config.in"
 comment "Desktop"
 
 source "$BR2_EXTERNAL_AOS_PATH/package/ade/Config.in"
+source "$BR2_EXTERNAL_AOS_PATH/package/notepad/Config.in"
+source "$BR2_EXTERNAL_AOS_PATH/package/terminal/Config.in"
 
 comment "Graphics"
 
