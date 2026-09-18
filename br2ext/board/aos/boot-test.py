@@ -444,6 +444,31 @@ def desktop(ser, q):
     if npad2 <= npad:
         print("!! Super+N spawned no notepad")
 
+    # Save As in the focused notepad. notepad asks awin for a file dialog,
+    # awin runs "files --pick --save", and the explorer's window is what
+    # should appear: the cross-program path that makes Open and Save As
+    # work on an image with no zenity. Escape cancels it again so the
+    # session is back where it was for the power-off below.
+    print("\n== Ctrl+Shift+S in notepad (sendkey ctrl-shift-s): files --pick")
+    monitor("sendkey ctrl-shift-s")
+    nfiles = 0
+    for _ in range(NOTEPAD_TIMEOUT // 3):
+        time.sleep(3)
+        nfiles = count(ser, "files")
+        if nfiles:
+            break
+    print("\n$ pgrep -c -x files: %d" % nfiles)
+    time.sleep(8)
+    shot("desktop-save-as")
+    if not nfiles:
+        print("!! Save As brought up no files picker")
+    monitor("sendkey esc")
+    time.sleep(3)
+    nfiles2 = count(ser, "files")
+    print("\n$ pgrep -c -x files after Escape: %d" % nfiles2)
+    if nfiles2 >= nfiles and nfiles:
+        print("!! Escape did not close the files picker")
+
     # Power off from the session, as the person at the keyboard would. This
     # is the polkit rule under test, and the harder case of it: root is also
     # logged in on the serial line here, so logind asks for the
@@ -493,8 +518,11 @@ def desktop(ser, q):
         print("!! typing changed nothing on screen -- the terminal is not live")
     if npad2 <= npad:
         print("!! Super+N failed")
+    if not nfiles:
+        print("!! Save As failed")
     return (before >= 0.005 and grew and changed > 0 and npad > 0
-            and npad2 > npad and allowed and down)
+            and npad2 > npad and nfiles > 0 and nfiles2 < nfiles
+            and allowed and down)
 
 
 def main():
