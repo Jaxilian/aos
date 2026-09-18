@@ -282,7 +282,7 @@ def qemu_command():
     # desktop gets virtio-vga, which is also what run-qemu.sh hands you.
     # usb-tablet comes with it so the pointer is absolute; the xHCI
     # controller is needed because "pc" has no USB bus of its own.
-    if MODE == "desktop":
+    if MODE in ("desktop", "probe"):
         make_stick()
         cmd += ["-device", "virtio-vga",
                 "-device", "qemu-xhci,id=xhci",
@@ -293,7 +293,7 @@ def qemu_command():
         cmd += ["-vga", "std"]
     cdrom = ["-drive", "if=none,id=cd0,media=cdrom,format=raw,file=%s" % ISO,
              "-device", "ide-cd,drive=cd0,bootindex=0"]
-    if MODE in ("live", "desktop"):
+    if MODE in ("live", "desktop", "probe"):
         return cmd + cdrom
     if MODE == "usb":
         # what a dd'd stick looks like: no El Torito, so firmware must find
@@ -510,20 +510,38 @@ def desktop(ser, q):
     print("\n$ pgrep -c -x files: %d after Super+E" % nexp)
     # Its first frame is a Vulkan device away, seconds under llvmpipe:
     # wait for the screen to change rather than for a fixed time.
+    # Focus moving to the new window already repaints a title bar, so
+    # a mere change is not enough: wait for the ink to jump, which a
+    # 900x640 window full of text does.
     base = shot("desktop-super-e", quiet=True)
     for _ in range(NOTEPAD_TIMEOUT // 3):
         time.sleep(3)
         cur = shot("desktop-super-e", quiet=True)
-        if cur and base and cur[1] != base[1]:
+        if cur and base and abs(cur[0] - base[0]) > 0.015:
             break
     time.sleep(2)
     shot("desktop-super-e")
+    print("\n$ journalctl -b _COMM=ade-comp | tail -6\n%s"
+          % ser.run("journalctl -b _COMM=ade-comp --no-pager | tail -6"))
     if not nexp:
         print("!! Super+E spawned no files")
-    # Close it again so the picker count below starts from zero.
+    print("\n$ files as seen from the guest\n%s" % ser.run(
+        "pgrep -a files; P=$(pgrep -x files | head -1); grep -E 'State|VmRSS' /proc/$P/status; "
+        "cat /proc/$P/wchan; echo; readlink /proc/$P/cwd; ls -l /proc/$P/fd 2>&1 | head -6; "
+        "top -b -n1 2>/dev/null | grep -E 'files|ade-comp|notepad' | head -5; "
+        "readlink /proc/$(pgrep -x ade-comp | head -1)/cwd; "
+        "journalctl -b _COMM=files --no-pager 2>&1 | tail -15; "
+        "cat /proc/$(pgrep -x ade-comp | head -1)/environ | tr '\\0' '\\n' | grep -E '^(HOME|USER|XDG_|WAYLAND|PWD)'; "
+        "ls -ld /home/admin /home/admin/.config /home/admin/.local 2>&1", timeout=60))
+    # Close it again so the picker count below starts from zero. The
+    # notepad count says whether Super+Q hit the explorer or something
+    # else, and the explorer's own journal says whether it left by itself.
     monitor("sendkey meta_l-q")
     time.sleep(3)
-    print("\n$ pgrep -c -x files after Super+Q: %d" % count(ser, "files"))
+    print("\n$ pgrep -c -x files after Super+Q: %d (notepad %d)"
+          % (count(ser, "files"), count(ser, "notepad")))
+    print("\n$ after Super+Q\n%s" % ser.run(
+        "journalctl -b _COMM=ade-comp --no-pager | tail -4; journalctl -b _COMM=files --no-pager | tail -8", timeout=60))
 
     # Save As in the focused notepad. notepad asks awin for a file dialog,
     # awin runs "files --pick --save", and the explorer's window is what
@@ -610,6 +628,37 @@ def desktop(ser, q):
             and stick_ok and allowed and down)
 
 
+def probe(ser, q):
+    """Start the explorer from the session's own account in a few ways
+    and screendump each: a diagnostic mode for a window that is mapped
+    but never seen, not part of the pass/fail run."""
+    first = None
+    for _ in range(WINDOW_TIMEOUT // 2):
+        first = shot("probe", quiet=True)
+        if first and first[0] >= 0.005:
+            break
+        time.sleep(2)
+    if first is None:
+        return False
+    env = "WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/admin"
+    cases = [("plain", "files"), ("pick", "files --pick"), ("home", "files /home/admin"),
+             ("pick-root", "files --pick /")]
+    for name, cmd in cases:
+        print("\n== probe %s: %s" % (name, cmd))
+        ser.run("rm -f /tmp/f.out; su -s /bin/sh admin -c '%s setsid %s >/tmp/f.out 2>&1 &'" % (env, cmd))
+        base = shot("probe-" + name, quiet=True)
+        for _ in range(10):
+            time.sleep(3)
+            cur = shot("probe-" + name, quiet=True)
+            if cur and base and abs(cur[0] - base[0]) > 0.015:
+                break
+        time.sleep(2)
+        shot("probe-" + name)
+        print("\n$ pgrep -a files; cat /tmp/f.out\n%s" % ser.run("pgrep -a files; cat /tmp/f.out; journalctl -b _COMM=ade-comp --no-pager | tail -2"))
+        ser.run("pkill -x files; sleep 2")
+    return True
+
+
 def main():
     if os.geteuid() == 0:
         sys.exit("do not run this as root; QEMU with KVM does not need it")
@@ -651,9 +700,11 @@ def main():
                     for c in DESKTOP:
                         print("\n$ %s\n%s" % (c, ser.run(c)))
                     ok = desktop(ser, q)
+                if MODE == "probe":
+                    ok = probe(ser, q)
         # desktop mode takes its own pair of screendumps, before and after
         # the keypress; re-dumping here would overwrite the "before" one.
-        if MODE == "desktop":
+        if MODE in ("desktop", "probe"):
             if not ok:
                 shot("desktop-failed")
         elif MODE != "install" or not ok:
