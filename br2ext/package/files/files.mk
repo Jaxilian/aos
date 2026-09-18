@@ -6,6 +6,11 @@
 
 FILES_VERSION = 0.1.0
 FILES_SITE = $(call qstrip,$(BR2_PACKAGE_FILES_PATH))
+# Kconfig only writes the path once the package is on, and Buildroot parses
+# every .mk regardless, so a tree with files switched off must still make.
+ifeq ($(FILES_SITE),)
+FILES_SITE = $(BR2_EXTERNAL_AOS_PATH)/../../../Rust/files
+endif
 FILES_SITE_METHOD = local
 FILES_LICENSE = MIT
 
