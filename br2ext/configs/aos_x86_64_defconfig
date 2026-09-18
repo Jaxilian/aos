@@ -378,6 +378,11 @@ BR2_PACKAGE_NOTEPAD=y
 # of its own, tgn's built-in face being proportional.
 BR2_PACKAGE_TERMINAL=y
 
+# The file explorer, and with it the file dialogs: awin runs "files --pick"
+# for Open and Save As, so this is what makes notepad able to open anything
+# on an image that has no zenity.
+BR2_PACKAGE_FILES=y
+
 ################################################################################
 # M4 -- self-hosting.
 #
