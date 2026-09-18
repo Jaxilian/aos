@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Notepad
+GenericName=Text Editor
+Comment=Edit plain text
+Exec=notepad
+Icon=org.aos.Notepad
+Categories=Utility;TextEditor;
+Keywords=text;editor;notes;plaintext;
+StartupWMClass=org.aos.Notepad

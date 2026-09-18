@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Files
+GenericName=File Manager
+Comment=Browse and manage files
+Exec=files
+Icon=org.aos.Files
+Categories=System;FileManager;
+Keywords=files;folders;browse;explorer;
+StartupWMClass=org.aos.Files

@@ -52,6 +52,8 @@ define TERMINAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 \
 		$(@D)/target/$(RUSTC_TARGET_NAME)/$(TERMINAL_PROFILE)/terminal \
 		$(TARGET_DIR)/usr/bin/terminal
+	$(INSTALL) -D -m 0644 $(TERMINAL_PKGDIR)/org.aos.Terminal.desktop \
+		$(TARGET_DIR)/usr/share/applications/org.aos.Terminal.desktop
 endef
 
 $(eval $(cargo-package))

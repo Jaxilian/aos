@@ -56,6 +56,8 @@ define NOTEPAD_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 \
 		$(@D)/target/$(RUSTC_TARGET_NAME)/$(NOTEPAD_PROFILE)/notepad \
 		$(TARGET_DIR)/usr/bin/notepad
+	$(INSTALL) -D -m 0644 $(NOTEPAD_PKGDIR)/org.aos.Notepad.desktop \
+		$(TARGET_DIR)/usr/share/applications/org.aos.Notepad.desktop
 endef
 
 $(eval $(cargo-package))

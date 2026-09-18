@@ -430,6 +430,15 @@ def desktop(ser, q):
         print("!! the stick is mounted but not writable by the seat's account")
     stick_ok = stick and "ok" in wrote
 
+    # The shell: the compositor starts ade-shell when nothing else is
+    # named in ADE_AUTOSTART, and the bar it maps is the first thing on
+    # the screen. The launcher wants desktop entries to list.
+    nshell = count(ser, "ade-shell")
+    print("\n$ pgrep -c -x ade-shell: %d" % nshell)
+    print("\n$ ls /usr/share/applications\n%s" % ser.run("ls /usr/share/applications"))
+    if not nshell:
+        print("!! ade-shell is not running")
+
     n0 = count(ser, "terminal")
     print("\n== Super+Return (sendkey meta_l-ret)")
     monitor("sendkey meta_l-ret")
@@ -623,9 +632,11 @@ def desktop(ser, q):
         print("!! USB stick failed")
     if not nexp:
         print("!! Super+E failed")
+    if not nshell:
+        print("!! shell failed")
     return (before >= 0.005 and grew and changed > 0 and npad > 0
             and npad2 > npad and nexp > 0 and nfiles > 0 and nfiles2 < nfiles
-            and stick_ok and allowed and down)
+            and nshell > 0 and stick_ok and allowed and down)
 
 
 def probe(ser, q):

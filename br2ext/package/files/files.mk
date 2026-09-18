@@ -61,6 +61,8 @@ define FILES_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 \
 		$(@D)/target/$(RUSTC_TARGET_NAME)/$(FILES_PROFILE)/files \
 		$(TARGET_DIR)/usr/bin/files
+	$(INSTALL) -D -m 0644 $(FILES_PKGDIR)/org.aos.Files.desktop \
+		$(TARGET_DIR)/usr/share/applications/org.aos.Files.desktop
 endef
 
 $(eval $(cargo-package))
