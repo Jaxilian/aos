@@ -1,0 +1,26 @@
+#!/bin/sh
+# aos-media add|remove <device>: run by udev (80-aos-media.rules) with the
+# blkid results in the environment. Mounts a removable filesystem under
+# /run/media/<label>, or the device name when it has no label, and drops
+# the mount again when the device is pulled. /run rather than /media
+# because the live image's root is read-only and the mount point has to
+# be created; /run is a tmpfs on every boot.
+#
+# FAT and exFAT carry no ownership, so they are mounted for uid 1000: the
+# first account the installer makes, and the demo account on the live
+# image. Everything else keeps the ownership stored on the stick.
+dev="$2"
+name="${ID_FS_LABEL:-$(basename "$dev")}"
+case "$1" in
+add)
+	opts=""
+	case "$ID_FS_TYPE" in
+	vfat|exfat) opts="--options=uid=1000,gid=1000,umask=022" ;;
+	esac
+	exec systemd-mount --no-block --collect $opts "$dev" "/run/media/$name"
+	;;
+remove)
+	# The device is already gone; a lazy unmount is all that is left.
+	exec umount -l "/run/media/$name"
+	;;
+esac

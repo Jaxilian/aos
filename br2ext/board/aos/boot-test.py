@@ -45,6 +45,10 @@ IMG = os.path.join(BASE, "output", "images")
 OUT = IMG
 ISO = os.path.join(IMG, "rootfs.iso9660")
 DISK = os.path.join(IMG, "aos-disk.img")
+# A small FAT stick for the desktop run: what the automount rule and the
+# explorer's Devices list are tested against.
+STICK = os.path.join(IMG, "stick.img")
+STICK_LABEL = "STICK"
 OVMF_CODE = "/usr/share/edk2/ovmf/OVMF_CODE.fd"
 OVMF_VARS = "/usr/share/edk2/ovmf/OVMF_VARS.fd"
 VARS = os.path.join(OUT, "OVMF_VARS.test.fd")
@@ -240,6 +244,26 @@ def ssh_check():
     return (r.stdout + r.stderr).strip()[:600]
 
 
+def make_stick():
+    """A 64M FAT image labelled STICK with one file on it, plugged into the
+    desktop run as a USB mass-storage device. Needs mkfs.vfat and mcopy on
+    the host; without them the run goes on without a stick."""
+    if os.path.exists(STICK):
+        os.unlink(STICK)
+    with open(STICK, "wb") as f:
+        f.truncate(64 * 1024 ** 2)
+    try:
+        subprocess.run(["mkfs.vfat", "-n", STICK_LABEL, STICK], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["mcopy", "-i", STICK, "-", "::hello.txt"], input=b"from the stick\n",
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError) as e:
+        print("!! could not make the FAT stick image (%s); no stick this run" % e)
+        os.unlink(STICK)
+        with open(STICK, "wb") as f:
+            f.truncate(64 * 1024 ** 2)
+
+
 def qemu_command():
     cmd = ["qemu-system-x86_64", "-enable-kvm", "-cpu", "host", "-m", "4G", "-smp", "4",
            "-drive", "if=pflash,format=raw,readonly=on,file=%s" % OVMF_CODE,
@@ -259,9 +283,12 @@ def qemu_command():
     # usb-tablet comes with it so the pointer is absolute; the xHCI
     # controller is needed because "pc" has no USB bus of its own.
     if MODE == "desktop":
+        make_stick()
         cmd += ["-device", "virtio-vga",
                 "-device", "qemu-xhci,id=xhci",
-                "-device", "usb-tablet,bus=xhci.0"]
+                "-device", "usb-tablet,bus=xhci.0",
+                "-drive", "if=none,id=usb1,format=raw,file=%s" % STICK,
+                "-device", "usb-storage,bus=xhci.0,drive=usb1"]
     else:
         cmd += ["-vga", "std"]
     cdrom = ["-drive", "if=none,id=cd0,media=cdrom,format=raw,file=%s" % ISO,
@@ -378,6 +405,31 @@ def desktop(ser, q):
     print("\n== first window on screen -> %s (%.1f%% ink)"
           % (os.path.join(OUT, "desktop.screen.png"), before * 100))
 
+    # The stick plugged in at boot: udev + systemd-mount put it under
+    # /run/media by its label, FAT owned by uid 1000 so the person at the
+    # keyboard can write to it. Both halves are checked from the serial
+    # console, the second as the demo account.
+    print("\n== the USB stick under /run/media")
+    media = ser.run("ls /run/media; grep ' /run/media/' /proc/mounts")
+    print("\n$ ls /run/media; grep ' /run/media/' /proc/mounts\n%s" % media)
+    stick = ("/run/media/%s" % STICK_LABEL) in media
+    wrote = ""
+    if stick:
+        wrote = ser.run("su -s /bin/sh admin -c 'echo ok > /run/media/%s/written && cat /run/media/%s/written'"
+                        % (STICK_LABEL, STICK_LABEL))
+        print("\n$ (as admin) write to the stick: %s" % wrote.strip())
+    if not stick:
+        print("!! the stick was not mounted under /run/media/%s" % STICK_LABEL)
+        print("\n$ diagnostics\n%s" % ser.run(
+            "lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINT 2>&1; "
+            "for d in /dev/sd?; do udevadm info -q property $d 2>&1 | grep -E 'ID_BUS|ID_FS_USAGE|ID_FS_TYPE|ID_FS_LABEL'; done; "
+            "ls -la /usr/libexec/aos-media /etc/udev/rules.d/ 2>&1; "
+            "journalctl -b --no-pager 2>&1 | grep -iE 'aos-media|systemd-mount|run-media|STICK' | tail -12; "
+            "systemctl list-units --type=mount --all --no-pager 2>&1 | grep -i media", timeout=90))
+    elif "ok" not in wrote:
+        print("!! the stick is mounted but not writable by the seat's account")
+    stick_ok = stick and "ok" in wrote
+
     n0 = count(ser, "terminal")
     print("\n== Super+Return (sendkey meta_l-ret)")
     monitor("sendkey meta_l-ret")
@@ -443,6 +495,35 @@ def desktop(ser, q):
     shot("desktop-super-n")
     if npad2 <= npad:
         print("!! Super+N spawned no notepad")
+
+    # Super+E: the compositor's binding for the file explorer. Its window
+    # is what the stick check below looks at: the Devices section of the
+    # sidebar should list the stick by label.
+    print("\n== Super+E (sendkey meta_l-e)")
+    monitor("sendkey meta_l-e")
+    nexp = 0
+    for _ in range(NOTEPAD_TIMEOUT // 3):
+        time.sleep(3)
+        nexp = count(ser, "files")
+        if nexp:
+            break
+    print("\n$ pgrep -c -x files: %d after Super+E" % nexp)
+    # Its first frame is a Vulkan device away, seconds under llvmpipe:
+    # wait for the screen to change rather than for a fixed time.
+    base = shot("desktop-super-e", quiet=True)
+    for _ in range(NOTEPAD_TIMEOUT // 3):
+        time.sleep(3)
+        cur = shot("desktop-super-e", quiet=True)
+        if cur and base and cur[1] != base[1]:
+            break
+    time.sleep(2)
+    shot("desktop-super-e")
+    if not nexp:
+        print("!! Super+E spawned no files")
+    # Close it again so the picker count below starts from zero.
+    monitor("sendkey meta_l-q")
+    time.sleep(3)
+    print("\n$ pgrep -c -x files after Super+Q: %d" % count(ser, "files"))
 
     # Save As in the focused notepad. notepad asks awin for a file dialog,
     # awin runs "files --pick --save", and the explorer's window is what
@@ -520,9 +601,13 @@ def desktop(ser, q):
         print("!! Super+N failed")
     if not nfiles:
         print("!! Save As failed")
+    if not stick_ok:
+        print("!! USB stick failed")
+    if not nexp:
+        print("!! Super+E failed")
     return (before >= 0.005 and grew and changed > 0 and npad > 0
-            and npad2 > npad and nfiles > 0 and nfiles2 < nfiles
-            and allowed and down)
+            and npad2 > npad and nexp > 0 and nfiles > 0 and nfiles2 < nfiles
+            and stick_ok and allowed and down)
 
 
 def main():

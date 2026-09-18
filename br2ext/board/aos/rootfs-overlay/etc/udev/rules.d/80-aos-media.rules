@@ -1,0 +1,6 @@
+# Removable filesystems mount themselves under /run/media as they appear and
+# go away with the device. There is no udisks on the image; udev hands the
+# device to systemd-mount, which is the arrangement systemd documents for
+# exactly this. aos-media picks the directory name and the options.
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_USAGE}=="filesystem", ENV{ID_BUS}=="usb", RUN+="/usr/libexec/aos-media add $devnode"
+ACTION=="remove", SUBSYSTEM=="block", ENV{ID_FS_USAGE}=="filesystem", ENV{ID_BUS}=="usb", RUN+="/usr/libexec/aos-media remove $devnode"

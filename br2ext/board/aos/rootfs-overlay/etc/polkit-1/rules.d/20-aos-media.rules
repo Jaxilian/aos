@@ -1,0 +1,13 @@
+/* The person at the keyboard may eject a stick. Unmounting a /run/media mount
+ * is a systemd unit stop, which polkit gates behind manage-units; this
+ * grants it for those units only, to a local and active session, so the
+ * file explorer's Eject works without a password. See 10-aos-seat.rules
+ * for why local and active is the whole test.
+ */
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        /^run-media-/.test(action.lookup("unit") || "") &&
+        subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});
