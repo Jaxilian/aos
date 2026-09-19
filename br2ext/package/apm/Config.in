@@ -1,0 +1,37 @@
+config BR2_PACKAGE_APM
+	bool "apm (package manager)"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_HOST_RUSTC
+	select BR2_PACKAGE_LIBCURL_CURL
+	select BR2_PACKAGE_CA_CERTIFICATES
+	select BR2_PACKAGE_TAR
+	help
+	  The AOS package manager and the backend of its app store:
+	  update, find, install, remove, upgrade against a signed index
+	  of packages, some prebuilt, some vendor binaries fetched from
+	  their own CDNs, some recipes compiled here with the gcc and
+	  cargo the image already ships.
+
+	  It fetches with the curl and CA bundle the image provisions
+	  for exactly this, unpacks sources with tar, and never links a
+	  TLS or HTTP library of its own. The store is /opt/apm; nothing
+	  outside it is written except the symlink farms the store owns.
+
+	  Installed to /usr/bin, since that is the whole of root's PATH
+	  on the image. The environment files under rootfs-overlay/etc
+	  put /opt/apm/bin on PATH for shells and for the desktop.
+
+if BR2_PACKAGE_APM
+
+config BR2_PACKAGE_APM_PATH
+	string "apm source tree"
+	default "$(BR2_EXTERNAL_AOS_PATH)/../../apm"
+	help
+	  Absolute path to the apm checkout to build from. The default
+	  is the sibling of the aos tree, as for ade: a local path
+	  because apm is co-developed with the OS and a build tracks
+	  the working tree.
+
+endif

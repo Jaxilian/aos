@@ -396,6 +396,11 @@ BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_AOS_PATH)/board/aos/post-build.sh"
 BR2_PACKAGE_AOS_GCC=y
 BR2_PACKAGE_AOS_RUST=y
 
+# The package manager. It shells out to curl and tar and links nothing of
+# its own; the store is /opt/apm, on PATH through etc/profile.d and the
+# ade.service drop-in in the rootfs overlay.
+BR2_PACKAGE_APM=y
+
 # NVIDIA. The kernel modules are Dual MIT/GPL; the userspace half is
 # proprietary, which is why aos-nvidia is opt-in rather than implied by
 # aos-nvidia-open. CUDA is left off -- it is large and a foundation image

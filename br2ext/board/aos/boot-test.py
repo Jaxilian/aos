@@ -62,6 +62,16 @@ WINDOW_TIMEOUT = 60
 # in QEMU that is lavapipe doing it in software.
 NOTEPAD_TIMEOUT = 60
 SSH_PORT = 2222
+# The package manager under test. apm lives in a sibling checkout; its
+# release binary runs on AOS unmodified while the host's glibc is not newer
+# than the image's (Fedora 44's 2.43 against AOS's 2.44).
+APM_BIN = os.environ.get("APM_BIN", os.path.join(BASE, "..", "apm", "target", "release", "apm"))
+APM_PUB = os.path.join(OUT, "apm-pub")
+# Set APM_REPO to a real repository URL (and APM_KEY to its public key file)
+# to test against it over HTTPS instead of the one-package file:// payload
+# this harness builds: the same commands, a real network path.
+APM_REPO = os.environ.get("APM_REPO")
+APM_KEY = os.environ.get("APM_KEY", os.path.join(BASE, "..", "apm-recipes", "keys", "apm.pub"))
 
 CHECKS = [
     "systemctl is-system-running",
@@ -231,6 +241,98 @@ def monitor(cmd):
         m.close()
 
 
+# Slice 1 of the package manager: update, find, install, run, remove, on
+# the installed disk, from a one-package repository the host builds and
+# copies in. The first two lines are the probes everything else rests on:
+# TLS through slirp with the image's CA bundle, and a writable /opt.
+# The store is wiped first: the disk persists between runs and slice 1 is
+# a fresh install. The image's own apm is listed before the host-built one
+# replaces it, so a run records both. Root's PATH on AOS is /usr/bin alone, so the binary goes where the
+# Buildroot package will put it; and /opt/apm/bin is not on PATH until the
+# environment files ship in the image, hence the full path to hello.
+APM = [
+    "rm -rf /opt/apm; ls -d /opt/apm 2>&1",
+    "curl -sI https://github.com | head -1",
+    "touch /opt/.w && echo /opt writable && rm /opt/.w",
+    "ls -la /usr/bin/apm 2>&1; apm help 2>&1 | head -1",
+    "install -D -m 755 /root/apm /usr/bin/apm && apm help | head -1",
+    "apm repo add main %s" % (APM_REPO or "file:///root/apm-pub"),
+    "apm key trust /root/apm-pub/apm.pub",
+    "apm update",
+    "apm find ell",
+    "apm install hello --quiet",
+    "ls -l /opt/apm/bin/ /opt/apm/packages/aos/hello/",
+    "/opt/apm/bin/hello",
+    "apm install hello-c --quiet 2>&1 | grep -v '^  |'",
+    "/opt/apm/bin/hello-c",
+    "apm list",
+    "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
+    "systemctl show ade.service -p Environment",
+    "apm remove hello --quiet; apm remove hello-c --quiet; ls -A /opt/apm/bin/ /opt/apm/packages/",
+]
+
+
+def apm_payload():
+    """Ship examples/hello from the apm checkout, index and sign it with a
+    throwaway key, and put the key's public half beside it: the smallest
+    repository apm can install from, built with the binary under test."""
+    repo = os.path.abspath(os.path.join(os.path.dirname(APM_BIN), "..", ".."))
+    publisher = os.path.join(OUT, "apm-publisher")
+    for d in (APM_PUB, publisher):
+        shutil.rmtree(d, ignore_errors=True)
+    os.makedirs(APM_PUB)
+    env = dict(os.environ, APM_ROOT=publisher)
+
+    def apm(*args):
+        return subprocess.run([APM_BIN, *args], cwd=APM_PUB, env=env, check=True,
+                              capture_output=True, text=True).stdout
+    if APM_REPO:
+        # Nothing to build: the guest fetches from the real repository. Only
+        # the publisher's public key travels in.
+        shutil.copy(APM_KEY, os.path.join(APM_PUB, "apm.pub"))
+        return
+    apm("key", "new")
+    apm("ship", os.path.join(repo, "examples", "hello"))
+    # and a recipe the guest compiles with its own cc: the tarball and the
+    # recipe land in the same directory, addressed by their guest path.
+    subprocess.run([os.path.join(repo, "examples", "hello-c", "pack.sh"), APM_PUB, "file:///root/apm-pub"], check=True)
+    print(apm("index", ".", "--sign"))
+    shutil.copy(os.path.join(publisher, "etc", "keys", "apm.pub"), os.path.join(APM_PUB, "apm.pub"))
+
+
+def apm_run(ser):
+    """Copy the binary and the repository in over SSH, then drive apm over
+    serial. Passes when hello runs and remove leaves the store empty."""
+    key = os.path.expanduser("~/.ssh/id_ed25519")
+    # sshd comes up a few seconds behind the getty; the port forward accepts
+    # the connection before the guest is listening and the handshake is
+    # reset, so try a few times.
+    for attempt in range(8):
+        r = subprocess.run(
+            ["scp", "-P", str(SSH_PORT), "-i", key, "-r",
+             "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+             "-o", "ConnectTimeout=15", "-o", "BatchMode=yes",
+             APM_BIN, APM_PUB, "root@127.0.0.1:/root/"],
+            capture_output=True, text=True, timeout=120)
+        if r.returncode == 0:
+            break
+        time.sleep(5)
+    else:
+        print("!! scp into the guest failed:\n%s" % (r.stdout + r.stderr).strip())
+        return False
+    print("== scp ok after %d attempt(s)" % (attempt + 1))
+    out = {}
+    for c in APM:
+        out[c] = ser.run(c, timeout=120)
+        print("\n$ %s\n%s" % (c, out[c]))
+    # After the removes, the two `ls -A` headers must have nothing between
+    # or after them.
+    listing = out[APM[-1]].split("/opt/apm/bin/:", 1)[-1].strip()
+    return ("hello from apm" in out["/opt/apm/bin/hello"]
+            and "built by apm" in out["/opt/apm/bin/hello-c"]
+            and listing == "/opt/apm/packages/:")
+
+
 def ssh_check():
     key = os.path.expanduser("~/.ssh/id_ed25519")
     if not os.path.exists(key):
@@ -308,10 +410,10 @@ def qemu_command():
             f.truncate(16 * 1024 ** 3)
         return cmd + cdrom + ["-drive", "if=none,id=hd0,format=raw,file=%s" % DISK,
                               "-device", "virtio-blk-pci,drive=hd0,bootindex=1"]
-    if MODE == "disk":
+    if MODE in ("disk", "apm"):
         return cmd + ["-drive", "if=none,id=hd0,format=raw,file=%s" % DISK,
                       "-device", "virtio-blk-pci,drive=hd0,bootindex=0"]
-    sys.exit("usage: boot-test.py live|usb|install|disk|desktop")
+    sys.exit("usage: boot-test.py live|usb|install|disk|desktop|probe|apm")
 
 
 def shot(tag, quiet=False):
@@ -680,6 +782,8 @@ def main():
             os.unlink(p)
     shutil.copy(OVMF_VARS, VARS)
 
+    if MODE == "apm":
+        apm_payload()
     q = subprocess.Popen(qemu_command(), stdout=subprocess.DEVNULL,
                          stderr=subprocess.STDOUT)
     ok = False
@@ -713,6 +817,8 @@ def main():
                     ok = desktop(ser, q)
                 if MODE == "probe":
                     ok = probe(ser, q)
+                if MODE == "apm":
+                    ok = apm_run(ser)
         # desktop mode takes its own pair of screendumps, before and after
         # the keypress; re-dumping here would overwrite the "before" one.
         if MODE in ("desktop", "probe"):
@@ -720,6 +826,12 @@ def main():
                 shot("desktop-failed")
         elif MODE != "install" or not ok:
             shot(MODE)
+        # The installed disk persists. Quitting QEMU under it is a power cut,
+        # and anything written this boot that ext4 has not flushed yet is
+        # lost -- host keys generated on a first boot, for one. Shut down.
+        if MODE in ("disk", "apm") and ok is not None:
+            ser.send("poweroff\n")
+            ser.read_until(b"reboot: Power down", 90)
     finally:
         try:
             monitor("quit")
