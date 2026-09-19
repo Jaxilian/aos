@@ -18,7 +18,10 @@ ADE_LICENSE = MIT
 ADE_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = --exclude=target
 
 # libseat comes from seatd, libgbm and libEGL from mesa3d. host-pkgconf is
-# what the -sys crates use to find all of them.
+# what the -sys crates use to find all of them. vulkan-loader is for the
+# shell: awin's ash dlopens libvulkan at runtime, so it is a runtime rather
+# than a link dependency, but it must be on the image or every shell surface
+# fails at startup.
 ADE_DEPENDENCIES = \
 	host-pkgconf \
 	libdrm \
@@ -27,6 +30,7 @@ ADE_DEPENDENCIES = \
 	mesa3d \
 	seatd \
 	udev \
+	vulkan-loader \
 	wayland \
 	wayland-protocols
 
@@ -61,9 +65,13 @@ define ADE_VENDOR
 endef
 ADE_PRE_BUILD_HOOKS += ADE_VENDOR
 
-# The workspace also holds future shell crates; only the compositor is
-# wanted on the image.
-ADE_CARGO_BUILD_OPTS = --package ade-comp
+# The compositor and the shell. Both are workspace members; nothing else in
+# the workspace is a binary.
+#
+# ade-shell depends on awin and tgn by absolute path into the developer's
+# Rust/ tree, which cargo vendor does not vendor, so this only builds on a
+# host where those checkouts exist. Same situation as every awin app.
+ADE_CARGO_BUILD_OPTS = --package ade-comp --package ade-shell
 
 # ...which is also why the install step is written out here rather than left
 # to pkg-cargo.mk. That one runs "cargo install --path ./", and ./ is a
@@ -77,6 +85,9 @@ define ADE_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 \
 		$(@D)/target/$(RUSTC_TARGET_NAME)/$(ADE_PROFILE)/ade-comp \
 		$(TARGET_DIR)/usr/bin/ade-comp
+	$(INSTALL) -D -m 0755 \
+		$(@D)/target/$(RUSTC_TARGET_NAME)/$(ADE_PROFILE)/ade-shell \
+		$(TARGET_DIR)/usr/bin/ade-shell
 endef
 
 define ADE_INSTALL_INIT_SYSTEMD
