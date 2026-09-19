@@ -7,6 +7,13 @@
 # whose /etc is read-only -- and sshd with no host key at all refuses to
 # start. So: use /etc/ssh when it is writable, and a tmpfs under /run
 # otherwise. Both paths are listed in sshd_config.
+#
+# A key is only trusted if it has a size. The first boot after an install
+# generates the keys, and if that boot ends in a power cut before ext4 has
+# flushed them, delayed allocation leaves zero-byte files behind -- which
+# "-f" would accept, and sshd would then die at every boot after. So an
+# empty key is regenerated, and a fresh key is written under another name,
+# forced to disk, and only then renamed into place.
 
 set -e
 
@@ -20,6 +27,11 @@ chmod 0755 "$dir"
 
 for type in ed25519 rsa; do
 	key="${dir}/ssh_host_${type}_key"
-	[ -f "$key" ] && continue
-	ssh-keygen -q -t "$type" -f "$key" -N "" -C "root@aos"
+	[ -s "$key" ] && continue
+	rm -f "$key" "$key.pub" "$key.new" "$key.new.pub"
+	ssh-keygen -q -t "$type" -f "$key.new" -N "" -C "root@aos"
+	sync
+	mv "$key.new.pub" "$key.pub"
+	mv "$key.new" "$key"
+	sync
 done
