@@ -126,3 +126,29 @@ if [ -s "${keys}" ]; then
 else
 	echo "post-build.sh: no board/aos/authorized_keys -- SSH will accept no logins"
 fi
+
+# Pre-seed the package store. The packages a release image ships with are
+# apm packages -- the same signed artifacts a running system fetches --
+# installed here by the host's apm into the target's /opt/apm. board/aos/seed
+# lists them, one name per line, # for comments; empty means a dev image
+# that carries nothing but apm. APM_DESTDIR makes apm write under the target
+# while recording run-time paths, and APM_NO_HOOKS keeps a package's hooks
+# from running on the build host. The repository and key are the official
+# ones. Needs the network, like the rest of a Buildroot build.
+SEED="${BR2_EXTERNAL_AOS_PATH}/board/aos/seed"
+PACKAGES=$(sed 's/#.*//' "${SEED}" 2>/dev/null | tr -s ' \n' '\n' | sed '/^$/d')
+if [ -n "${PACKAGES}" ]; then
+	APM="${APM:-${BR2_EXTERNAL_AOS_PATH}/../../apm/target/release/apm}"
+	[ -x "${APM}" ] || { echo "post-build.sh: seed list is not empty but no apm at ${APM}" >&2; exit 1; }
+	export APM_DESTDIR="${TARGET_DIR}" APM_NO_HOOKS=1
+	"${APM}" repo add main https://github.com/Jaxilian/apm-recipes/releases/download/index
+	"${APM}" key trust "${BR2_EXTERNAL_AOS_PATH}/../../apm-recipes/keys/apm.pub"
+	"${APM}" update --force --quiet
+	# shellcheck disable=SC2086
+	"${APM}" install --quiet ${PACKAGES}
+	# The fetched artifacts would double the size of what they installed.
+	# The index stays, so find works before the first update.
+	rm -rf "${TARGET_DIR}/opt/apm/cache/downloads" "${TARGET_DIR}/opt/apm/cache/build" \
+		"${TARGET_DIR}/opt/apm/cache/staging" "${TARGET_DIR}/opt/apm/state/lock"
+	unset APM_DESTDIR APM_NO_HOOKS
+fi
