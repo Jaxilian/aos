@@ -399,7 +399,11 @@ BR2_PACKAGE_FILES=y
 BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_AOS_PATH)/board/aos/post-build.sh"
 
 BR2_PACKAGE_AOS_GCC=y
-BR2_PACKAGE_AOS_RUST=y
+# Rust left the image on 2026-09-20: it is the apm package aos/rust, the
+# same upstream tarball, proven on the target (rustc compiles from the
+# store). A dev image fetches it; a release image pre-seeds it through
+# board/aos/seed. 600 MB less on the ISO.
+# BR2_PACKAGE_AOS_RUST is not set
 
 # The package manager. It shells out to curl and tar and links nothing of
 # its own; the store is /opt/apm, on PATH through etc/profile.d and the
