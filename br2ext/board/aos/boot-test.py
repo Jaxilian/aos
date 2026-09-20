@@ -273,6 +273,9 @@ APM = [
     "apm install rust --quiet 2>&1 | tail -1",
     "/opt/apm/bin/rustc --version; /opt/apm/bin/cargo --version",
     "printf 'fn main(){println!(\"rust from the apm store\");}' > /tmp/m.rs && cd /tmp && /opt/apm/bin/rustc -o m m.rs && ./m; cd /root",
+    # An app lifted out of the image by br2apkg: the launcher entry must
+    # land under exports, which ade now reads through XDG_DATA_DIRS.
+    "apm install terminal --quiet 2>&1 | tail -2; cat /opt/apm/exports/share/applications/aos.terminal.desktop",
 ] if APM_REPO else []) + [
     "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
     "systemctl show ade.service -p Environment",
