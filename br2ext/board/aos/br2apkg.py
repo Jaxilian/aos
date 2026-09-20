@@ -94,6 +94,8 @@ def main():
     ap.add_argument("--license")
     ap.add_argument("--summary")
     ap.add_argument("--depends", action="append", default=[], metavar="org/name@track")
+    ap.add_argument("--launcher", action="store_true",
+                    help="derive [launcher] from the .desktop the package installed")
     ap.add_argument("--out", default=os.getcwd())
     a = ap.parse_args()
 
@@ -155,6 +157,31 @@ def main():
         if m:
             sonames.append(m.group(1))
 
+    # An app's .desktop entry: apm generates its own from [launcher], so the
+    # installed file becomes the manifest table and is not shipped.
+    launcher = None
+    if a.launcher:
+        for tp in files:
+            if tp.startswith("./usr/share/applications/") and tp.endswith(".desktop"):
+                entry = {}
+                with open(os.path.join(TARGET, tp)) as f:
+                    for line in f:
+                        k, _, v = line.strip().partition("=")
+                        if _:
+                            entry.setdefault(k, v)
+                exe = entry.get("Exec", "").split()[0] if entry.get("Exec") else ""
+                exe = os.path.basename(exe)
+                launcher = {
+                    "name": entry.get("Name", pkg),
+                    "comment": entry.get("Comment", ""),
+                    "exec": "bin/" + exe if exe in commands else exe,
+                    "categories": [c for c in entry.get("Categories", "").split(";") if c],
+                }
+                shutil.rmtree(os.path.join(work, "share", "applications"), ignore_errors=True)
+                break
+        if launcher is None:
+            sys.exit("br2apkg: --launcher, but %s installed no .desktop entry" % pkg)
+
     deps = []
     for d in a.depends:
         org_name, _, track = d.partition("@")
@@ -185,6 +212,13 @@ def main():
     for org, name, track in deps:
         manifest += ["", "[[dependencies]]", "name         = %s" % toml_str(name),
                      "organization = %s" % toml_str(org), "track        = %s" % toml_str(track)]
+    if launcher:
+        manifest += ["", "[launcher]",
+                     "name       = %s" % toml_str(launcher["name"]),
+                     "comment    = %s" % toml_str(launcher["comment"]),
+                     "exec       = %s" % toml_str(launcher["exec"]),
+                     "categories = [%s]" % ", ".join(toml_str(c) for c in launcher["categories"]),
+                     "terminal   = false"]
     if a.global_ and sonames:
         manifest += ["", "[hooks]", 'post_install = "ldconfig"', 'post_remove  = "ldconfig"']
     with open(os.path.join(work, "manifest.toml"), "w") as f:
