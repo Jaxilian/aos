@@ -266,6 +266,14 @@ APM = [
     "apm install hello-c --quiet 2>&1 | grep -v '^  |'",
     "/opt/apm/bin/hello-c",
     "apm list",
+] + ([
+    # Against the real repository: the two packages that left the image.
+    # rust is a 300 MB download through slirp, so give it time.
+    "apm install fonts --quiet 2>&1 | tail -1; ls /opt/apm/packages/aos/fonts/current/share/fonts/",
+    "apm install rust --quiet 2>&1 | tail -1",
+    "/opt/apm/bin/rustc --version; /opt/apm/bin/cargo --version",
+    "printf 'fn main(){println!(\"rust from the apm store\");}' > /tmp/m.rs && cd /tmp && /opt/apm/bin/rustc -o m m.rs && ./m; cd /root",
+] if APM_REPO else []) + [
     "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
     "systemctl show ade.service -p Environment",
     "apm remove hello --quiet; apm remove hello-c --quiet; ls -A /opt/apm/bin/ /opt/apm/packages/",
@@ -323,7 +331,7 @@ def apm_run(ser):
     print("== scp ok after %d attempt(s)" % (attempt + 1))
     out = {}
     for c in APM:
-        out[c] = ser.run(c, timeout=120)
+        out[c] = ser.run(c, timeout=900 if "install rust" in c else 120)
         print("\n$ %s\n%s" % (c, out[c]))
     # After the removes, the two `ls -A` headers must have nothing between
     # or after them.
