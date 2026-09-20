@@ -34,6 +34,8 @@ BR2_TOOLCHAIN_EXTERNAL_GCC_15=y
 BR2_TOOLCHAIN_EXTERNAL_HEADERS_7_1=y
 BR2_TOOLCHAIN_EXTERNAL_CUSTOM_GLIBC=y
 BR2_TOOLCHAIN_EXTERNAL_CXX=y
+# The SDK's glibc is built without SunRPC; the default says otherwise.
+# BR2_TOOLCHAIN_EXTERNAL_INET_RPC is not set
 
 # No system, no image: only packages.
 BR2_INIT_NONE=y
