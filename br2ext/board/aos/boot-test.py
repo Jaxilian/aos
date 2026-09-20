@@ -298,16 +298,17 @@ CLEANUP = ("for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt
            % (" vscode runtime/gtk3 fonts rust terminal" if APM_REPO else ""))
 
 
-def window_shot(ser, tag, command):
+def window_shot(ser, tag, exe, command, timeout=WINDOW_TIMEOUT):
     """Start `command` through the desktop user's session, the way probe()
     starts the explorer, and screendump before and after: a new window on
-    ade is the program working end to end. Returns True if the screen
-    changed."""
+    ade is the program working end to end. `exe` is the process name to
+    look for and kill. Returns True if the screen changed."""
     env = "WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/admin"
+    log = "/tmp/%s.log" % tag
     before = shot("%s-before" % tag, quiet=True)
-    ser.run("rm -f /tmp/%s.out; su -s /bin/sh admin -c '%s setsid %s >/tmp/%s.out 2>&1 &'" % (tag, env, command, tag))
+    ser.run("rm -f %s; su -s /bin/sh admin -c '%s setsid %s >%s 2>&1 &'" % (log, env, command, log))
     changed = False
-    for _ in range(WINDOW_TIMEOUT // 3):
+    for _ in range(timeout // 3):
         time.sleep(3)
         after = shot("%s-after" % tag, quiet=True)
         if after and before and abs(after[0] - before[0]) > 0.015:
@@ -315,8 +316,7 @@ def window_shot(ser, tag, command):
             break
     time.sleep(2)
     shot("%s-after" % tag)
-    exe = command.split()[-1].rsplit("/", 1)[-1]
-    print("\n$ pgrep -a %s; cat /tmp/%s.out\n%s" % (exe, tag, ser.run("pgrep -fa %s | head -3; head -c 1500 /tmp/%s.out" % (exe, tag))))
+    print("\n$ pgrep -fa %s; cat %s\n%s" % (exe, log, ser.run("pgrep -fa %s | head -4; head -c 2000 %s" % (exe, log))))
     ser.run("pkill -f %s; sleep 1" % exe)
     return changed
 
@@ -375,9 +375,10 @@ def apm_run(ser):
         out[c] = ser.run(c, timeout=900 if ("install r" in c or c == VSCODE) else 120)
         print("\n$ %s\n%s" % (c, out[c]))
     if APM_REPO:
-        window_shot(ser, "gtk", "/opt/apm/bin/gtk3-run gtk3-demo")
+        window_shot(ser, "gtk", "gtk3-demo", "/opt/apm/bin/gtk3-run gtk3-demo")
         if "Installed microsoft/vscode" in out.get(VSCODE, ""):
-            window_shot(ser, "code", "/opt/apm/bin/code --wait /tmp/code.out")
+            # Electron on llvmpipe: give it minutes, not the usual minute.
+            window_shot(ser, "code", "code", "/opt/apm/bin/code --new-window", timeout=240)
     out[CLEANUP] = ser.run(CLEANUP, timeout=120)
     print("\n$ %s\n%s" % (CLEANUP, out[CLEANUP]))
     # After the removes, the two `ls -A` headers must have nothing between
