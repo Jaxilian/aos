@@ -289,9 +289,13 @@ APM = [
 ] if APM_REPO else []) + [
     "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
     "systemctl show ade.service -p Environment",
-    "for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt/apm/bin/ /opt/apm/packages/"
-    % (" vscode runtime/gtk3 fonts rust terminal" if APM_REPO else ""),
 ]
+
+# Last, after anything on screen has been looked at: everything the run
+# installed goes, dependents before their dependencies, and the store must
+# be empty.
+CLEANUP = ("for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt/apm/bin/ /opt/apm/packages/"
+           % (" vscode runtime/gtk3 fonts rust terminal" if APM_REPO else ""))
 
 
 def window_shot(ser, tag, command):
@@ -374,9 +378,11 @@ def apm_run(ser):
         window_shot(ser, "gtk", "/opt/apm/bin/gtk3-run gtk3-demo")
         if "Installed microsoft/vscode" in out.get(VSCODE, ""):
             window_shot(ser, "code", "/opt/apm/bin/code --wait /tmp/code.out")
+    out[CLEANUP] = ser.run(CLEANUP, timeout=120)
+    print("\n$ %s\n%s" % (CLEANUP, out[CLEANUP]))
     # After the removes, the two `ls -A` headers must have nothing between
     # or after them.
-    listing = out[APM[-1]].split("/opt/apm/bin/:", 1)[-1].strip()
+    listing = out[CLEANUP].split("/opt/apm/bin/:", 1)[-1].strip()
     return ("hello from apm" in out["/opt/apm/bin/hello"]
             and "built by apm" in out["/opt/apm/bin/hello-c"]
             and listing == "/opt/apm/packages/:")
