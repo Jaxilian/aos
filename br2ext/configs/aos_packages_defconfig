@@ -1,0 +1,80 @@
+# The packages that must never enter the image, built anyway.
+#
+# A second Buildroot configuration, for a second output tree:
+#
+#   make O=$PWD/output-pkgs BR2_EXTERNAL=$PWD/br2ext aos_packages_defconfig
+#   make O=$PWD/output-pkgs
+#
+# It produces no image. What it produces is a target tree from which
+# board/aos/br2apkg.py lifts one package at a time into a .apkg for the
+# third-party repository: the GTK3 runtime and what Electron applications
+# and Firefox load at startup. AOS deliberately ships none of this
+# (docs/what-is-aos.md); apm installs it, separately, and only for whoever
+# wants those applications.
+#
+# The toolchain is the SDK the image build produced (`make sdk`, extracted
+# and relocated to ../aos-sdk), so every library here is built by the
+# same gcc against the same glibc and the same x86-64-v2 baseline as the
+# image -- the ABI gate in apm/plans/05-aos.md holds by construction.
+#
+# Mesa is here only so that GTK's Wayland backend has an EGL to link
+# against: the same Mesa version as the image, hence the same libEGL ABI,
+# but with softpipe as its one driver, which needs no LLVM (iris does, in
+# this Buildroot), because these libraries are never shipped -- the
+# image's Mesa is what runs.
+
+BR2_x86_64=y
+BR2_x86_x86_64_v2=y
+
+BR2_TOOLCHAIN_EXTERNAL=y
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM=y
+BR2_TOOLCHAIN_EXTERNAL_PATH="$(BR2_EXTERNAL_AOS_PATH)/../../aos-sdk"
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM_PREFIX="x86_64-buildroot-linux-gnu"
+BR2_TOOLCHAIN_EXTERNAL_GCC_15=y
+BR2_TOOLCHAIN_EXTERNAL_HEADERS_7_1=y
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM_GLIBC=y
+BR2_TOOLCHAIN_EXTERNAL_CXX=y
+
+# No system, no image: only packages.
+BR2_INIT_NONE=y
+BR2_SYSTEM_BIN_SH_NONE=y
+# BR2_TARGET_ROOTFS_TAR is not set
+
+# Graphics the toolkit links against; not shipped from here.
+BR2_PACKAGE_LIBDRM=y
+BR2_PACKAGE_LIBGLVND=y
+BR2_PACKAGE_MESA3D=y
+BR2_PACKAGE_MESA3D_OPENGL_EGL=y
+BR2_PACKAGE_MESA3D_OPENGL_ES=y
+BR2_PACKAGE_MESA3D_GBM=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_SOFTPIPE=y
+BR2_PACKAGE_WAYLAND=y
+BR2_PACKAGE_WAYLAND_PROTOCOLS=y
+BR2_PACKAGE_LIBXKBCOMMON=y
+
+# The toolkit. Wayland backend only; libepoxy builds without GLX because
+# there is no X server in this configuration, which is what AOS needs --
+# the image has no libGL.so.1.
+BR2_PACKAGE_LIBGTK3=y
+BR2_PACKAGE_LIBGTK3_WAYLAND=y
+# BR2_PACKAGE_LIBGTK3_X11 is not set
+BR2_PACKAGE_LIBGTK3_DEMO=y
+BR2_PACKAGE_FONTCONFIG=y
+BR2_PACKAGE_ADWAITA_ICON_THEME=y
+
+# X client libraries. No X server, but every one of the target
+# applications links these and will not start without them.
+BR2_PACKAGE_XORG7=y
+BR2_PACKAGE_XLIB_LIBX11=y
+BR2_PACKAGE_XLIB_LIBXEXT=y
+BR2_PACKAGE_XLIB_LIBXCOMPOSITE=y
+BR2_PACKAGE_XLIB_LIBXDAMAGE=y
+BR2_PACKAGE_XLIB_LIBXFIXES=y
+BR2_PACKAGE_XLIB_LIBXRANDR=y
+BR2_PACKAGE_XLIB_LIBXRENDER=y
+BR2_PACKAGE_XLIB_LIBXI=y
+
+# What Electron and Firefox need beyond the toolkit.
+BR2_PACKAGE_LIBNSS=y
+BR2_PACKAGE_ALSA_LIB=y
+BR2_PACKAGE_CUPS=y
