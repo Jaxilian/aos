@@ -377,8 +377,12 @@ def apm_run(ser):
     if APM_REPO:
         window_shot(ser, "gtk", "gtk3-demo", "/opt/apm/bin/gtk3-run gtk3-demo")
         if "Installed microsoft/vscode" in out.get(VSCODE, ""):
+            # First without a window: Electron must at least print its
+            # version, and whatever else it has to say about the machine.
+            print("\n$ code --version (as admin)\n%s" % ser.run(
+                "su -s /bin/sh admin -c 'timeout 60 /opt/apm/bin/code --version 2>&1 | head -20; echo exit=$?'", timeout=90))
             # Electron on llvmpipe: give it minutes, not the usual minute.
-            window_shot(ser, "code", "code", "/opt/apm/bin/code --new-window", timeout=240)
+            window_shot(ser, "code", "code", "/opt/apm/bin/code --new-window --verbose", timeout=240)
     out[CLEANUP] = ser.run(CLEANUP, timeout=120)
     print("\n$ %s\n%s" % (CLEANUP, out[CLEANUP]))
     # After the removes, the two `ls -A` headers must have nothing between
