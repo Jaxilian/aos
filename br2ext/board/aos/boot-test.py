@@ -279,7 +279,8 @@ APM = [
 ] if APM_REPO else []) + [
     "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
     "systemctl show ade.service -p Environment",
-    "apm remove hello --quiet; apm remove hello-c --quiet; ls -A /opt/apm/bin/ /opt/apm/packages/",
+    "for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt/apm/bin/ /opt/apm/packages/"
+    % (" fonts rust terminal" if APM_REPO else ""),
 ]
 
 
