@@ -243,7 +243,7 @@ def monitor(cmd):
 
 # Visual Studio Code is a 280 MB download in the guest; the line is named
 # so the run can tell whether it landed before trying to open it.
-VSCODE = "apm install vscode --quiet 2>&1 | tail -1"
+VSCODE = "apm install vscode --quiet 2>&1 | tail -3"
 
 # Slice 1 of the package manager: update, find, install, run, remove, on
 # the installed disk, from a one-package repository the host builds and
