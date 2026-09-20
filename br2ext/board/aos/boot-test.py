@@ -276,12 +276,36 @@ APM = [
     # An app lifted out of the image by br2apkg: the launcher entry must
     # land under exports, which ade now reads through XDG_DATA_DIRS.
     "apm install terminal --quiet 2>&1 | tail -2; cat /opt/apm/exports/share/applications/aos.terminal.desktop",
+    # The GTK3 runtime from the third-party repository, and a GTK program
+    # started through its wrapper on the desktop; gtk_shot() below takes
+    # the screendump.
+    "apm repo add thirdparty https://github.com/Jaxilian/apm-thirdparty/releases/download/index --third-party 2>/dev/null; apm update --force --quiet 2>&1 | tail -1",
+    "apm install runtime/gtk3 --quiet 2>&1 | tail -1; ls /opt/apm/bin/",
 ] if APM_REPO else []) + [
     "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
     "systemctl show ade.service -p Environment",
     "for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt/apm/bin/ /opt/apm/packages/"
-    % (" fonts rust terminal" if APM_REPO else ""),
+    % (" runtime/gtk3 fonts rust terminal" if APM_REPO else ""),
 ]
+
+
+def gtk_shot(ser):
+    """Start gtk3-demo through the runtime's wrapper as the desktop user,
+    the way probe() starts the explorer, and screendump before and after:
+    a GTK window on ade is the runtime working end to end."""
+    env = "WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/admin"
+    before = shot("gtk-before", quiet=True)
+    ser.run("rm -f /tmp/g.out; su -s /bin/sh admin -c '%s setsid /opt/apm/bin/gtk3-run gtk3-demo >/tmp/g.out 2>&1 &'" % env)
+    after = None
+    for _ in range(WINDOW_TIMEOUT // 3):
+        time.sleep(3)
+        after = shot("gtk-after", quiet=True)
+        if after and before and abs(after[0] - before[0]) > 0.015:
+            break
+    time.sleep(2)
+    shot("gtk-after")
+    print("\n$ pgrep -a gtk3-demo; cat /tmp/g.out\n%s" % ser.run("pgrep -a gtk3-demo; head -c 1500 /tmp/g.out"))
+    ser.run("pkill -x gtk3-demo; sleep 1")
 
 
 def apm_payload():
@@ -335,8 +359,10 @@ def apm_run(ser):
     print("== scp ok after %d attempt(s)" % (attempt + 1))
     out = {}
     for c in APM:
-        out[c] = ser.run(c, timeout=900 if "install rust" in c else 120)
+        out[c] = ser.run(c, timeout=900 if "install r" in c else 120)
         print("\n$ %s\n%s" % (c, out[c]))
+    if APM_REPO:
+        gtk_shot(ser)
     # After the removes, the two `ls -A` headers must have nothing between
     # or after them.
     listing = out[APM[-1]].split("/opt/apm/bin/:", 1)[-1].strip()
