@@ -25,7 +25,8 @@ dependency list is not derived from Buildroot's -- those are build-order
 edges, most of them to things the foundation carries -- and is given
 explicitly, as apm packages.
 
-Needs: a built output/ tree, and apm on PATH or in APM.
+Needs: a built output tree (BR2_OUTPUT to name another than output/), and
+apm on PATH or in APM.
 """
 
 import argparse
@@ -37,8 +38,11 @@ import subprocess
 import sys
 
 BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-BUILD = os.path.join(BASE, "output", "build")
-TARGET = os.path.join(BASE, "output", "target")
+# The output tree to read: the image's by default, or a second one built
+# from another configuration (the packages that must never enter the image).
+OUTPUT = os.environ.get("BR2_OUTPUT", os.path.join(BASE, "output"))
+BUILD = os.path.join(OUTPUT, "build")
+TARGET = os.path.join(OUTPUT, "target")
 APM = os.environ.get("APM", os.path.join(BASE, "..", "apm", "target", "release", "apm"))
 
 # Where a target path lands in the payload. Order matters: first match wins.
@@ -65,7 +69,7 @@ def show_info(pkg):
     """`make <pkg>-show-info` as a dict, or None if make is busy elsewhere."""
     if subprocess.run(["pgrep", "-x", "make"], capture_output=True).returncode == 0:
         return None
-    r = subprocess.run(["make", "-s", "--no-print-directory", "%s-show-info" % pkg],
+    r = subprocess.run(["make", "-s", "--no-print-directory", "O=" + OUTPUT, "%s-show-info" % pkg],
                        cwd=BASE, capture_output=True, text=True)
     if r.returncode != 0:
         return None
