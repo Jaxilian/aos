@@ -241,6 +241,10 @@ def monitor(cmd):
         m.close()
 
 
+# Visual Studio Code is a 280 MB download in the guest; the line is named
+# so the run can tell whether it landed before trying to open it.
+VSCODE = "apm install vscode --quiet 2>&1 | tail -1"
+
 # Slice 1 of the package manager: update, find, install, run, remove, on
 # the installed disk, from a one-package repository the host builds and
 # copies in. The first two lines are the probes everything else rests on:
@@ -281,31 +285,36 @@ APM = [
     # the screendump.
     "apm repo add thirdparty https://github.com/Jaxilian/apm-thirdparty/releases/download/index --third-party 2>/dev/null; apm update --force --quiet 2>&1 | tail -1",
     "apm install runtime/gtk3 --quiet 2>&1 | tail -1; ls /opt/apm/bin/",
+    VSCODE,
 ] if APM_REPO else []) + [
     "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
     "systemctl show ade.service -p Environment",
     "for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt/apm/bin/ /opt/apm/packages/"
-    % (" runtime/gtk3 fonts rust terminal" if APM_REPO else ""),
+    % (" vscode runtime/gtk3 fonts rust terminal" if APM_REPO else ""),
 ]
 
 
-def gtk_shot(ser):
-    """Start gtk3-demo through the runtime's wrapper as the desktop user,
-    the way probe() starts the explorer, and screendump before and after:
-    a GTK window on ade is the runtime working end to end."""
+def window_shot(ser, tag, command):
+    """Start `command` through the desktop user's session, the way probe()
+    starts the explorer, and screendump before and after: a new window on
+    ade is the program working end to end. Returns True if the screen
+    changed."""
     env = "WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/admin"
-    before = shot("gtk-before", quiet=True)
-    ser.run("rm -f /tmp/g.out; su -s /bin/sh admin -c '%s setsid /opt/apm/bin/gtk3-run gtk3-demo >/tmp/g.out 2>&1 &'" % env)
-    after = None
+    before = shot("%s-before" % tag, quiet=True)
+    ser.run("rm -f /tmp/%s.out; su -s /bin/sh admin -c '%s setsid %s >/tmp/%s.out 2>&1 &'" % (tag, env, command, tag))
+    changed = False
     for _ in range(WINDOW_TIMEOUT // 3):
         time.sleep(3)
-        after = shot("gtk-after", quiet=True)
+        after = shot("%s-after" % tag, quiet=True)
         if after and before and abs(after[0] - before[0]) > 0.015:
+            changed = True
             break
     time.sleep(2)
-    shot("gtk-after")
-    print("\n$ pgrep -a gtk3-demo; cat /tmp/g.out\n%s" % ser.run("pgrep -a gtk3-demo; head -c 1500 /tmp/g.out"))
-    ser.run("pkill -x gtk3-demo; sleep 1")
+    shot("%s-after" % tag)
+    exe = command.split()[-1].rsplit("/", 1)[-1]
+    print("\n$ pgrep -a %s; cat /tmp/%s.out\n%s" % (exe, tag, ser.run("pgrep -fa %s | head -3; head -c 1500 /tmp/%s.out" % (exe, tag))))
+    ser.run("pkill -f %s; sleep 1" % exe)
+    return changed
 
 
 def apm_payload():
@@ -359,10 +368,12 @@ def apm_run(ser):
     print("== scp ok after %d attempt(s)" % (attempt + 1))
     out = {}
     for c in APM:
-        out[c] = ser.run(c, timeout=900 if "install r" in c else 120)
+        out[c] = ser.run(c, timeout=900 if ("install r" in c or c == VSCODE) else 120)
         print("\n$ %s\n%s" % (c, out[c]))
     if APM_REPO:
-        gtk_shot(ser)
+        window_shot(ser, "gtk", "/opt/apm/bin/gtk3-run gtk3-demo")
+        if "Installed microsoft/vscode" in out.get(VSCODE, ""):
+            window_shot(ser, "code", "/opt/apm/bin/code --wait /tmp/code.out")
     # After the removes, the two `ls -A` headers must have nothing between
     # or after them.
     listing = out[APM[-1]].split("/opt/apm/bin/:", 1)[-1].strip()
