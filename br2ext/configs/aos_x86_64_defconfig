@@ -398,8 +398,12 @@ BR2_PACKAGE_AOS_RUST=y
 
 # The package manager. It shells out to curl and tar and links nothing of
 # its own; the store is /opt/apm, on PATH through etc/profile.d and the
-# ade.service drop-in in the rootfs overlay.
+# ade.service drop-in in the rootfs overlay. ldconfig (glibc's utils) is
+# what lets a library apm installs be found system-wide: the overlay's
+# /etc/ld.so.conf includes /opt/apm/lib, and a package's post_install hook
+# rebuilds the cache.
 BR2_PACKAGE_APM=y
+BR2_PACKAGE_GLIBC_UTILS=y
 
 # NVIDIA. The kernel modules are Dual MIT/GPL; the userspace half is
 # proprietary, which is why aos-nvidia is opt-in rather than implied by
