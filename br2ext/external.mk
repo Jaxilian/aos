@@ -139,15 +139,31 @@ LINUX_FIRMWARE_FILES += \
 # required", and no rule under /etc/polkit-1/rules.d can say otherwise,
 # because none of them ever sees a local or active subject.
 #
-# AOS breaks the cycle the other way round. systemd stops waiting for polkit:
-# its rules are plain files installed with -D, and polkit's own install step
-# fixes the directory's ownership afterwards. polkit then builds after
-# systemd, against libsystemd, with logind tracking -- what polkit's own
-# default is. Both variables are read lazily by the package infrastructure,
-# which is why appending here, after the recipes were included, takes.
+# AOS breaks the cycle the other way round: systemd does not wait for
+# polkit, and polkit builds after systemd, against libsystemd, with logind
+# tracking -- polkit's own default.
+#
+# How, precisely, because the obvious way does not work. A package's
+# <PKG>_DEPENDENCIES is read when its recipe is evaluated, at the include
+# of package/*/*.mk, which happens before this file: the configure stamp's
+# order-only prerequisites (pkg-generic.mk, "$(2)_TARGET_CONFIGURE): |
+# $(2)_FINAL_DEPENDENCIES") are expanded then. Appending to or filtering
+# the variable here changes nothing that make will act on. It looked as if
+# it did, for as long as the tree was built incrementally and systemd was
+# always already there; the first clean build configured polkit first and
+# it failed to find libsystemd. <PKG>_CONF_OPTS, by contrast, is expanded
+# when the configure command runs, so it can be changed here.
+#
+# So the systemd side comes from the config: BR2_PACKAGE_SYSTEMD_POLKIT is
+# left unset, which is the only way systemd.mk does not add polkit to its
+# dependencies, and the -Dpolkit=enabled that option would have set is
+# restored here. The polkit side is an explicit rule on the stamp itself,
+# which is a prerequisite make has not seen yet.
 ifeq ($(BR2_PACKAGE_SYSTEMD_LOGIND)$(BR2_PACKAGE_POLKIT),yy)
-SYSTEMD_DEPENDENCIES := $(filter-out polkit,$(SYSTEMD_DEPENDENCIES))
-POLKIT_DEPENDENCIES += systemd
+SYSTEMD_CONF_OPTS := $(filter-out -Dpolkit=disabled,$(SYSTEMD_CONF_OPTS)) \
+	-Dpolkit=enabled
 POLKIT_CONF_OPTS := $(filter-out -Dsession_tracking=ConsoleKit,$(POLKIT_CONF_OPTS)) \
 	-Dsession_tracking=logind
+$(POLKIT_TARGET_CONFIGURE): | systemd
+polkit-depends: systemd
 endif

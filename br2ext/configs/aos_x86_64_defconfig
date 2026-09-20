@@ -71,7 +71,12 @@ BR2_ROOTFS_USERS_TABLES="$(BR2_EXTERNAL_AOS_PATH)/board/aos/users_table.txt"
 # compositor and its clients need both. polkit is what lets a user at that
 # seat power the machine off or manage units without being root.
 BR2_PACKAGE_SYSTEMD_LOGIND=y
-BR2_PACKAGE_SYSTEMD_POLKIT=y
+# Deliberately unset: it is the only way systemd does not depend on polkit,
+# and polkit must build after systemd for logind session tracking. The
+# -Dpolkit=enabled it would have given systemd is restored in external.mk;
+# polkit itself is selected below. See external.mk for the whole story.
+# BR2_PACKAGE_SYSTEMD_POLKIT is not set
+BR2_PACKAGE_POLKIT=y
 # oomd kills the offending cgroup on memory pressure before the kernel OOM
 # killer has to pick something at random. Needs PSI and memcg (asserted in
 # linux.config.fragment; Buildroot forces them on too).
