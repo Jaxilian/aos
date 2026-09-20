@@ -5,7 +5,11 @@
 ################################################################################
 
 NOTEPAD_VERSION = 0.1.0
-NOTEPAD_SITE = $(call qstrip,$(BR2_PACKAGE_NOTEPAD_PATH))
+# The path symbol exists only while the package is enabled, and Buildroot
+# checks a local site for every configuration it parses, on or off; the
+# fallback is never used, it only lets a configuration without this
+# package -- the packages tree -- parse.
+NOTEPAD_SITE = $(or $(call qstrip,$(BR2_PACKAGE_NOTEPAD_PATH)),/nonexistent)
 NOTEPAD_SITE_METHOD = local
 NOTEPAD_LICENSE = MIT
 

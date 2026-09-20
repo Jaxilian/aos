@@ -5,7 +5,11 @@
 ################################################################################
 
 APM_VERSION = 0.1.0
-APM_SITE = $(call qstrip,$(BR2_PACKAGE_APM_PATH))
+# The path symbol exists only while the package is enabled, and Buildroot
+# checks a local site for every configuration it parses, on or off; the
+# fallback is never used, it only lets a configuration without this
+# package -- the packages tree -- parse.
+APM_SITE = $(or $(call qstrip,$(BR2_PACKAGE_APM_PATH)),/nonexistent)
 APM_SITE_METHOD = local
 APM_LICENSE = MIT
 
