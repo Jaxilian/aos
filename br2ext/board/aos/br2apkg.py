@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 """Lift one Buildroot package out of the target tree into an apm package.
 
-    br2apkg.py <package> [--org aos] [--kind lib|bin|app] [--global]
-               [--version V] [--license L] [--summary S]
-               [--depends org/name@track ...] [--out DIR]
+    br2apkg.py <package>... [--name N] [--org aos] [--kind lib|bin|app]
+               [--global] [--version V] [--license L] [--summary S]
+               [--depends org/name@track ...] [--wrapper CMD] [--out DIR]
+
+Several packages make one bundle, named by --name: a runtime is one
+package with one wrapper, not thirty packages and a graph of edges to
+keep by hand. --wrapper CMD generates bin/CMD, which sets the loader path
+and the toolkit's data paths to this package's versioned directory and
+execs its arguments; an application's launcher then runs
+"CMD bin/theapp". Text files under etc/ and *.cache files have /usr
+rewritten to that directory too -- the pixbuf loader cache, fonts.conf.
 
 Buildroot records what each package installed into the target as
 output/build/<pkg>-<ver>/.files-list.txt, one "<pkg>,./path" line per file.
@@ -43,6 +51,10 @@ BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")
 OUTPUT = os.environ.get("BR2_OUTPUT", os.path.join(BASE, "output"))
 BUILD = os.path.join(OUTPUT, "build")
 TARGET = os.path.join(OUTPUT, "target")
+# Development files -- headers, .pc, the unversioned .so links -- are what
+# target-finalize strips from a target tree that keeps none; they survive
+# in the staging sysroot, which is where they are taken from then.
+STAGING = os.path.join(OUTPUT, "staging")
 APM = os.environ.get("APM", os.path.join(BASE, "..", "apm", "target", "release", "apm"))
 
 # Where a target path lands in the payload. Order matters: first match wins.
@@ -89,7 +101,9 @@ def toml_str(s):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("package")
+    ap.add_argument("packages", nargs="+", metavar="package")
+    ap.add_argument("--name", help="the package name; required for a bundle")
+    ap.add_argument("--wrapper", metavar="CMD", help="generate bin/CMD setting this package's environment")
     ap.add_argument("--org", default="aos")
     ap.add_argument("--kind", default="lib", choices=["lib", "bin", "app"])
     ap.add_argument("--global", dest="global_", action="store_true",
@@ -103,8 +117,10 @@ def main():
     ap.add_argument("--out", default=os.getcwd())
     a = ap.parse_args()
 
-    pkg = a.package
-    bdir = build_dir(pkg)
+    if len(a.packages) > 1 and not (a.name and a.version and a.license):
+        sys.exit("br2apkg: a bundle needs --name, --version and --license")
+    pkg = a.name or a.packages[0]
+    bdir = build_dir(a.packages[0])
     info = show_info(pkg) if not (a.version and a.license) else None
     version = a.version or (info or {}).get("version") or bdir.rsplit("-", 1)[-1]
     license_ = a.license or ",".join((info or {}).get("licenses", "").split(", ")) or "unknown"
@@ -115,8 +131,11 @@ def main():
         parts.append("0")
     semver = ".".join(parts[:3])
 
-    with open(os.path.join(bdir, ".files-list.txt")) as f:
-        files = [line.rstrip("\n").split(",", 1)[1] for line in f if line.startswith(pkg + ",")]
+    files = []
+    for member in a.packages:
+        with open(os.path.join(build_dir(member), ".files-list.txt")) as f:
+            files += [line.rstrip("\n").split(",", 1)[1] for line in f if line.startswith(member + ",")]
+    files = sorted(set(files))
     if not files:
         sys.exit("br2apkg: %s installed nothing to the target" % pkg)
 
@@ -135,6 +154,11 @@ def main():
             skipped.append(tp)
             continue
         src = os.path.join(TARGET, tp)
+        if not os.path.lexists(src):
+            src = os.path.join(STAGING, tp)
+            if not os.path.lexists(src):
+                skipped.append(tp)
+                continue
         dst = os.path.join(work, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         if os.path.islink(src):
@@ -155,11 +179,51 @@ def main():
                 text = re.sub(r"^prefix=.*$", "prefix=" + runtime_prefix, text, flags=re.M)
                 with open(dst, "w") as f:
                     f.write(text)
+            elif rel.endswith(".cache") or rel.startswith("etc/"):
+                # Loader caches and configuration name /usr paths; they
+                # must name this package's own directory instead.
+                try:
+                    with open(dst) as f:
+                        text = f.read()
+                except UnicodeDecodeError:
+                    text = None
+                if text and "/usr/" in text:
+                    text = text.replace("/usr/lib/", runtime_prefix + "/lib/").replace("/usr/share/", runtime_prefix + "/share/").replace("/usr/etc/", runtime_prefix + "/etc/")
+                    with open(dst, "w") as f:
+                        f.write(text)
         if rel.startswith("bin/") and rel.count("/") == 1 and not os.path.isdir(src):
             commands.append(rel[4:])
         m = re.fullmatch(r"lib/(lib[^/]+\.so\.\d+)", rel)
         if m:
             sonames.append(m.group(1))
+
+    if a.wrapper:
+        os.makedirs(os.path.join(work, "bin"), exist_ok=True)
+        wrapper = os.path.join(work, "bin", a.wrapper)
+        with open(wrapper, "w") as f:
+            f.write("""#!/bin/sh
+# Run a program against the %s runtime: this package's libraries first on
+# the loader path, and the toolkit's data where this package put it.
+# Generated by br2apkg; the paths are this version's own, so an upgrade
+# never changes what a running program already resolved.
+P=%s
+export PATH="$P/bin:$PATH"
+export LD_LIBRARY_PATH="$P/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$P/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+export GSETTINGS_SCHEMA_DIR="$P/share/glib-2.0/schemas"
+export FONTCONFIG_FILE="$P/etc/fonts/fonts.conf"
+export GDK_BACKEND=wayland
+for cache in "$P"/lib/gdk-pixbuf-2.0/*/loaders.cache; do
+	[ -f "$cache" ] && export GDK_PIXBUF_MODULE_FILE="$cache"
+done
+export GTK_PATH="$P/lib/gtk-3.0"
+export GIO_EXTRA_MODULES="$P/lib/gio/modules"
+exec "$@"
+""" % (pkg, runtime_prefix))
+        os.chmod(wrapper, 0o755)
+        # The wrapper is the one command on PATH: a runtime's own tools run
+        # through it, since bare they would not find its libraries.
+        commands = [a.wrapper]
 
     # An app's .desktop entry: apm generates its own from [launcher], so the
     # installed file becomes the manifest table and is not shipped.
@@ -191,6 +255,15 @@ def main():
         org_name, _, track = d.partition("@")
         org, _, name = org_name.partition("/")
         deps.append((org, name, track or "*"))
+        # Fonts come from their own package; fontconfig has to be told.
+        fonts_conf = os.path.join(work, "etc", "fonts", "fonts.conf")
+        if name == "fonts" and os.path.exists(fonts_conf):
+            with open(fonts_conf) as f:
+                text = f.read()
+            text = text.replace("<dir>%s/share/fonts</dir>" % runtime_prefix,
+                                "<dir>/opt/apm/packages/%s/fonts/current/share/fonts</dir>\n\t<dir>%s/share/fonts</dir>" % (org, runtime_prefix), 1)
+            with open(fonts_conf, "w") as f:
+                f.write(text)
 
     manifest = [
         "# Generated by br2apkg.py from Buildroot's %s; do not edit." % pkg,
