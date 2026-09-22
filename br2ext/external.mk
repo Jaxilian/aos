@@ -147,6 +147,25 @@ LINUX_FIRMWARE_FILES += \
 	intel/iwlwifi/iwlwifi-bz-* \
 	intel/iwlwifi/iwlwifi-sc-*
 
+# PipeWire and WirePlumber for the session only, never system-wide.
+#
+# Buildroot builds both with their system-service units, and preset-all
+# then enables them: a second PipeWire runs as the "pipewire" user from
+# boot, with no session bus and no runtime directory, logs errors every
+# boot, and holds the sound card against the session's own instance. On
+# AOS sound belongs to the person at the seat; the user units in
+# rootfs-overlay/usr/lib/systemd/user are the only ones. <PKG>_CONF_OPTS
+# is expanded at configure time, so it can be corrected from here (unlike
+# _DEPENDENCIES; see the polkit note below).
+ifeq ($(BR2_PACKAGE_PIPEWIRE),y)
+PIPEWIRE_CONF_OPTS := $(filter-out -Dsystemd-system-service=enabled,$(PIPEWIRE_CONF_OPTS)) \
+	-Dsystemd-system-service=disabled
+endif
+ifeq ($(BR2_PACKAGE_WIREPLUMBER),y)
+WIREPLUMBER_CONF_OPTS := $(filter-out -Dsystemd-system-service=true,$(WIREPLUMBER_CONF_OPTS)) \
+	-Dsystemd-system-service=false
+endif
+
 # polkit tracking sessions through logind.
 #
 # Buildroot builds polkit with -Dsession_tracking=ConsoleKit, because its

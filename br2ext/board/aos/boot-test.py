@@ -15,6 +15,12 @@ screendump the VGA output.
                                               terminal, presses Super+Return
                                               through the QEMU monitor, and
                                               screendumps again
+    ./br2ext/board/aos/boot-test.py soak      the ade session held for
+                                              SOAK_MINUTES (20), opening and
+                                              closing windows every
+                                              SOAK_INTERVAL seconds (60) and
+                                              watching memory, failed units
+                                              and uptime; fails on growth
 
 Same QEMU arrangement as run-qemu.sh -- UEFI, -cpu host, no PXE ROM, a fresh
 OVMF variable store each run -- plus a virtual watchdog and a forward from
@@ -465,7 +471,7 @@ def qemu_command():
     # desktop gets virtio-vga, which is also what run-qemu.sh hands you.
     # usb-tablet comes with it so the pointer is absolute; the xHCI
     # controller is needed because "pc" has no USB bus of its own.
-    if MODE in ("desktop", "probe"):
+    if MODE in ("desktop", "probe", "soak"):
         make_stick()
         cmd += ["-device", "virtio-vga",
                 "-device", "qemu-xhci,id=xhci",
@@ -476,7 +482,7 @@ def qemu_command():
         cmd += ["-vga", "std"]
     cdrom = ["-drive", "if=none,id=cd0,media=cdrom,format=raw,file=%s" % ISO,
              "-device", "ide-cd,drive=cd0,bootindex=0"]
-    if MODE in ("live", "desktop", "probe"):
+    if MODE in ("live", "desktop", "probe", "soak"):
         return cmd + cdrom
     if MODE == "usb":
         # what a dd'd stick looks like: no El Torito, so firmware must find
@@ -494,7 +500,7 @@ def qemu_command():
     if MODE in ("disk", "apm"):
         return cmd + ["-drive", "if=none,id=hd0,format=raw,file=%s" % DISK,
                       "-device", "virtio-blk-pci,drive=hd0,bootindex=0"]
-    sys.exit("usage: boot-test.py live|usb|install|disk|desktop|probe|apm")
+    sys.exit("usage: boot-test.py live|usb|install|disk|desktop|soak|probe|apm")
 
 
 def shot(tag, quiet=False):
@@ -853,6 +859,147 @@ def probe(ser, q):
     return True
 
 
+SOAK_MINUTES = int(os.environ.get("SOAK_MINUTES", "20"))
+SOAK_INTERVAL = int(os.environ.get("SOAK_INTERVAL", "60"))
+# Rounds before the baseline is taken: the first windows a process maps
+# cost it caches and pools it keeps, and that is not a leak.
+SOAK_WARMUP = 3
+# What counts as growth: the compositor's resident set over the baseline by
+# this much, and this fraction, after the warmup. Both, so a 40 MB process
+# gaining 8 MB and a 400 MB one gaining 40 are judged the same way.
+SOAK_GROW_KB = 24 * 1024
+SOAK_GROW_FRAC = 0.20
+SOAK_PROCS = ["ade-comp", "ade-shell", "pipewire", "wireplumber"]
+
+
+def soak_sample(ser):
+    """One row: resident set of each session process in kB, failed units,
+    journal errors this boot, uptime, and how many terminal and notepad
+    processes are alive -- what a leak of any of those looks like."""
+    cmd = "; ".join(
+        ["p=$(pgrep -x %s | head -1); echo %s $(grep VmRSS /proc/$p/status 2>/dev/null | awk '{print $2}')"
+         % (n, n) for n in SOAK_PROCS]
+        + ["echo failed $(systemctl --failed --no-legend --no-pager | wc -l)",
+           "echo errors $(journalctl -b -p err --no-pager -q | wc -l)",
+           "echo uptime $(cut -d. -f1 /proc/uptime)",
+           "echo terminal $(pgrep -c -x terminal)",
+           "echo notepad $(pgrep -c -x notepad)",
+           "echo avail $(awk '/MemAvailable/{print $2}' /proc/meminfo)"])
+    row = {}
+    for line in ser.run(cmd, timeout=60).splitlines():
+        # The first line comes back with the shell's "# " prompt in front.
+        parts = line.replace("#", " ").split()
+        if len(parts) == 2 and parts[1].lstrip("-").isdigit():
+            row[parts[0]] = int(parts[1])
+    return row
+
+
+def soak(ser, q):
+    """Hold the session and churn it: the leak nothing else here catches.
+
+    Every round opens a terminal and closes it, opens notepad and closes
+    it, then reads the session processes' resident sets. A compositor
+    that keeps something per window shows up as a line that only goes
+    up; a watchdog reboot shows up as uptime going backwards; a unit that
+    dies shows up in --failed. The verdict is on the compositor's memory
+    after a warmup, on failed units, on uptime, and on leftover windows.
+    """
+    first = None
+    for _ in range(WINDOW_TIMEOUT // 2):
+        first = shot("soak", quiet=True)
+        if first and first[0] >= 0.005:
+            break
+        time.sleep(2)
+    if not first or first[0] < 0.005:
+        print("!! no desktop on screen; nothing to soak")
+        return False
+    if not count(ser, "ade-shell"):
+        print("!! ade-shell is not running")
+        return False
+    for c in EXTRA:
+        print("\n$ %s\n%s" % (c, ser.run(c)))
+
+    rounds = max(1, SOAK_MINUTES * 60 // SOAK_INTERVAL)
+    print("\n== soak: %d rounds, one every %ds, baseline after round %d"
+          % (rounds, SOAK_INTERVAL, SOAK_WARMUP))
+    # "open" is the terminal count right after Super+Return, before it is
+    # closed again: the proof that each round churned a window at all.
+    print("%5s %4s %8s %8s %8s %8s %6s %6s %7s %4s %4s" % (
+        "round", "open", "ade-comp", "ade-shl", "pipewire", "wplumber", "failed", "errors", "uptime", "term", "npad"))
+    never_opened = 0
+    base = None
+    rows = []
+    last_uptime = 0
+    rebooted = False
+    t_end = time.time() + rounds * SOAK_INTERVAL
+    for r in range(1, rounds + 1):
+        t0 = time.time()
+        monitor("sendkey meta_l-ret")
+        time.sleep(4)
+        opened = count(ser, "terminal")
+        if not opened:
+            never_opened += 1
+        typekeys("exit\n")
+        time.sleep(2)
+        monitor("sendkey meta_l-n")
+        time.sleep(5)
+        monitor("sendkey meta_l-q")
+        time.sleep(2)
+        row = soak_sample(ser)
+        rows.append(row)
+        if row.get("uptime", 0) < last_uptime:
+            rebooted = True
+            print("!! uptime went backwards: the machine rebooted (watchdog?)")
+        last_uptime = row.get("uptime", 0)
+        print("%5d %4d %8s %8s %8s %8s %6s %6s %7s %4s %4s" % (
+            r, opened, row.get("ade-comp", "-"), row.get("ade-shell", "-"), row.get("pipewire", "-"),
+            row.get("wireplumber", "-"), row.get("failed", "-"), row.get("errors", "-"),
+            row.get("uptime", "-"), row.get("terminal", "-"), row.get("notepad", "-")), flush=True)
+        if r == SOAK_WARMUP:
+            base = dict(row)
+        if q.poll() is not None:
+            print("!! QEMU exited during the soak")
+            return False
+        remaining = SOAK_INTERVAL - (time.time() - t0)
+        if remaining > 0 and time.time() < t_end:
+            time.sleep(remaining)
+    shot("soak-end")
+    print("\n$ journalctl -b -p err | tail\n%s" % ser.run("journalctl -b -p err --no-pager | tail -10"))
+    print("\n$ systemctl --failed\n%s" % ser.run("systemctl --failed --no-pager"))
+
+    last = rows[-1]
+    base = base or rows[0]
+    ok = True
+    comp0, comp1 = base.get("ade-comp"), last.get("ade-comp")
+    if comp0 is None or comp1 is None:
+        print("!! ade-comp was not there to measure")
+        ok = False
+    else:
+        grew = comp1 - comp0
+        print("\n== ade-comp: %d kB at baseline, %d kB at the end (%+d kB, %+.0f%%)"
+              % (comp0, comp1, grew, 100.0 * grew / comp0))
+        if grew > SOAK_GROW_KB and grew > SOAK_GROW_FRAC * comp0:
+            print("!! the compositor's memory grew through the soak: a leak")
+            ok = False
+    for name in ("ade-shell", "pipewire", "wireplumber"):
+        if base.get(name) is not None and last.get(name) is not None:
+            print("== %s: %d -> %d kB" % (name, base[name], last[name]))
+    if last.get("failed", 0):
+        print("!! %d failed unit(s) at the end" % last["failed"])
+        ok = False
+    if last.get("terminal", 0) or last.get("notepad", 0):
+        print("!! windows left over: %d terminal, %d notepad -- something did not close"
+              % (last.get("terminal", 0), last.get("notepad", 0)))
+        ok = False
+    if rebooted:
+        ok = False
+    if never_opened:
+        print("!! Super+Return opened nothing in %d of %d rounds" % (never_opened, rounds))
+        if never_opened > rounds // 2:
+            ok = False
+    return ok
+
+
 # Ad-hoc diagnostics without editing the lists above: BOOT_TEST_EXTRA holds
 # commands separated by " ;; ", run after the mode's own checks.
 EXTRA = [c.strip() for c in os.environ.get("BOOT_TEST_EXTRA", "").split(" ;; ") if c.strip()]
@@ -903,13 +1050,15 @@ def main():
                     ok = desktop(ser, q)
                 if MODE == "probe":
                     ok = probe(ser, q)
+                if MODE == "soak":
+                    ok = soak(ser, q)
                 if MODE == "apm":
                     ok = apm_run(ser)
         # desktop mode takes its own pair of screendumps, before and after
         # the keypress; re-dumping here would overwrite the "before" one.
-        if MODE in ("desktop", "probe"):
+        if MODE in ("desktop", "probe", "soak"):
             if not ok:
-                shot("desktop-failed")
+                shot("%s-failed" % MODE)
         elif MODE != "install" or not ok:
             shot(MODE)
         # The installed disk persists. Quitting QEMU under it is a power cut,

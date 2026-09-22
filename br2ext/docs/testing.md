@@ -85,6 +85,7 @@ black.
 ./br2ext/board/aos/boot-test.py install   # live ISO + blank disk, runs aos-install
 ./br2ext/board/aos/boot-test.py disk      # boot what install left behind
 ./br2ext/board/aos/boot-test.py desktop   # the ade session
+./br2ext/board/aos/boot-test.py soak      # the session held and churned; see below
 ```
 
 It writes `<mode>.serial.txt` and `<mode>.screen.png` next to the images.
@@ -108,6 +109,16 @@ path a real key does, through the emulated PS/2 controller, evdev, libinput,
 xkbcommon and the compositor's binding table, none of which anything else
 here exercises. It leaves three screendumps: `desktop`, `desktop-spawned`
 and `desktop-typed`.
+
+`soak` is the leak test. It holds the desktop for `SOAK_MINUTES` (20 by
+default; the nightly job runs 480), and every `SOAK_INTERVAL` seconds (60)
+opens a terminal and closes it, opens notepad and closes it, then prints a
+row: resident set of ade-comp, ade-shell, pipewire and wireplumber, failed
+units, journal errors, uptime, leftover windows. After a three-round
+warmup the compositor's memory is the baseline; it fails if that grows by
+more than 24 MB *and* 20% by the end, if a unit has failed, if a window
+was left behind, or if uptime went backwards (the watchdog fired). A
+minute's worth is `SOAK_MINUTES=2 SOAK_INTERVAL=20 boot-test.py soak`.
 
 One thing to know when reading its output: the compositor's own log lines are
 not under `journalctl -u ade`. `PAMName=login` hands the process to logind,

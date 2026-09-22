@@ -163,9 +163,11 @@ In the order a new user meets them.
 
 ## Phase 3 — Stability and performance
 
-1. **A soak test in CI.** A desktop session held for 24–48 hours, then
-   `systemctl --failed` empty, `journalctl -p err` empty, `ade-comp` memory
-   flat, no watchdog reboot. Nothing today would notice a compositor leak.
+1. **A soak test in CI.** *Done 2026-09-22*: `boot-test.py soak` holds
+   the session, opens and closes a terminal and notepad every round, and
+   fails on compositor memory growth, a failed unit, a leftover window or a
+   watchdog reboot ([testing.md](testing.md)). The nightly workflow runs
+   eight hours of it after the build. First run: 147,740 kB flat.
 2. **Suspend, resume and lid-close** on every machine on the hardware list.
    The most common laptop failure, and untested today.
 3. **Boot-test the release path.** `boot-test.py` exercises the demo image.

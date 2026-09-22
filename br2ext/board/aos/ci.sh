@@ -31,12 +31,16 @@ done
 
 make
 
-# install leaves the disk that disk boots; keep that order.
+# install leaves the disk that disk boots; keep that order. "soak" is not
+# in the default list: it holds the desktop for SOAK_MINUTES (boot-test.py,
+# default 20) and is the nightly job's second step, with hours.
 MODES=${1:-"live usb install disk desktop"}
 rc=0
 for mode in $MODES; do
 	echo "== boot-test $mode"
-	if timeout 1800 ./br2ext/board/aos/boot-test.py "$mode" > "output/images/$mode.log" 2>&1; then
+	t=1800
+	[ "$mode" = soak ] && t=$(( ${SOAK_MINUTES:-20} * 60 + 1800 ))
+	if timeout "$t" ./br2ext/board/aos/boot-test.py "$mode" > "output/images/$mode.log" 2>&1; then
 		echo "   ok"
 	else
 		echo "   FAILED (output/images/$mode.log)"

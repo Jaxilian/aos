@@ -25,3 +25,23 @@ jobs:
             output/images/*.log
             output/images/*.serial.txt
             output/images/*.png
+  soak:
+    # Eight hours of the desktop opening and closing windows, after the
+    # build-and-boot run on the same runner; a compositor leak shows here
+    # and nowhere else.
+    needs: build-and-boot
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, kvm]
+    timeout-minutes: 600
+    env:
+      SOAK_MINUTES: 480
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./br2ext/board/aos/ci.sh soak
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soak
+          path: |
+            output/images/soak.log
+            output/images/soak*.png

@@ -71,6 +71,14 @@ make <package>-dirclean && make
 The failure usually shows up in some *other* package that expected the result,
 which makes it confusing. When in doubt about a specific package, dirclean it.
 
+**3. Nothing is ever removed from `output/target`.** A package installs
+into the target and Buildroot never uninstalls: change a package so that
+it installs fewer files -- an option turned off, a unit no longer built --
+and `<package>-dirclean && make` leaves the old files exactly where they
+were. The symptom is a thing you turned off still running. Delete the
+stale files by hand (`output/build/packages-file-list.txt` says which
+package, if any, still claims a file) or build clean; CI always does.
+
 ## Adding a package
 
 Most things are already in Buildroot — add the symbol to
