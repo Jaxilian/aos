@@ -167,6 +167,21 @@ Vulkan drivers: Intel, AMD, swrast, virtio, plus the Vulkan loader.
 libwayland and wayland-protocols are present so writing a compositor does not
 begin with adding packages.
 
+**Sound.** PipeWire, with WirePlumber as its session manager, running as
+user services of the account that owns the session: `pipewire.socket`,
+`pipewire-pulse.socket` and `wireplumber.service` are wanted by the user
+manager's defaults, so they are up whenever a session is. ALSA programs
+are routed into PipeWire by its ALSA plugin, PulseAudio programs -- which
+is Electron, SDL, Steam -- by pipewire-pulse. The kernel carries the HDA
+codecs ordinary PCs have and USB audio, all as modules; the controller is
+a module too, on purpose, because built in it probes before the root is
+mounted and a modular codec cannot bind then. The session's user reaches
+the card through the ACL logind sets for the active seat
+(`70-uaccess.rules`, which is why systemd is built with ACL support), and
+gets real-time priority through the `pipewire` group's `limits.d` entry
+rather than RTKit, which the image does not have. Not yet: Intel SOF and
+AMD ACP (the DSPs on laptops from 2019 on), and Bluetooth audio.
+
 Optionally, the NVIDIA open kernel modules and the matching proprietary
 userspace (EGL, GLES, Vulkan and GSP firmware). These are off by default;
 enable `BR2_PACKAGE_AOS_NVIDIA` to include them.

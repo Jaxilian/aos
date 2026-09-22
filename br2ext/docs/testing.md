@@ -89,6 +89,15 @@ black.
 
 It writes `<mode>.serial.txt` and `<mode>.screen.png` next to the images.
 
+For a one-off look inside a booted guest without editing the check lists,
+put commands in `BOOT_TEST_EXTRA`, separated by ` ;; `; `desktop` runs them
+after its own checks:
+
+```sh
+BOOT_TEST_EXTRA="lsmod | grep snd ;; su - admin -c 'XDG_RUNTIME_DIR=/run/user/1000 wpctl status'" \
+  ./br2ext/board/aos/boot-test.py desktop
+```
+
 `desktop` checks the graphical session rather than the shell — necessary
 because `ade.service` takes tty1, so the serial line is the only way in. It
 waits for a window to reach the screen (not merely for the compositor to log

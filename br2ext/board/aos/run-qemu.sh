@@ -88,6 +88,10 @@ NET="-netdev user,id=n0 -device virtio-net-pci,netdev=n0,romfile="
 # which looks exactly like a desktop with a dead mouse and no cursor.
 VIDEO="-device virtio-vga"
 INPUT="-device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0"
+# A sound card the guest can bind a codec to; the host hears nothing
+# (audiodev none). Same device as boot-test.py, so a sink shows up in
+# wpctl the way it will on a real machine.
+SOUND="-audiodev none,id=snd0 -device ich9-intel-hda -device hda-duplex,audiodev=snd0"
 
 OVMF_CODE=/usr/share/edk2/ovmf/OVMF_CODE.fd
 OVMF_VARS_SRC=/usr/share/edk2/ovmf/OVMF_VARS.fd
@@ -124,13 +128,13 @@ case "$MODE" in
 		need_iso
 		# shellcheck disable=SC2086
 		exec qemu-system-x86_64 $ACCEL -m 4G -smp 4 \
-			$(cdrom_dev 0) $NET $VIDEO $INPUT $DISPLAY_OPTS
+			$(cdrom_dev 0) $NET $VIDEO $INPUT $SOUND $DISPLAY_OPTS
 		;;
 	uefi)
 		need_iso
 		# shellcheck disable=SC2086
 		exec qemu-system-x86_64 $ACCEL -m 4G -smp 4 \
-			$(uefi_flags) $(cdrom_dev 0) $NET $VIDEO $INPUT $DISPLAY_OPTS
+			$(uefi_flags) $(cdrom_dev 0) $NET $VIDEO $INPUT $SOUND $DISPLAY_OPTS
 		;;
 	disk)
 		IMG="${IMG_ARG:-$IMAGES/aos-disk.img}"
@@ -146,7 +150,7 @@ case "$MODE" in
 		echo "Booting installed disk $IMG"
 		# shellcheck disable=SC2086
 		exec qemu-system-x86_64 $ACCEL -m 4G -smp 4 \
-			$(uefi_flags) $(disk_dev "$IMG" 0) $NET $VIDEO $INPUT $DISPLAY_OPTS
+			$(uefi_flags) $(disk_dev "$IMG" 0) $NET $VIDEO $INPUT $SOUND $DISPLAY_OPTS
 		;;
 	install)
 		need_iso
@@ -161,7 +165,7 @@ case "$MODE" in
 		echo "Blank disk at $IMG -- log in as root and run: aos-install /dev/vda"
 		# shellcheck disable=SC2086
 		exec qemu-system-x86_64 $ACCEL -m 4G -smp 4 \
-			$(uefi_flags) $(cdrom_dev 0) $(disk_dev "$IMG" 1) $NET $VIDEO $INPUT $DISPLAY_OPTS
+			$(uefi_flags) $(cdrom_dev 0) $(disk_dev "$IMG" 1) $NET $VIDEO $INPUT $SOUND $DISPLAY_OPTS
 		;;
 	*)
 		echo "usage: $0 [uefi|bios|disk [image]|install] [serial]"

@@ -50,6 +50,7 @@ it. No official package depends on it.
 | Compilers | gcc 15.3.0 (C and C++) on the image; Rust 1.96.1 with cargo through apm |
 | Userland | Real GNU tools — coreutils, bash, gawk, sed, grep, tar, findutils, vim |
 | Graphics | Mesa 26.1.8, Vulkan, libglvnd, NVIDIA 610.57.04 |
+| Sound | PipeWire 1.6 and WirePlumber, per session; ALSA and PulseAudio programs route into it |
 | Networking | systemd-networkd, wpa_supplicant, iw, OpenSSL, curl, CA certificates |
 | Architecture | x86-64-v2 (roughly 2009 and newer) |
 

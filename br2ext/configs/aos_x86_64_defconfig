@@ -394,6 +394,26 @@ BR2_PACKAGE_NOTEPAD=y
 # of its own, tgn's built-in face being proportional.
 BR2_PACKAGE_TERMINAL=y
 
+# Sound. PipeWire is the server, WirePlumber its session manager, both as
+# systemd user services started with the session (the wants symlinks are in
+# the rootfs overlay under usr/lib/systemd/user). alsa-lib brings the ALSA
+# plugin that routes ALSA programs into PipeWire; pipewire-pulse, built in,
+# is what everything written for PulseAudio -- Electron, SDL, Steam --
+# talks to. Lua is WirePlumber's scripting language, not a user-facing one.
+BR2_PACKAGE_ALSA_LIB=y
+# acl is what lets the person at the seat use the sound card, the webcam
+# and a game controller: systemd built with it installs 70-uaccess.rules,
+# and logind then puts an ACL for the active session's user on /dev/snd/*,
+# /dev/video*, hidraw and the rest. Without it those devices stay
+# root:audio 0660, PipeWire cannot open the card, and there is no sink.
+# (The compositor never needed this: it gets its DRM and input fds handed
+# over by logind through libseat.)
+BR2_PACKAGE_ACL=y
+BR2_PACKAGE_LUA=y
+BR2_PACKAGE_LUA_5_4=y
+BR2_PACKAGE_PIPEWIRE=y
+BR2_PACKAGE_WIREPLUMBER=y
+
 # The file explorer, and with it the file dialogs: awin runs "files --pick"
 # for Open and Save As, so this is what makes notepad able to open anything
 # on an image that has no zenity.

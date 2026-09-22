@@ -134,6 +134,20 @@ DESKTOP = [
     "TERM=xterm-256color clear | wc -c; TERM=xterm-256color tput colors; "
     "infocmp -1 xterm-256color | head -2",
     "journalctl -u ade -b --no-pager | tail -5",
+    # Sound belongs to the session: PipeWire and WirePlumber are user units
+    # of the account the desktop runs as, and a sink must exist for the
+    # card QEMU provides. wpctl connecting is what socket-starts them.
+    "ls /dev/snd/; lsmod | grep -E '^snd_hda_(codec_generic|intel)' | cut -d' ' -f1",
+    # Polled: WirePlumber probes the card's profiles after it starts, and
+    # the sink exists a few seconds later than the service does.
+    "for i in 1 2 3 4 5 6 7 8 9 10 11 12; do out=$(su - admin -c 'XDG_RUNTIME_DIR=/run/user/$(id -u admin) wpctl status' 2>&1 | sed -n '/Sinks:/,/Filters:/p'); echo \"$out\" | grep -q '[0-9]\\. ' && break; sleep 2; done; echo \"$out\" | grep -E 'Sinks|Sources|[0-9]\\. '",
+    "su - admin -c 'XDG_RUNTIME_DIR=/run/user/$(id -u admin) systemctl --user list-units --no-pager --no-legend \"pipewire*\" \"wireplumber*\" \"dbus*\"' 2>&1 | head -8",
+    "ls -l /dev/snd/ | grep -v total; getfacl -p /dev/snd/pcmC0D0p 2>&1 | grep -v '^#' | tr '\\n' ' '",
+    "journalctl -b _UID=$(id -u admin) --no-pager -o short-precise 2>&1 | grep -iE 'wireplumber|pipewire' | grep -v RTKit | tail -8",
+    # Real-time audio without RTKit: the account is in the pipewire group,
+    # whose limits.d entry lets the data thread take SCHED_FIFO/RR.
+    "id admin; ps -L -o pid,lwp,cls,rtprio,ni,comm -p $(pgrep -x pipewire | head -1) | grep -vE 'TS|CLS' | head -4",
+    "journalctl -k --no-pager | grep -iE 'hda|snd_' | head -8",
 ]
 
 
@@ -437,6 +451,10 @@ def qemu_command():
            "-device", "virtio-net-pci,netdev=n0,romfile=",
            "-display", "none", "-no-reboot",
            "-device", "i6300esb", "-action", "watchdog=reset",
+           # A sound card with nowhere to play: enough for the kernel to bind
+           # a codec and PipeWire to show a sink, which is what is checked.
+           "-audiodev", "none,id=snd0", "-device", "ich9-intel-hda",
+           "-device", "hda-duplex,audiodev=snd0",
            "-chardev", "socket,id=ser0,path=%s,server=on,wait=off" % SER,
            "-serial", "chardev:ser0",
            "-monitor", "unix:%s,server,nowait" % MON]
@@ -835,6 +853,11 @@ def probe(ser, q):
     return True
 
 
+# Ad-hoc diagnostics without editing the lists above: BOOT_TEST_EXTRA holds
+# commands separated by " ;; ", run after the mode's own checks.
+EXTRA = [c.strip() for c in os.environ.get("BOOT_TEST_EXTRA", "").split(" ;; ") if c.strip()]
+
+
 def main():
     if os.geteuid() == 0:
         sys.exit("do not run this as root; QEMU with KVM does not need it")
@@ -875,7 +898,7 @@ def main():
                     ser.send("poweroff\n")
                     ser.read_until(b"reboot: Power down", 90)
                 if MODE == "desktop":
-                    for c in DESKTOP:
+                    for c in DESKTOP + EXTRA:
                         print("\n$ %s\n%s" % (c, ser.run(c)))
                     ok = desktop(ser, q)
                 if MODE == "probe":

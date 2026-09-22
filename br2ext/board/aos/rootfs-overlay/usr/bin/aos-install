@@ -236,7 +236,9 @@ for d in proc sys dev; do mount --bind "/$d" "$TARGET/$d"; done
 if [ "$DEMO" = no ]; then
 	echo ">>> Account: $NEWUSER replaces the demo account; root's console login is locked"
 	chroot "$TARGET" userdel -r admin 2>/dev/null || true
-	chroot "$TARGET" useradd -m -G wheel -s /bin/bash "$NEWUSER"
+	# wheel for sudo and polkit; pipewire for real-time audio (its limits.d
+# entry, through pam_limits), the same two the demo account has.
+	chroot "$TARGET" useradd -m -G wheel,pipewire -s /bin/bash "$NEWUSER"
 	if [ -n "$NEWHASH" ]; then
 		chroot "$TARGET" usermod -p "$NEWHASH" "$NEWUSER"
 	else

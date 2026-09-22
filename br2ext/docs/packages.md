@@ -92,6 +92,19 @@ There is no X server. The Wayland compositor is ade, below.
 | libxkbcommon | 1.9.2 |
 | seatd | 0.9.1 (libseat only; it talks to logind) |
 | xkeyboard-config | 2.38 (keymap data, no X11) |
+| files | 0.1.0 (a custom package) |
+| apm | 0.1.0 (a custom package) |
+
+## Sound
+
+| Package | Version | Note |
+|---|---|---|
+| pipewire | 1.6.6 | the sound server, as user services of the session; pipewire-pulse built in |
+| wireplumber | 0.5 | PipeWire's session manager; lua 5.4 is its scripting language |
+| alsa-lib | 1.2 | and the ALSA plugin that routes ALSA programs into PipeWire |
+| acl | 2.3 | what lets systemd install `70-uaccess.rules`, so the seat's user can open the card |
+
+Versions are the ones Buildroot 2026.08 pins; check `output/build`.
 
 `ade.service` takes tty1 as the `ade` user, so `getty@tty1` does not run
 there. A UTF-8 locale is generated (`BR2_GENERATE_LOCALE`) and selected in

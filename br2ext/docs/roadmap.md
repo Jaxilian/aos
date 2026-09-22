@@ -149,9 +149,15 @@ In the order a new user meets them.
    which is a Buildroot decision with a wide blast radius; plan it as its own
    piece of work. These are release gates, not extras: if they do not run,
    the platform does not sell.
-8. **Session basics a consumer expects.** Sound — PipeWire and WirePlumber
-   are not in the image yet. Lock screen (`ade/lock` is a placeholder
-   awaiting `ext-session-lock-v1`). Screenshot, notifications, clipboard,
+8. **Session basics a consumer expects.** *Sound done 2026-09-22*:
+   PipeWire and WirePlumber as session services, a sink on QEMU's HDA card
+   checked every desktop boot ([../PLATFORM.md](../PLATFORM.md) has the
+   three things that had to be right: modular controller, ACL through
+   logind, real-time through the pipewire group). Outstanding for sound:
+   Intel SOF and AMD ACP -- kernel options and firmware for the DSPs on
+   laptops from 2019 on, which QEMU cannot test -- and Bluetooth audio.
+   Then: lock screen (`ade/lock` is a placeholder awaiting
+   `ext-session-lock-v1`), screenshot, notifications, clipboard,
    drag-and-drop, Bluetooth, battery and power in the bar. Printing can
    wait.
 

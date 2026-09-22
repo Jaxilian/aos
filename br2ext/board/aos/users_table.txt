@@ -20,4 +20,8 @@
 # keyboard: sshd refuses password authentication. An install made with
 # "aos-install --release" (./usb.sh --release) deletes this account and
 # creates the real one in its place.
-admin	1000	admin	1000	=123321	/home/admin	/bin/bash	wheel	Demo account
+#
+# Also in "pipewire": that group's entry in /etc/security/limits.d gives the
+# session real-time priority for audio through pam_limits, the way PipeWire
+# does it on a system without RTKit (Buildroot has none).
+admin	1000	admin	1000	=123321	/home/admin	/bin/bash	wheel,pipewire	Demo account

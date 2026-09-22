@@ -358,3 +358,26 @@ CONFIG_BUG_ON_DATA_CORRUPTION=y
 CONFIG_DEBUG_LIST=y
 CONFIG_SCHED_STACK_END_CHECK=y
 CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y
+
+# Sound. The mainline x86_64 defconfig builds the HDA controller in and not
+# one codec, so a machine has a sound card and no way to talk to it. The
+# codecs on ordinary PCs, as modules; the generic one is what QEMU's
+# hda-duplex binds to, and what the boot test hears. USB audio for headsets
+# and DACs. Not here yet: SOF (Intel laptops from 2019 on drive their DSP
+# through it) and AMD ACP -- those need real hardware to verify and the
+# firmware to go with them; the roadmap has them.
+# The controller as a module too. Built in, it probes at 0.1 s, before the
+# root is mounted, and a codec whose driver is a module cannot be bound
+# then: "Cannot probe codecs, giving up", and the card never appears.
+# Loaded by udev once the root is up, the codec modules are there to bind.
+CONFIG_SND_HDA_INTEL=m
+CONFIG_SND_HDA_GENERIC=m
+CONFIG_SND_HDA_CODEC_REALTEK=m
+CONFIG_SND_HDA_CODEC_HDMI=m
+CONFIG_SND_HDA_CODEC_CONEXANT=m
+CONFIG_SND_HDA_CODEC_SIGMATEL=m
+CONFIG_SND_HDA_CODEC_ANALOG=m
+CONFIG_SND_HDA_CODEC_CIRRUS=m
+CONFIG_SND_HDA_CODEC_VIA=m
+CONFIG_SND_HDA_CODEC_CA0132=m
+CONFIG_SND_USB_AUDIO=m
