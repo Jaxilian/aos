@@ -1,0 +1,93 @@
+#!/bin/sh
+#
+# aos-sandbox -- run a program in its own mount and pid namespace, seeing
+# the OS read-only, the packages it was given, its home, and the session's
+# sockets. What third-party software runs in when its ABI is not ours, or
+# when it should not see the store: the sandbox exists because an ELF
+# interpreter path is absolute, and /lib/ld-linux.so.2 can mean something
+# in here without existing on AOS.
+#
+#   aos-sandbox [--package ORG/NAME]... [--lib32 ORG/NAME] [--no-home] -- COMMAND [ARG]...
+#
+# bubblewrap does the namespaces, unprivileged: user namespaces are on in
+# the kernel and bwrap is not setuid here (external.mk). The view inside:
+#
+#   /usr /etc /sys     the OS, read-only -- glibc, Mesa, the Vulkan loader,
+#                      fonts, CA certificates are the host's own
+#   /opt/apm/packages/<org>/<name>
+#                      each package named with --package, at its store
+#                      path, so the paths written into its wrappers and
+#                      caches resolve unchanged; runtimes and dependencies
+#                      are packages too
+#   /lib               with --lib32, that package's lib/ -- a 32-bit glibc
+#                      with its loader at /lib/ld-linux.so.2, the path a
+#                      32-bit ELF names; 64-bit programs go on finding
+#                      theirs in /usr/lib and /lib64, and each loader skips
+#                      the other's class. Without it, /lib is /usr/lib.
+#   $HOME              read-write; --no-home gives a private, empty one
+#   $XDG_RUNTIME_DIR   the session's Wayland, PipeWire and D-Bus sockets
+#   /run/udev /run/dbus
+#                      device enumeration for SDL and libinput, the system bus
+#   /dev/dri /dev/snd /dev/input
+#                      the GPU, the sound card, controllers -- through the
+#                      ACL logind set for the seat, since the uid is kept
+#   /proc /tmp /run    this sandbox's own
+#
+# Not visible: the rest of /opt/apm (other packages, the store's state,
+# the bin farm -- so a program is named by its store path), other
+# accounts' homes, /root, /var, /boot. Programs run as the same uid; this
+# is isolation of what they can see, not of who they are.
+
+set -e
+
+BINDS=""
+NOHOME=no
+LIB="--symlink usr/lib /lib"
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--lib32)
+			d="/opt/apm/packages/$2/current/lib"
+			[ -f "$d/ld-linux.so.2" ] || { echo "aos-sandbox: $2 has no lib/ld-linux.so.2" >&2; exit 66; }
+			LIB="--ro-bind $d /lib"
+			shift ;;
+		--package|--runtime)
+			d="/opt/apm/packages/$2"
+			[ -d "$d" ] || { echo "aos-sandbox: no package $2 in the store" >&2; exit 66; }
+			BINDS="$BINDS --ro-bind $d $d"
+			shift ;;
+		--no-home) NOHOME=yes ;;
+		--) shift; break ;;
+		-*) echo "aos-sandbox: unknown option $1" >&2; exit 64 ;;
+		*) break ;;
+	esac
+	shift
+done
+[ $# -gt 0 ] || { echo "usage: aos-sandbox [--package ORG/NAME]... [--no-home] -- COMMAND [ARG]..." >&2; exit 64; }
+
+# The home: read-write, or a fresh tmpfs. Account names are validated by
+# aos-install (lowercase, digits, - and _), so $HOME never needs quoting
+# through the word-split below.
+if [ "$NOHOME" = yes ]; then
+	HOME_BIND="--tmpfs $HOME"
+else
+	HOME_BIND="--bind $HOME $HOME"
+fi
+RUN_BIND=""
+[ -n "$XDG_RUNTIME_DIR" ] && [ -d "$XDG_RUNTIME_DIR" ] && RUN_BIND="--bind $XDG_RUNTIME_DIR $XDG_RUNTIME_DIR"
+
+# shellcheck disable=SC2086
+exec bwrap \
+	--ro-bind /usr /usr \
+	--symlink usr/bin /bin --symlink usr/sbin /sbin \
+	$LIB --symlink usr/lib /lib64 \
+	--ro-bind /etc /etc \
+	--ro-bind /sys /sys \
+	--proc /proc --dev /dev --tmpfs /tmp --tmpfs /run \
+	--dev-bind-try /dev/dri /dev/dri \
+	--dev-bind-try /dev/snd /dev/snd \
+	--dev-bind-try /dev/input /dev/input \
+	--ro-bind-try /run/udev /run/udev \
+	--ro-bind-try /run/dbus /run/dbus \
+	$RUN_BIND $HOME_BIND $BINDS \
+	--unshare-pid --unshare-ipc --unshare-uts --die-with-parent \
+	-- "$@"

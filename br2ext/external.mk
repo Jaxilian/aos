@@ -147,6 +147,17 @@ LINUX_FIRMWARE_FILES += \
 	intel/iwlwifi/iwlwifi-bz-* \
 	intel/iwlwifi/iwlwifi-sc-*
 
+# bwrap without the setuid bit. Buildroot sets it "in case the kernel has
+# user namespaces disabled for non-root users"; AOS has them on, and a
+# setuid sandbox helper is a larger trust boundary than an unprivileged
+# one. The permissions table is expanded when it is applied, so the
+# package's line can be replaced from here.
+ifeq ($(BR2_PACKAGE_BUBBLEWRAP),y)
+define BUBBLEWRAP_PERMISSIONS
+	/usr/bin/bwrap f 0755 0 0 - - - - -
+endef
+endif
+
 # PipeWire and WirePlumber for the session only, never system-wide.
 #
 # Buildroot builds both with their system-service units, and preset-all

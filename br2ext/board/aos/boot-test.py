@@ -280,6 +280,10 @@ VSCODE = "apm install vscode --quiet 2>&1 | tail -3"
 # into the account's home at first start.
 FIREFOX = "apm install firefox --quiet 2>&1 | tail -3"
 DISCORD = "apm install discord --quiet 2>&1 | tail -3"
+# Steam: a 32-bit client, so runtime/compat32 comes with it, and the first
+# start is the client updating itself into the home -- minutes over slirp
+# before a window.
+STEAM = "apm install steam --quiet 2>&1 | tail -3"
 
 # Slice 1 of the package manager: update, find, install, run, remove, on
 # the installed disk, from a one-package repository the host builds and
@@ -322,9 +326,15 @@ APM = [
     "apm repo add thirdparty %s --third-party 2>/dev/null; apm update --force --quiet 2>&1 | tail -1"
     % (APM_TP_GUEST if APM_TP_LOCAL else APM_THIRDPARTY),
     "apm install runtime/gtk3 --quiet 2>&1 | tail -1; ls /opt/apm/bin/",
+    # The sandbox: its own pid namespace (pid 1 is bwrap), the store gone
+    # except what was named, no other home; then the runtime's demo drawn
+    # from inside it, by window_shot() below.
+    "aos-sandbox -- sh -c 'echo pid1=$(cat /proc/1/comm); ls /opt/apm 2>&1; ls /home 2>&1; ls /usr/bin/apm 2>&1'",
+    "aos-sandbox --package runtime/gtk3 -- sh -c 'ls /opt/apm/packages/runtime/; ls /opt/apm/packages/runtime/gtk3/'",
     VSCODE,
     FIREFOX,
     DISCORD,
+    STEAM,
 ] if APM_REPO else []) + [
     "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
     "systemctl show ade.service -p Environment",
@@ -334,7 +344,7 @@ APM = [
 # installed goes, dependents before their dependencies, and the store must
 # be empty.
 CLEANUP = ("for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt/apm/bin/ /opt/apm/packages/"
-           % (" vscode firefox discord runtime/gtk3 fonts rust terminal" if APM_REPO else ""))
+           % (" vscode firefox discord steam runtime/gtk3 runtime/compat32 fonts rust terminal" if APM_REPO else ""))
 
 
 def window_shot(ser, tag, exe, command, timeout=WINDOW_TIMEOUT):
@@ -420,6 +430,9 @@ def apm_run(ser):
         print("\n$ %s\n%s" % (c, out[c]))
     if APM_REPO:
         window_shot(ser, "gtk", "gtk3-demo", "/opt/apm/bin/gtk3-run gtk3-demo")
+        window_shot(ser, "sandbox", "gtk3-demo",
+                    "aos-sandbox --package runtime/gtk3 --package aos/fonts -- "
+                    "/opt/apm/packages/runtime/gtk3/current/bin/gtk3-run gtk3-demo")
         if "Installed microsoft/vscode" in out.get(VSCODE, ""):
             # First without a window: Electron must at least print its
             # version, and whatever else it has to say about the machine.
@@ -437,6 +450,17 @@ def apm_run(ser):
             window_shot(ser, "discord", "Discord", "/opt/apm/bin/discord", timeout=600)
             print("\n$ what the bootstrap left in the home\n%s" % ser.run(
                 "du -sh /home/admin/.local/share/discord* /home/admin/.config/discord 2>&1 | head -4"))
+        if "Installed valve/steam" in out.get(STEAM, ""):
+            # A 32-bit program runs at all: the loader path resolves inside
+            # the sandbox and nowhere else.
+            print("\n$ 32-bit in and out of the sandbox\n%s" % ser.run(
+                "ls -l /lib/ld-linux.so.2 2>&1; "
+                "su -s /bin/sh admin -c 'aos-sandbox --lib32 runtime/compat32 --package runtime/compat32 -- "
+                "sh -c \"ls -l /lib/ld-linux.so.2; file -L /lib/libc.so.6 2>/dev/null | cut -c1-80; /lib/ld-linux.so.2 --version | head -1\"' 2>&1"))
+            window_shot(ser, "steam", "steam", "/opt/apm/bin/steam", timeout=900)
+            print("\n$ steam's own log\n%s" % ser.run(
+                "tail -25 /home/admin/.steam/steam/logs/bootstrap_log.txt 2>&1 | cut -c1-160; "
+                "ls /home/admin/.local/share/Steam/ 2>&1 | head; du -sh /home/admin/.local/share/Steam 2>&1", timeout=60))
     out[CLEANUP] = ser.run(CLEANUP, timeout=120)
     print("\n$ %s\n%s" % (CLEANUP, out[CLEANUP]))
     # After the removes, the two `ls -A` headers must have nothing between

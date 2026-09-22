@@ -182,6 +182,19 @@ gets real-time priority through the `pipewire` group's `limits.d` entry
 rather than RTKit, which the image does not have. Not yet: Intel SOF and
 AMD ACP (the DSPs on laptops from 2019 on), and Bluetooth audio.
 
+**The sandbox.** `aos-sandbox` runs a program in its own mount and pid
+namespace, unprivileged, on bubblewrap: the OS read-only, the apm
+packages it was given at their store paths, the account's home, the
+session's Wayland, PipeWire and D-Bus sockets, and the GPU, sound card
+and input devices through the seat's ACL. Nothing else of the store, no
+other home, no `/var`. It is what third-party software runs in when its
+ABI is not AOS's -- `--lib32` binds a package's `lib/` as `/lib`, so a
+32-bit ELF's `/lib/ld-linux.so.2` exists in there and nowhere on the
+machine -- and what the third-party repository's launchers use for
+exactly that class of program. Official software never runs in it; it
+is the OS. Isolation of what a program sees, not of who it is: the uid
+is the account's.
+
 Optionally, the NVIDIA open kernel modules and the matching proprietary
 userspace (EGL, GLES, Vulkan and GSP firmware). These are off by default;
 enable `BR2_PACKAGE_AOS_NVIDIA` to include them.

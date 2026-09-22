@@ -394,6 +394,13 @@ BR2_PACKAGE_NOTEPAD=y
 # of its own, tgn's built-in face being proportional.
 BR2_PACKAGE_TERMINAL=y
 
+# The sandbox third-party software runs in when its ABI is not ours (a
+# 32-bit Steam) or when it should not see the store: usr/bin/aos-sandbox
+# in the rootfs overlay, bubblewrap underneath. Not setuid -- user
+# namespaces are on, and Chromium's sandbox already relies on them here;
+# external.mk takes the setuid bit Buildroot would set back off.
+BR2_PACKAGE_BUBBLEWRAP=y
+
 # Sound. PipeWire is the server, WirePlumber its session manager, both as
 # systemd user services started with the session (the wants symlinks are in
 # the rootfs overlay under usr/lib/systemd/user). alsa-lib brings the ALSA
