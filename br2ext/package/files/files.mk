@@ -4,56 +4,30 @@
 #
 ################################################################################
 
-FILES_VERSION = 0.1.0
-# The path symbol exists only while the package is enabled, and Buildroot
-# checks a local site for every configuration it parses, on or off; the
-# fallback is never used, it only lets a configuration without this
-# package -- the packages tree -- parse.
-FILES_SITE = $(or $(call qstrip,$(BR2_PACKAGE_FILES_PATH)),/nonexistent)
-# Kconfig only writes the path once the package is on, and Buildroot parses
-# every .mk regardless, so a tree with files switched off must still make.
-ifeq ($(FILES_SITE),)
-FILES_SITE = $(BR2_EXTERNAL_AOS_PATH)/../../../Rust/files
-endif
-FILES_SITE_METHOD = local
+# A commit, not a tag -- see ade.mk. This one is v0.1.1.
+FILES_VERSION = 3dde89061f45fa393ab20edec19eecb0382fc091
+FILES_SITE = ssh://git@github.com/Jaxilian/files
+FILES_SITE_METHOD = git
 FILES_LICENSE = MIT
 
-# Keep the developer's own target/ out of the rsync -- see the same note in
-# package/ade/ade.mk. The host and the cross build share the
-# x86_64-unknown-linux-gnu output directory, so host artifacts copied in
-# here would be picked up as if they were cross-built.
+# For a build from a working tree through FILES_OVERRIDE_SRCDIR in
+# local.mk; see ade.mk for both lines.
 FILES_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = --exclude=target
+ifneq ($(FILES_OVERRIDE_SRCDIR),)
+FILES_PRE_BUILD_HOOKS += AOS_CARGO_VENDOR
+endif
 
 # libwayland-client and libxkbcommon are linked; libvulkan is not, because
 # ash opens it with dlopen at startup. It still has to be on the image, so
 # vulkan-loader is a dependency here even though nothing refers to it at
-# link time. host-pkgconf is how the -sys crates find the first two.
+# link time. host-pkgconf is how the -sys crates find the first two. awin
+# and tgn come from the aos-sdk repository at a tag, named in Cargo.toml,
+# and are vendored with the rest of the crates.
 FILES_DEPENDENCIES = \
 	host-pkgconf \
 	libxkbcommon \
 	vulkan-loader \
 	wayland
-
-# Vendor the crate dependencies into the build directory. pkg-cargo.mk
-# passes --offline --locked and fills the vendor directory in its download
-# step, which a local site does not have -- so without this the build stops
-# on the first dependency. See package/ade/ade.mk for why the config file is
-# rewritten rather than appended to.
-#
-# The awin and tgn path dependencies are not vendored and do not need to be:
-# cargo reads them from the absolute paths in files' Cargo.toml, which is
-# outside this directory entirely. Their own registry dependencies are in
-# files' dependency graph, so they do get vendored here.
-define FILES_VENDOR
-	rm -f $(@D)/.cargo/config.toml
-	cd $(@D) && \
-	CARGO_HOME=$(BR_CARGO_HOME) \
-	$(HOST_DIR)/bin/cargo vendor --locked --versioned-dirs VENDOR \
-		>$(@D)/.cargo-vendor-config
-	mkdir -p $(@D)/.cargo
-	cp -f $(@D)/.cargo-vendor-config $(@D)/.cargo/config.toml
-endef
-FILES_PRE_BUILD_HOOKS += FILES_VENDOR
 
 # Copy the binary out rather than letting pkg-cargo.mk run "cargo install".
 # That would compile the whole tree a second time into a target directory of

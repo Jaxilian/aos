@@ -1,38 +1,43 @@
-# Security Policy
+# Security policy
 
- [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12245/badge)](https://www.bestpractices.dev/projects/12245)
+This is the policy for AOS, the distribution built from this tree. For the
+Buildroot build system underneath it, see upstream:
+https://buildroot.org/ and security@buildroot.org.
 
-## Security advisories
+## Status
 
-Advisories for Buildroot security vulnerabilities are reported on the
-developer's mailing list. A public archive can be consulted on
-https://lists.buildroot.org/mailman/listinfo/buildroot
+AOS is alpha software. Security fixes are best effort, from one maintainer,
+with no service level. That is the honest state of things, and it will be
+updated here when it changes.
 
-Buildroot itself has a CPE to track its published vulnerabilities:
-https://nvd.nist.gov/products/cpe/search/results?namingFormat=2.3&keyword=buildroot
+## Reporting a vulnerability
 
-The Buildroot project provides some ways for its users to track known
-vulnerabilites in the packages included in the generated images, see:
-- https://nightly.buildroot.org/manual.html#_details_about_packages
+Email jax.carls@protonmail.com with "AOS security" in the subject. Do not
+open a public issue for anything that could be exploited.
 
-In addition, detailed informations for all packages integrated with Buildroot
-are updated daily on the following public web pages:
-- https://security.buildroot.org/
-- https://autobuild.buildroot.org/stats/
+You will get an acknowledgement, a judgement of whether it is a
+vulnerability in AOS or in an upstream package, and a fix or a mitigation
+in a release when one exists. Please allow 90 days before publishing;
+coordinated disclosure earlier is fine once a fix ships.
 
-## Reporting a Vulnerability
+## What is AOS's, and what is upstream's
 
-To report a security vulnerability found in the Buildroot build system itself,
-please send an email to [security@buildroot.org](mailto:security@buildroot.org).
+AOS assembles upstream software — the kernel, glibc, systemd, Mesa, OpenSSL
+and the rest — and adds its own: ade, apm, the applications, the
+configuration in `br2ext/`, and the installer. A vulnerability in AOS's own
+code is fixed here. A vulnerability in an upstream package is reported
+upstream, and AOS picks up the fix by updating the package.
 
-This is a private mailing list contacting the Buildroot maintainers only.
+## How a fix reaches you
 
-## Vulnerabilities in packages
+Today: a new release, installed from a new image. A base-OS update
+mechanism is on the roadmap (`br2ext/docs/roadmap.md`, Phase 1); until it
+exists, that is the answer, and it is the reason to prefer applications from
+apm, which do update in place.
 
-Buildroot is a build system that cross-compiles packages from third-party
-sources. The Buildroot developers are not responsible for security
-vulnerabilities in these packages. Such vulnerabilities should be reported
-directly to the upstream project that maintains the affected package.
+## Known limitations
 
-When vulnerabilities are fixed upstream, send a patch to update the affected
-packages in Buildroot.
+- Secure Boot is unsupported; the kernel and modules are unsigned.
+- The root filesystem cannot be encrypted; there is no initramfs.
+- The default build carries a demo account. Published images must be made
+  with `aos-install --release` (see `br2ext/docs/publishing.md`).

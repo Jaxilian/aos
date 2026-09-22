@@ -5,11 +5,10 @@
     auto-install.py boot    <serial socket> <monitor socket> <log>
 
 install: wait for the live ISO's login prompt, log in as root, run
-aos-install /dev/vda with its own YES piped in, and power the guest off once
+aos-install --demo /dev/vda with its own YES piped in, and power the guest off once
 it reports success. This is what "write-usb.sh --install --auto" runs. With
 an account file -- two lines, a user name and a crypt(3) password hash --
-it is a release install: aos-install --release with that account, which
-replaces the demo one. The guest's echo is turned off before the command
+aos-install creates that account instead of the demo one. The guest's echo is turned off before the command
 is typed, so the hash appears in no transcript.
 
 boot: wait for a login prompt, then quit QEMU. That is the whole check
@@ -156,16 +155,19 @@ def login(ser):
 def install(ser):
     if not login(ser):
         return 1
-    opts = ""
+    # No account file means a test machine: keep the demo account. Without
+    # the flag aos-install asks for an account, and there is no one here to
+    # answer.
+    opts = "--demo "
     if ACCOUNT:
         with open(ACCOUNT) as f:
             name, hash_ = [l.strip() for l in f.read().split("\n")[:2]]
         # The hash is $6$...: single quotes keep the shell off it, and a
         # crypt(3) hash never contains a quote.
-        opts = "--release --user %s --hash '%s' " % (name, hash_)
-        say("running aos-install --release for account '%s' -- several minutes, two of them silent" % name)
+        opts = "--user %s --hash '%s' " % (name, hash_)
+        say("running aos-install for account '%s' -- several minutes, two of them silent" % name)
     else:
-        say("running aos-install /dev/vda -- several minutes, two of them silent")
+        say("running aos-install --demo /dev/vda -- several minutes, two of them silent")
     # The exit status comes back on its own line so a failure inside
     # aos-install (set -e) is seen as such and not as a hang.
     ser.send("printf 'YES\\n' | aos-install %s/dev/vda; echo AOS-INSTALL-EXIT=$?\n" % opts)

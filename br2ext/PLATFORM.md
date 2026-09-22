@@ -5,12 +5,15 @@
 > contract for software built *on* AOS.
 
 
-AOS is a foundation, not a distribution. It gives you a kernel, a C library,
-drivers, a graphics stack and a working toolchain -- and then stops. There is
-no package manager, no desktop, no applications. Those are yours to write.
+AOS is a Linux distribution with one desktop (ade), one package manager
+(apm) and one native GUI stack (awin/tgn on Vulkan and Wayland). Software
+written for AOS uses that stack; software written for other systems runs as
+an ordinary Wayland client, packaged as third-party. The standards, the two
+tiers and where the project is going are in [docs/roadmap.md](docs/roadmap.md).
 
-This document is the contract: what is guaranteed to be present, what is
-deliberately absent, and what you can rely on when building on top.
+This document is the contract underneath all of that: what is guaranteed to
+be present on every AOS machine, what is deliberately absent, and what you
+can rely on when building software for it.
 
 ## ABI baseline
 
@@ -19,7 +22,7 @@ deliberately absent, and what you can rely on when building on top.
 | Architecture | x86_64, **x86-64-v2** baseline (SSE4.2 + POPCNT, ~2009 and later) |
 | C library | glibc 2.44 |
 | C/C++ compiler | gcc 15.3.0 |
-| Rust | 1.96.1 (rustc + cargo) |
+| Rust | 1.96.1 (rustc + cargo), through apm as `aos/rust` |
 | Kernel | Linux 7.1.13 |
 | Init | systemd 258.7 |
 | binutils | as, ld and friends, on the target |
@@ -80,7 +83,8 @@ nearly full, before the kernel's own OOM killer has to.
 ## What is guaranteed present
 
 **Toolchain.** gcc, g++, cpp, `cc`, binutils (as, ld, ar, nm, objdump,
-readelf), make, rustc, cargo, pkgconf, flex.
+readelf), make, pkgconf, flex. rustc and cargo come through apm
+(`aos/rust`); the release ISO can pre-seed them from `board/aos/seed`.
 
 **Init.** systemd, and deliberately all of it: units, journald, udev with
 hwdb, logind, polkit, dbus-broker, systemd-networkd, systemd-resolved,
@@ -151,9 +155,11 @@ ConsoleKit, so on a stock Buildroot system polkit sees no session behind
 any request and every `allow_active` in every policy silently becomes
 `auth_admin` — the reason is a dependency cycle, and the override that
 breaks it is in `external.mk`. That password opens nothing remotely, since
-sshd refuses passwords. `aos-install --release` (`./usb.sh --release`)
-replaces the demo account with one of your choosing and locks root's
-console login; root stays reachable over SSH with a key.
+sshd refuses passwords. The demo account exists on the live ISO only:
+`aos-install` asks for a user name and password and installs that account
+in its place, with root's console login locked (root stays reachable over
+SSH with a key). `aos-install --demo` keeps it, for a test machine; the
+boot tests use that.
 
 **Graphics.** libdrm, Mesa (GBM, EGL, OpenGL ES, Vulkan) and libglvnd.
 Gallium drivers: iris, crocus, radeonsi, r600, nouveau, llvmpipe, zink.
@@ -167,13 +173,15 @@ enable `BR2_PACKAGE_AOS_NVIDIA` to include them.
 
 ## What is deliberately absent
 
-- **A package manager.** There is no dependency resolver, no repository and no
-  update mechanism. Writing one is the intended first project.
-- **A display server.** No X11 and no Wayland compositor. You get DRM/KMS,
-  GBM, EGL and Vulkan, and you write the compositor.
-- **Applications.** No editor beyond vim, no browser, no language runtimes
-  other than Rust.
-- **A GUI installer.** `aos-install` is a shell script.
+- **A second desktop.** ade is the compositor and the shell; nothing else
+  ships and nothing else is supported.
+- **An X server.** XWayland is a compatibility layer, off by default, turned
+  on by the user. No official package depends on it.
+- **A second way to install software.** apm is the only one. No tarballs,
+  no `curl | sh`, no vendor installers.
+- **A base-OS update mechanism, a GUI installer, a settings application and
+  an app store** -- not yet. `aos-install` is a shell script. These are the
+  next phase of work; see [docs/roadmap.md](docs/roadmap.md).
 
 ## Building on top
 

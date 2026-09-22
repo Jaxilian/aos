@@ -41,20 +41,3 @@ comment "ade needs a glibc toolchain w/ threads and dynamic libs, and mesa3d w/ 
 	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
 	depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS \
 		|| !BR2_PACKAGE_MESA3D_OPENGL_EGL || !BR2_PACKAGE_MESA3D_GBM
-
-if BR2_PACKAGE_ADE
-
-config BR2_PACKAGE_ADE_PATH
-	string "ade source tree"
-	default "$(BR2_EXTERNAL_AOS_PATH)/../../ade"
-	help
-	  Absolute path to the ade checkout to build from. The default
-	  is the sibling of the aos tree, which is where it lives on a
-	  development machine.
-
-	  This is a local path rather than a download because ade is
-	  co-developed with the OS: a build tracks the working tree,
-	  including uncommitted state. Point it elsewhere, or switch
-	  ADE_SITE to a git URL in ade.mk, for a reproducible build.
-
-endif

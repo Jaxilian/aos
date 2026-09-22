@@ -75,6 +75,9 @@ APM_KEY = os.environ.get("APM_KEY", os.path.join(BASE, "..", "apm-recipes", "key
 
 CHECKS = [
     "systemctl is-system-running",
+    # The diagnostics bundle, every boot: it must run to completion on a
+    # read-only root and contain what a bug report is read from.
+    "aos-report /tmp/r.tgz >/dev/null && tar tzf /tmp/r.tgz | tr '\\n' ' ' | cut -c1-160",
     "systemctl --failed --no-pager",
     "journalctl -b -p err --no-pager | tail -30",
     "systemd-analyze",
@@ -90,7 +93,7 @@ CHECKS = [
 
 INSTALL = [
     "lsblk -o NAME,SIZE,TYPE /dev/vda",
-    "printf 'YES\\n' | aos-install /dev/vda 2>&1 | tail -20",
+    "printf 'YES\\n' | aos-install --demo /dev/vda 2>&1 | tail -20",
 ]
 
 # The desktop session, checked from the serial login -- which is the only way

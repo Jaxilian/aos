@@ -1,205 +1,204 @@
-# Building an OS on top of AOS: init, compositor, desktop
+# Roadmap: from foundation to an operating system
 
-## Context
+## Where this stands
 
-AOS itself is finished and verified: it boots on BIOS and UEFI, installs to disk,
-and compiles C, C++ and Rust on itself. It is a foundation with nothing above
-the line — no init beyond BusyBox, no display server, no applications.
+AOS began as a foundation — kernel, glibc, drivers, a toolchain, and nothing
+above. That phase is over. The image now boots into ade, installs software
+through apm, and runs a terminal, notepad, files, and Visual Studio Code
+from a package repository. The previous roadmap (an init system under
+BusyBox, then a compositor) is done or superseded: systemd is the init, ade
+is the compositor.
 
-This plan covers the next phase: the three things that turn that foundation into
-an operating system you can use.
+The goal from here is a **consumer Linux distribution with hard standards**.
+One desktop. One package format. One native GUI stack. A person installs it,
+sets it up, and uses it — for games, for work, for anything — without ever
+opening a terminal, the way they use Windows 11 or macOS. The long game is
+shipping it on hardware, so that a fixed, predictable platform is worth
+developers' time.
 
-1. **Systemd** as init service
-2. **A Vulkan Wayland compositor**, built on Smithay in Rust.
-3. **A desktop environment**: compositor, terminal, launcher, status bar.
+This file is the plan for reaching an alpha that an enterprise evaluator can
+take seriously. Every item names where it stands today and what done looks
+like. Items are ordered within a phase; the phases are ordered too, and
+Phase 0 blocks all of the rest.
 
-### Decisions taken
+## The platform contract
+
+These are the standards. They are stated here and in
+[../PLATFORM.md](../PLATFORM.md), and they do not soften.
 
 | | |
 |---|---|
-| Compositor | Smithay (Rust) for Wayland/DRM plumbing, `ash` for Vulkan |
-| DE scope, v1 | Compositor + terminal + launcher + bar |
-| Workflow | Cross-compile on Fedora, ship into the image as Buildroot packages |
+| Desktop | ade, and only ade. No other desktop environment, no other compositor. |
+| Native stack | awin/tgn → Wayland → ade-comp → Mesa (Intel, AMD) or NVIDIA → Linux. This is the SDK, and it is what AOS's own applications are written on. |
+| Not enforced | Applications are not required to use awin/tgn. Electron, SDL, Qt and GTK programs run as ordinary Wayland clients. Requiring the native stack would exclude Visual Studio Code, Steam and Discord, and without those the platform does not sell. |
+| X11 | XWayland is a compatibility layer, off by default, that the user turns on. It is never a dependency of an official package. |
+| Packaging | apm is the only way software enters the machine: signed packages with a `.desktop` entry, installed into apm's store. No tarballs, no `curl \| sh`. |
+| Two tiers | **Official** — [apm-recipes](https://github.com/Jaxilian/apm-recipes), tested against each release, recommended. **Third-party** — [apm-thirdparty](https://github.com/Jaxilian/apm-thirdparty), carried for compatibility, at the user's risk, and labelled so wherever it appears. A third-party package may depend on official ones, never the reverse. |
+| Users | Never need a console. Install, first-boot setup, settings, updates and the app store are all graphical. The terminal exists for developers. |
+| Base | systemd, all of it; glibc; x86-64-v2; merged `/usr`; no initramfs. As in [../PLATFORM.md](../PLATFORM.md), unchanged. |
 
-### What the research found
+## Phase 0 — Build and release engineering
 
-- **Buildroot's `cargo-package` infrastructure does the hard part.** It vendors
-  crates at download time and builds `--offline --locked`.
-  [package/eza/eza.mk](package/eza/eza.mk) is a complete Rust package in 8 lines.
-  Shipping a Rust compositor is packaging-trivial; writing it is the work.
-- **`seatd` is in Buildroot and provides `libseat`**, with `INSTALL_STAGING=YES`
-  and a SysV init script that suits BusyBox init. This is the piece that lets a
-  compositor take DRM master and open input devices without being root, and it
-  is why you do not need logind.
-- **`xkeyboard-config` is absent from Buildroot**, and `libxkbcommon` does not
-  pull it in. Without that data every keyboard layout fails to resolve inside a
-  compositor. AOS must supply it — a data-only custom package.
-- **`glslang` and `shaderc` are absent.** Do not add them: use `naga` (pure
-  Rust, already in the wgpu ecosystem) to compile shaders, or precompile SPIR-V
-  on the host and `include_bytes!` it.
-- **`wlroots` 0.20, `weston`, `cage`, `foot`, `wmenu` are all available.** You
-  are not using wlroots as your foundation, but `cage` and `weston` are
-  invaluable as a *smoke test*: they prove AOS's graphics stack works before you
-  debug your own code against it.
-- **Software Vulkan is already in the image** (`libvulkan_lvp.so`, lavapipe).
-  A Vulkan compositor can be developed and tested in QEMU with no GPU
-  passthrough at all.
+Nothing below this phase can be claimed until this phase is done: until the
+image builds from tagged sources on a machine that is not the author's, every
+other item is a result no one else can reproduce.
 
----
+1. **Tagged sources for ade, apm, terminal, notepad and files.**
+   *Done 2026-09-22.* Each `.mk` names a GitHub repository and a commit;
+   Buildroot's download step vendors the crates. awin and tgn, which every
+   application used to reach by an absolute path into one machine, are one
+   workspace in the `aos-sdk` repository and a git dependency at a tag. A
+   developer's working tree goes in through `local.mk`
+   ([building.md](building.md)). Outstanding: the repositories exist only
+   locally until pushed, and there are no `.hash` files yet -- the commit
+   pins the content, the hash would guard the download.
+2. **Pin what floats.**
+   *Done 2026-09-22*, except the archive. Kernel pinned
+   ([upgrading.md](upgrading.md) has the headers trap that comes with it),
+   `BR2_REPRODUCIBLE=y`, and [post-build.sh](../board/aos/post-build.sh)
+   writes `BUILD_ID` from the commit (`-dirty` when the tree is not clean)
+   and `VERSION_ID` from the tag when there is one. `BR2_PER_PACKAGE_DIRECTORIES`
+   was left out: it changes the whole build layout for a benefit (parallel
+   top-level builds) nothing here needs yet. Outstanding: a `make source`
+   archive per tag, and the first clean build under `BR2_REPRODUCIBLE` --
+   the current tree was built before the flag.
+3. **Continuous integration.**
+   Today: the root `.gitlab-ci.yml` is upstream Buildroot's and
+   `.github/workflows/` holds only repo-lockdown. Nothing builds AOS on a
+   push. [boot-test.py](../board/aos/boot-test.py) does the right test and
+   runs only when someone types it.
+   Done: a self-hosted runner with KVM builds nightly and on every tag, then
+   runs `boot-test.py live`, `install`, `disk` and `desktop`, keeping the
+   serial logs and screendumps as artifacts. A red run blocks the tag.
+   *Written 2026-09-22*: [ci.sh](../board/aos/ci.sh) is the job and
+   `.github/workflows/aos.yml` runs it. Outstanding: a runner registered
+   with the label `kvm`.
+4. **Release shape.**
+   *Half done 2026-09-22*: `aos-install` now asks for the machine's own
+   account and installs that; the demo account survives only with `--demo`,
+   which the tests pass. Outstanding: the live ISO itself still carries
+   `admin` / `123321`, because the desktop session needs a user to belong
+   to. That goes when first-boot setup exists (Phase 2, item 2).
+5. **Signed releases.**
+   Today: [publishing.md](publishing.md) suggests a bare `sha256sum`.
+   Done: `SHA256SUMS` signed with the same minisign key every AOS machine
+   already trusts for apm, published fingerprint, and the `make legal-info`
+   manifest beside the ISO.
+   *Written 2026-09-22*: [release.sh](../board/aos/release.sh) does all of
+   it with `apm sign`, and refuses a `-dirty` build.
+6. **Cadence and support window, in writing.** For instance: a 0.x release
+   monthly, each supported until the next. The number matters less than its
+   existence.
 
-## Phase 0 — Give AOS what a compositor needs
+## Phase 1 — Trust and security
 
-Nothing here is your code; it is the platform gap. Add to
-[br2ext/configs/aos_x86_64_defconfig](br2ext/configs/aos_x86_64_defconfig):
+What an evaluator checks before anything else.
 
-```
-BR2_PACKAGE_SEATD=y
-BR2_PACKAGE_SEATD_DAEMON=y
-BR2_PACKAGE_LIBINPUT=y
-BR2_PACKAGE_LIBXKBCOMMON=y
-BR2_PACKAGE_LIBEVDEV=y
-BR2_PACKAGE_MTDEV=y
-BR2_PACKAGE_LIBDISPLAY_INFO=y
-BR2_PACKAGE_HWDATA=y
-BR2_PACKAGE_DEJAVU=y
-BR2_PACKAGE_FREETYPE=y
-BR2_PACKAGE_FONTCONFIG=y
-BR2_PACKAGE_HARFBUZZ=y
-BR2_PACKAGE_VULKAN_HEADERS=y
-BR2_PACKAGE_VULKAN_TOOLS=y
-```
+1. **A security policy that is AOS's.** Today the root `SECURITY.md` is
+   Buildroot's, untouched. Done: reporting address, what happens to a report,
+   and an honest statement of what an alpha promises.
+2. **apm refuses unknown keys.** *Done 2026-09-22*: an index no trusted
+   key verifies is refused (`trust = "required"` is the default), and the
+   image ships the official key already trusted with the official
+   repository configured, in `rootfs-overlay/opt/apm/etc`. A developer with
+   an unsigned index sets `trust = "warn"`. Outstanding: the store showing
+   which key signed each package.
+3. **A CVE report per release.** Buildroot's `make pkg-stats` against the
+   tagged configuration, published with the release, with a paragraph on
+   how a fix reaches an installed machine.
+4. **Secure Boot: decide.** Today nothing is signed and a machine with
+   Secure Boot on cannot boot AOS at all. Either shim plus a MOK-enrolled
+   kernel and modules (the NVIDIA modules need signing too), or "unsupported;
+   turn it off" at the top of the known limitations. Decide before any
+   evaluation, not during one.
+5. **Base OS updates.** Today an installed machine is updated by
+   reinstalling. Done: a signed, versioned root image in A/B slots and a
+   "previous version" entry in the boot menu next to the existing
+   safe-graphics one. `systemd-sysupdate` is already in the image and fits
+   the no-initramfs, `root=PARTUUID=` layout. Until it lands, a documented
+   reinstall that preserves `/home`.
+6. **Disk encryption: decide.** Without an initramfs the root cannot be on
+   LUKS ([../PLATFORM.md](../PLATFORM.md)). Either a minimal initramfs for
+   LUKS, or `/home` only. Evaluators ask.
+7. **No telemetry**, written down as a guarantee. It is true today; it
+   should be a promise.
 
-Plus one new package, `br2ext/package/aos-xkeyboard-config/`, following the
-pattern of the four existing ones. It is data only — no compilation — installing
-XKB layout data to `/usr/share/X11/xkb`. `libxkbcommon` finds it there by
-default.
+## Phase 2 — Everything a user does, without a terminal
 
-**Verify every symbol landed.** Four times during the AOS build kconfig silently
-dropped an option whose dependency was unmet. After loading the defconfig, grep
-`.config` for each symbol above. And if a package was already built before you
-changed its options, `make <pkg>-dirclean` or the change does nothing.
+In the order a new user meets them.
 
-## Phase 1 — Prove the stack before writing any code
+1. **A graphical installer.** Today [aos-install](../board/aos/rootfs-overlay/usr/bin/aos-install)
+   is a shell prompt. Done: disk, keyboard, time zone, account and password,
+   progress — on the awin/tgn stack, with `aos-install` kept as the engine
+   it drives.
+2. **First-boot setup.** Account, Wi-Fi, time zone, and the choice to enable
+   the third-party repository. This is what lets the released image carry
+   no account at all.
+3. **A Settings application.** Display and scale, sound, network and Wi-Fi,
+   keyboard layout, power and suspend, users, updates, the XWayland switch,
+   the third-party repository switch. systemd-networkd, resolved, localed
+   and logind already expose all of it over D-Bus.
+4. **The app store.** A graphical front to apm, with Official and Third-party
+   clearly separated: search, install, update, remove, and who signed it.
+5. **Updates in one place.** Base OS (Phase 1, item 5) and applications on
+   one screen, with a restart prompt.
+6. **XWayland**, as an optional package ade-comp can host (smithay supports
+   it), off by default.
+7. **The third-party proof points**, in apm-thirdparty: Visual Studio Code
+   (exists), Discord, Firefox, and Steam. Steam needs a 32-bit userspace,
+   which is a Buildroot decision with a wide blast radius; plan it as its own
+   piece of work. These are release gates, not extras: if they do not run,
+   the platform does not sell.
+8. **Session basics a consumer expects.** Sound — PipeWire and WirePlumber
+   are not in the image yet. Lock screen (`ade/lock` is a placeholder
+   awaiting `ext-session-lock-v1`). Screenshot, notifications, clipboard,
+   drag-and-drop, Bluetooth, battery and power in the bar. Printing can
+   wait.
 
-Temporarily enable `BR2_PACKAGE_CAGE=y` (a single-window wlroots compositor) and
-`BR2_PACKAGE_FOOT=y`, boot AOS, and run `cage -- foot`.
+## Phase 3 — Stability and performance
 
-This is worth doing first and cannot be skipped. If a terminal appears, then
-DRM/KMS, GBM, EGL, seatd, libinput and the fonts all work, and every later
-failure is in your code. If it does not appear, you are debugging AOS, not your
-compositor — much easier to establish now than in three months.
+1. **A soak test in CI.** A desktop session held for 24–48 hours, then
+   `systemctl --failed` empty, `journalctl -p err` empty, `ade-comp` memory
+   flat, no watchdog reboot. Nothing today would notice a compositor leak.
+2. **Suspend, resume and lid-close** on every machine on the hardware list.
+   The most common laptop failure, and untested today.
+3. **Boot-test the release path.** `boot-test.py` exercises the demo image.
+   The `--release` path and, once it exists, the graphical installer need
+   the same treatment.
+4. **A gaming baseline.** A Vulkan game at native resolution on Intel, AMD
+   and NVIDIA, through ade-comp's direct-scanout path, measured against a
+   stock distribution. Steam with Proton is the real test. Variable refresh
+   and 10-bit output come later.
+5. **A crash story.** coredump and journald are configured. *`aos-report`
+   added 2026-09-22*: one command, one tarball -- this boot's journal, the
+   errors, failed units, the compositor's log, the hardware, what apm has
+   installed. Outstanding: a "send diagnostics" button in Settings that
+   produces the same file.
+6. **Fault isolation.** A shell crash must not end the session (ade's
+   design already separates them). A compositor crash must restart the
+   session with an explanation, never leave a black screen.
 
-Then check Vulkan specifically with `vulkaninfo --summary`; expect lavapipe in
-QEMU and the real driver on hardware.
+## Phase 4 — Hardware and the evaluation
 
-Remove both packages afterwards, or keep them behind a `BR2_PACKAGE_AOS_DEVTOOLS`
-option for future debugging.
-
-## Phase 2 — The init system
-
-Create `aos-init` as a Rust workspace, cross-compiled and packaged at
-`br2ext/package/aos-init/` using the `cargo-package` pattern.
-
-Build it in this order, each stage bootable:
-
-1. **PID 1 that does not panic.** Mount `/proc`, `/sys`, `/dev`; reap orphaned
-   children; handle `SIGCHLD`; never exit. Getting reaping wrong is the classic
-   PID 1 bug — an unreaped zombie accumulates forever.
-2. **Service definitions and supervision.** A declarative unit format (TOML fits
-   Rust well), start/stop/restart, and restart-on-failure with backoff.
-3. **Dependency ordering.** A DAG of units, started in topological order, in
-   parallel where the graph allows.
-4. **Sockets and readiness.** Socket activation and a readiness protocol, so a
-   unit can declare itself up rather than being assumed up after `fork`.
-5. **Cut over.** Set `BR2_INIT_NONE` and install your binary as `/sbin/init`.
-   Keep BusyBox init installed as `/sbin/init-busybox` and add a GRUB menu entry
-   with `init=/sbin/init-busybox` — a rescue path for when your init cannot boot.
-
-Keep the existing AOS init scripts working during 1–4 by running your init under
-BusyBox init first, as an ordinary service. Only take PID 1 at step 5.
-
-## Phase 3 — The compositor
-
-`aos-comp`, a Rust binary. Smithay for Wayland and DRM, `ash` for Vulkan,
-`naga` for shaders.
-
-Milestones, each independently verifiable:
-
-1. **Open the GPU.** Take a seat via `libseat`, become DRM master, enumerate
-   connectors and modes. Success is a log line naming your monitor, nothing on
-   screen yet.
-2. **Clear the screen to a colour** via Vulkan, page-flipped through DRM. This
-   is the milestone that proves the whole Vulkan-on-KMS path.
-3. **Accept a Wayland client.** Implement `wl_compositor`, `wl_shm` and
-   `xdg_shell`; import a client buffer as a Vulkan texture and composite it.
-   `foot` is your test client.
-4. **Input.** libinput through your seat: pointer, keyboard with XKB layouts
-   (this is where Phase 0's `xkeyboard-config` matters), focus handling.
-5. **Real compositing.** Multiple surfaces, damage tracking, alpha, transforms,
-   a scene graph.
-6. **Multiple outputs**, hotplug, DPMS.
-
-Test in QEMU with lavapipe throughout; move to your RTX 5070 once stage 3 works.
-The NVIDIA path is already in the image and needs no extra work.
-
-## Phase 4 — The desktop environment
-
-Three separate binaries talking Wayland to your compositor, not one monolith.
-
-- **Terminal** — the hardest of the three (VTE state machine, font shaping via
-  harfbuzz, glyph atlas). Ship `foot` initially; replace it when you want to.
-- **Launcher** — the easiest, and a good first client to write: fuzzy-match
-  `$PATH`, spawn, exit.
-- **Bar** — clock, battery from `/sys/class/power_supply`, network state. Needs
-  the `wlr-layer-shell` protocol implemented in your compositor first.
-
-Package each as `br2ext/package/aos-<name>/`.
-
-## Phase 5 — Make it a session
-
-A session unit in your init that starts the compositor on boot, and a compositor
-config for autostarting the bar. Then a `BR2_PACKAGE_AOS_DESKTOP` meta-option
-that pulls in the whole set, so AOS still builds as a bare foundation without it.
-
----
+1. **A hardware compatibility list.** Today one machine, an ASUS G14. Done:
+   three to five more — an Intel-graphics laptop, an AMD APU, an NVIDIA
+   desktop, and a machine from around 2012 for the x86-64-v2 floor — with
+   pass or fail per feature: boot, graphics, Wi-Fi, suspend, audio,
+   touchpad.
+2. **Reference hardware.** One machine that is *the* AOS machine, where
+   everything is made perfect first. That is the hardware story, and the
+   machine an evaluator is handed.
+3. **One use case the evaluation wins at.** "Runs anything" is the vision;
+   the evaluation needs a single thing AOS does better. With what works
+   today, that is a developer workstation — Visual Studio Code, gcc and Rust,
+   nothing to configure. Gaming becomes the second once Steam runs.
+4. **Documentation for someone who is not the author.** An install guide a
+   systems administrator can follow, and a known-issues list.
 
 ## Verification
 
-Each phase ends in something runnable, tested the same way AOS was:
-
-```sh
-make BR2_EXTERNAL=$PWD/br2ext aos_x86_64_defconfig
-grep BR2_PACKAGE_SEATD .config          # confirm symbols actually took
-make
-./br2ext/board/aos/run-qemu.sh
-```
-
-**Check the screen, not just the serial console.** AOS shipped a black-screen bug
-that every serial-based test passed. For anything graphical, screendump the VGA
-output and look at it:
-
-```sh
-{ sleep 45; echo "screendump /tmp/s.ppm"; sleep 2; echo quit; } | \
-  qemu-system-x86_64 ... -display none -vga std -monitor stdio
-```
-
-Per phase: Phase 1 succeeds when a terminal renders under `cage`. Phase 2 when
-AOS boots to a login with your binary as PID 1 and `ps` shows your supervised
-services. Phase 3 at each of the six milestones. Phase 4 when the launcher opens
-a terminal. Phase 5 when a cold boot reaches your desktop with no manual steps.
-
-## Risks
-
-1. **Scope.** Any one of these three is a large project; together they are the
-   bulk of what a distribution is. Phase 1 is deliberately cheap and proves the
-   platform before you commit.
-2. **Becoming PID 1.** A broken init means an unbootable machine. The
-   `init=/sbin/init-busybox` rescue entry is not optional.
-3. **Vulkan on NVIDIA under Wayland** has historically been the rough path
-   (explicit sync, buffer import). Develop against lavapipe and Intel first; treat
-   the NVIDIA GPU as a later target, not the first one.
-4. **Crate vendoring.** Buildroot vendors crates at download time and builds
-   offline. A dependency added to `Cargo.toml` will not appear until the package
-   is re-downloaded — `make <pkg>-dirclean` after touching dependencies.
-5. **Smithay is a moving target.** Pin the version in `Cargo.lock`; Buildroot's
-   `--locked` build depends on it.
+Each phase ends the same way AOS has always been tested — see
+[testing.md](testing.md): build, boot in QEMU, run `boot-test.py`, and look
+at the screen, not just the serial line. Real hardware for what QEMU cannot
+emulate. Every item above names a state that can be checked: a `.config`
+symbol, a green CI run, a signed file, a screendump, a machine on a list.

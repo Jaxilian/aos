@@ -1,0 +1,12 @@
+# apm as the image ships it. The official repository, and an index that no
+# trusted key verifies is refused; the key is in keys/trusted beside this
+# file. A developer with an unsigned index of their own sets
+# trust = "warn". The third-party repository is not here: the user adds it,
+# and is told what it is when they do.
+trust = "required"
+index_expire = 21600
+
+[[repo]]
+name = "main"
+url = "https://github.com/Jaxilian/apm-recipes/releases/download/index"
+third_party = false

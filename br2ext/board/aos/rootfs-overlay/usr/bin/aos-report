@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# aos-report -- everything a bug report needs, in one file.
+#
+#   aos-report            writes /tmp/aos-report-<host>-<date>.tar.gz
+#   aos-report <file>     writes there instead
+#
+# What is in it: which build this is, this boot's journal (kernel included),
+# failed units, the compositor's own log, the hardware, and what apm has
+# installed. Nothing from /home, no passwords, no keys. Read it before
+# sending it if you want to be sure.
+
+set -e
+OUT=${1:-/tmp/aos-report-$(hostname)-$(date +%Y%m%d-%H%M%S).tar.gz}
+D=$(mktemp -d)
+trap 'rm -rf "$D"' EXIT
+
+run() { # name, command...
+	n=$1; shift
+	"$@" > "$D/$n" 2>&1 || echo "(exit $?)" >> "$D/$n"
+}
+run os-release          cat /etc/os-release
+run uptime              uptime
+run journal-boot        journalctl -b --no-pager -o short-precise
+run journal-errors      journalctl -b -p err --no-pager
+run journal-previous    journalctl -b -1 -p warning --no-pager
+run failed-units        systemctl --failed --no-pager
+run analyze             systemd-analyze
+run ade-comp            journalctl -b _COMM=ade-comp --no-pager
+run ade-shell           journalctl -b _COMM=ade-shell --no-pager
+run dmesg               dmesg
+run lspci               lspci -nnk
+run lsusb               lsusb
+run lsmod               lsmod
+run cpu                 lscpu
+run memory              free -m
+run disks               lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
+run mounts              findmnt
+run network             networkctl status --no-pager
+run swap                swapon --show
+run drm                 sh -c 'for c in /sys/class/drm/card*-*; do echo "$c $(cat $c/status 2>/dev/null)"; done'
+run vulkan              sh -c 'ls /usr/share/vulkan/icd.d/ /usr/share/glvnd/egl_vendor.d/'
+run apm-list            apm list
+run apm-repos           cat /opt/apm/etc/config.toml
+
+tar -C "$D" -czf "$OUT" .
+echo "$OUT"

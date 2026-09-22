@@ -16,7 +16,10 @@ BR2_TOOLCHAIN_BUILDROOT_CXX=y
 
 # System.
 BR2_TARGET_GENERIC_HOSTNAME="aos"
-BR2_TARGET_GENERIC_ISSUE="AOS - kernel, libc, drivers. The rest is yours."
+BR2_TARGET_GENERIC_ISSUE="AOS"
+# Two builds of the same commit in the same output directory give the same
+# bits: SOURCE_DATE_EPOCH for every package, no build-time timestamps.
+BR2_REPRODUCIBLE=y
 # Init is systemd. It is what the software people will build on AOS expects
 # to find underneath it -- units, journald, logind, udev, D-Bus, networkd --
 # and the point of a foundation is that nothing above it has to be taught a
@@ -113,7 +116,15 @@ BR2_PACKAGE_LIBSECCOMP=y
 # inherit its broad PC hardware coverage, then narrowed/widened by our
 # fragment. Do not replace this with a hand-written full config.
 BR2_LINUX_KERNEL=y
-BR2_LINUX_KERNEL_LATEST_VERSION=y
+# Pinned, not "latest": a release must build the same kernel next year as
+# it did today. Bump it here on purpose, with linux-dirclean; upgrading.md.
+BR2_LINUX_KERNEL_CUSTOM_VERSION=y
+BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="7.1.13"
+# The toolchain headers follow the kernel ("same as kernel being built" is
+# the default), and with a custom version Buildroot has to be told which
+# series that is. Leave this out and glibc silently drops out of the
+# configuration: it depends on a headers version, and there is none.
+BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_1=y
 BR2_LINUX_KERNEL_USE_DEFCONFIG=y
 BR2_LINUX_KERNEL_DEFCONFIG="x86_64"
 BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_AOS_PATH)/board/aos/linux.config.fragment"

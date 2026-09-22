@@ -40,15 +40,16 @@ Installed size is **2.6 GB**. The ISO is 956 MB because it is compressed.
 | Package | Version | Note |
 |---|---|---|
 | aos-gcc | 15.3.0 | gcc and g++ that run *on* AOS. Custom package |
-| aos-rust | 1.96.1 | rustc and cargo on the target. Custom package |
+| rust | 1.96.1 | rustc and cargo, as the apm package `aos/rust`, not in the image since 2026-09-20 |
 | binutils | 2.45.1 | as, ld, ar, nm, objdump |
 | make | 4.4.1 | |
 | gmp / mpfr / mpc | 6.3.0 / 4.2.2 / 1.4.1 | gcc's arithmetic libraries |
 | pkgconf | 2.3.0 | |
 | flex | 2.6.4 | |
 
-Buildroot does not support putting a toolchain on the target — `aos-gcc` and
-`aos-rust` exist to work around exactly that.
+Buildroot does not support putting a toolchain on the target — `aos-gcc`
+exists to work around exactly that (and `aos-rust` did, until Rust moved to
+apm).
 
 ## GNU userland
 

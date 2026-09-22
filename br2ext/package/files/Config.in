@@ -25,28 +25,3 @@ config BR2_PACKAGE_FILES
 comment "files needs a toolchain w/ threads and dynamic libs"
 	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
 	depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS
-
-if BR2_PACKAGE_FILES
-
-config BR2_PACKAGE_FILES_PATH
-	string "files source tree"
-	default "$(BR2_EXTERNAL_AOS_PATH)/../../../Rust/files"
-	help
-	  Absolute path to the files checkout to build from. The
-	  default is where it lives on a development machine, beside
-	  the crates it depends on.
-
-	  A local path rather than a download, for the same reason as
-	  ade: the application is co-developed with the OS and a build
-	  tracks the working tree, uncommitted state included.
-
-	  Note that this path covers files itself and nothing else.
-	  Its awin and tgn dependencies are absolute paths written into
-	  files' own Cargo.toml, so they are read straight from the
-	  developer's tree wherever that points -- not from here, and
-	  not from the build directory. Two consequences: moving those
-	  crates breaks the build until Cargo.toml is updated, and
-	  editing them does not make Buildroot rebuild anything. Use
-	  "make files-rebuild" after changing awin or tgn.
-
-endif

@@ -22,16 +22,3 @@ config BR2_PACKAGE_APM
 	  Installed to /usr/bin, since that is the whole of root's PATH
 	  on the image. The environment files under rootfs-overlay/etc
 	  put /opt/apm/bin on PATH for shells and for the desktop.
-
-if BR2_PACKAGE_APM
-
-config BR2_PACKAGE_APM_PATH
-	string "apm source tree"
-	default "$(BR2_EXTERNAL_AOS_PATH)/../../apm"
-	help
-	  Absolute path to the apm checkout to build from. The default
-	  is the sibling of the aos tree, as for ade: a local path
-	  because apm is co-developed with the OS and a build tracks
-	  the working tree.
-
-endif

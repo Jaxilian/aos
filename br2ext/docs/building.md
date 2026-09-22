@@ -83,3 +83,31 @@ line to `br2ext/Config.in`. Check the style before building:
 ```sh
 ./utils/check-package --br2-external br2ext/package/<name>/*
 ```
+
+## Working on ade, apm, terminal, notepad or files
+
+Each of those is its own repository, and the OS builds it from a tagged
+commit named in `br2ext/package/<name>/<name>.mk` — the way it builds
+everything else. That is what makes an image reproducible: two people
+building the same commit of this tree get the same binaries, and no build
+depends on what happens to be in a working tree on one machine.
+
+While you change one of them, point the OS at your checkout instead. Create
+`local.mk` at the repository root (it is ignored by git) with a line per
+package:
+
+```make
+ADE_OVERRIDE_SRCDIR = /home/jax/Projects/OS/ade
+TERMINAL_OVERRIDE_SRCDIR = /home/jax/Projects/Rust/terminal
+```
+
+Then `make ade-rebuild` (or `-reconfigure`) picks up the working tree,
+uncommitted changes included. This is Buildroot's own mechanism; the manual
+calls it `<pkg>_OVERRIDE_SRCDIR`. A package built this way vendors its
+crates at build time (`AOS_CARGO_VENDOR` in `external.mk`), which needs the
+network once per rebuild.
+
+To ship the change: commit, tag, push, and put the new commit in the `.mk`.
+The SDK -- awin and tgn, in the `aos-sdk` repository -- is a git dependency
+of every application at a tag, so a change there is tagged first and the
+applications move to the new tag in their `Cargo.toml`.

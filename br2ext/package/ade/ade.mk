@@ -4,22 +4,26 @@
 #
 ################################################################################
 
-ADE_VERSION = 0.1.0
-# The path symbol exists only while the package is enabled, and Buildroot
-# checks a local site for every configuration it parses, on or off; the
-# fallback is never used, it only lets a configuration without this
-# package -- the packages tree -- parse.
-ADE_SITE = $(or $(call qstrip,$(BR2_PACKAGE_ADE_PATH)),/nonexistent)
-ADE_SITE_METHOD = local
+# A commit, not a tag: a tag can be moved, and the point of pinning is that
+# this file and the sources it names cannot drift apart. This one is v0.1.1.
+# Over ssh, because the repositories are private: whoever builds needs a
+# key GitHub knows. The applications' Cargo.toml fetch the SDK the same way.
+ADE_VERSION = c3c47821e160749692f1c1309c30ea74e4de5fe5
+ADE_SITE = ssh://git@github.com/Jaxilian/ade
+ADE_SITE_METHOD = git
 ADE_LICENSE = MIT
 
-# Do not drag the developer's own target/ directory into the build. A local
-# site is rsynced verbatim, and cargo's host output lands in the same
-# x86_64-unknown-linux-gnu directory the cross build writes to -- so a tree
-# that has been built with the host toolchain would hand Buildroot fresh-
-# looking artifacts linked against the host glibc. Excluding it also keeps
-# a couple of gigabytes out of every rsync.
+# For a build from a working tree through ADE_OVERRIDE_SRCDIR in local.mk:
+# keep the developer's target/ out of the rsync. cargo's host output lands
+# in the same x86_64-unknown-linux-gnu directory the cross build writes to,
+# so a tree built with the host toolchain would hand Buildroot fresh-looking
+# artifacts linked against the host glibc. It also keeps a couple of
+# gigabytes out of every rsync. And vendor the crates at build time, since
+# an override has no download step to do it in -- see external.mk.
 ADE_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = --exclude=target
+ifneq ($(ADE_OVERRIDE_SRCDIR),)
+ADE_PRE_BUILD_HOOKS += AOS_CARGO_VENDOR
+endif
 
 # libseat comes from seatd, libgbm and libEGL from mesa3d. host-pkgconf is
 # what the -sys crates use to find all of them. vulkan-loader is for the
@@ -38,51 +42,18 @@ ADE_DEPENDENCIES = \
 	wayland \
 	wayland-protocols
 
-# Vendor the crate dependencies into the build directory.
-#
-# pkg-cargo.mk passes --offline --locked to every cargo invocation, and
-# fills the vendor directory in its download step. A local site has no
-# download step, so nothing is vendored and an offline build fails on the
-# first dependency. Doing it here, against the sources Buildroot has already
-# copied into $(@D), gets the same result.
-#
-# The config file is removed first and then written, not appended to.
-# Appending looks harmless until the second build: "make ade-rebuild" runs
-# this hook again, the [source.crates-io] block lands in the file twice, and
-# cargo stops with "duplicate key" -- and it stops in this very hook, since
-# cargo reads the config before vendoring, so the build cannot recover on
-# its own once that has happened. Nothing else writes this file: Buildroot
-# would have, in the download step a local site does not have, which is why
-# the hook exists at all.
-#
-# This needs network access once per build. It is the cost of tracking a
-# working tree instead of a tagged release; a git ADE_SITE would let
-# Buildroot's own vendoring handle it and would build fully offline.
-define ADE_VENDOR
-	rm -f $(@D)/.cargo/config.toml
-	cd $(@D) && \
-	CARGO_HOME=$(BR_CARGO_HOME) \
-	$(HOST_DIR)/bin/cargo vendor --locked --versioned-dirs VENDOR \
-		>$(@D)/.cargo-vendor-config
-	mkdir -p $(@D)/.cargo
-	cp -f $(@D)/.cargo-vendor-config $(@D)/.cargo/config.toml
-endef
-ADE_PRE_BUILD_HOOKS += ADE_VENDOR
-
 # The compositor and the shell. Both are workspace members; nothing else in
-# the workspace is a binary.
-#
-# ade-shell depends on awin and tgn by absolute path into the developer's
-# Rust/ tree, which cargo vendor does not vendor, so this only builds on a
-# host where those checkouts exist. Same situation as every awin app.
+# the workspace is a binary. The shell's awin and tgn come from the aos-sdk
+# repository at a tag, named in its Cargo.toml, and are vendored with the
+# rest of its crates.
 ADE_CARGO_BUILD_OPTS = --package ade-comp --package ade-shell
 
-# ...which is also why the install step is written out here rather than left
-# to pkg-cargo.mk. That one runs "cargo install --path ./", and ./ is a
-# virtual workspace manifest, which cargo install refuses. Its --path cannot
-# be pointed at comp/ either: a second --path is an error, not an override.
-# Copying the binary out of the build tree is what cargo install would have
-# done with it in any case.
+# The install step is written out here rather than left to pkg-cargo.mk.
+# That one runs "cargo install --path ./", and ./ is a virtual workspace
+# manifest, which cargo install refuses. Its --path cannot be pointed at
+# comp/ either: a second --path is an error, not an override. Copying the
+# binary out of the build tree is what cargo install would have done with
+# it in any case.
 ADE_PROFILE = $(if $(BR2_ENABLE_DEBUG),debug,release)
 
 define ADE_INSTALL_TARGET_CMDS

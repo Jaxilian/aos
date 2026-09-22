@@ -1,31 +1,41 @@
 # What is AOS?
 
-**AOS is a foundation for building an operating system, not an operating
-system you use.**
+**AOS is a Linux distribution with one desktop, one package manager and one
+way to do things.**
 
-It gives you a modern Linux kernel, a C library, drivers for ordinary PC
-hardware, a full graphics stack, and a working compiler — and then it stops.
-There is no package manager, no desktop, no applications. Those are yours to
-write, and AOS is designed so you can write them *on the machine itself*.
+It is built for people who want a computer that works — for games, for work,
+for anything — without ever opening a terminal. There is one desktop
+environment, ade, and no other. There is one package manager, apm, and
+software arrives no other way. Applications written for AOS use one native
+GUI stack; applications written for other systems run as well, clearly marked
+as third-party, at the user's own risk.
 
-Think of it as the layer every distribution has underneath it, packaged on its
-own and nothing more.
+The base underneath is deliberately unadventurous: a modern Linux kernel,
+glibc, systemd in full, drivers for ordinary PC hardware, Mesa and the NVIDIA
+driver. It compiles its own software — gcc is on the machine, and Rust is one
+`apm install` away — so the platform can be developed on the platform.
 
 ## What makes it unusual
 
-**It compiles itself.** Most minimal Linux images are built on one machine and
-run on another; they contain no compiler. An AOS machine has gcc, g++, Rust
-and cargo, plus the headers and link libraries to use them. You can write your
-package manager on AOS, for AOS, without a second computer.
+**One of everything.** Most distributions offer several desktops, several
+package formats, and several ways to configure the same thing. AOS offers
+one. That is what makes "install it and it works" possible, and what makes
+it worth a developer's time: an application that runs on one AOS machine
+runs on every AOS machine.
 
-**It stops deliberately.** The absence of a package manager and a desktop is
-the product, not an unfinished edge. AOS defines a stable base — a fixed ABI,
-a documented filesystem layout, working drivers — and leaves every decision
-above that line to you.
+**Two tiers of software, and the line is visible.** Official packages are
+built and tested for each release and are what AOS recommends. Third-party
+packages — Electron applications, GTK programs, Steam — are carried so the
+things people expect to run, run. They are labelled as third-party
+everywhere they appear, and may break with an update. That is the deal.
 
-**It targets real PCs.** Broad hardware coverage: Intel, AMD and NVIDIA
-graphics, wired and wireless networking with firmware, USB, NVMe, SATA and
-legacy PATA. Roughly any x86-64 machine from 2009 onwards.
+**It targets real PCs.** Intel, AMD and NVIDIA graphics, wired and wireless
+networking with firmware, USB, NVMe, SATA and legacy PATA. Roughly any
+x86-64 machine from 2009 onwards.
+
+**It is honest about what a compatibility layer is.** XWayland is available
+and off by default; the user turns it on when a third-party program needs
+it. No official package depends on it.
 
 ## What it includes
 
@@ -33,26 +43,31 @@ legacy PATA. Roughly any x86-64 machine from 2009 onwards.
 |---|---|
 | Kernel | Linux 7.1.13, modular, ~115 driver modules |
 | C library | glibc 2.44 |
-| Compilers | gcc 15.3.0 (C and C++), Rust 1.96.1 with cargo |
-| Init | systemd, all of it — journald, udev, logind, polkit, networkd, resolved, oomd, nspawn |
+| Init | systemd 258.7, all of it — journald, udev, logind, polkit, networkd, resolved, oomd, nspawn |
+| Desktop | ade: a Wayland compositor on smithay, and a shell on the awin/tgn Vulkan stack |
+| Package manager | apm, with an official repository and a third-party one |
+| Applications | terminal, notepad, files; Visual Studio Code and more from the third-party repository |
+| Compilers | gcc 15.3.0 (C and C++) on the image; Rust 1.96.1 with cargo through apm |
 | Userland | Real GNU tools — coreutils, bash, gawk, sed, grep, tar, findutils, vim |
 | Graphics | Mesa 26.1.8, Vulkan, libglvnd, NVIDIA 610.57.04 |
 | Networking | systemd-networkd, wpa_supplicant, iw, OpenSSL, curl, CA certificates |
-| Keyboard | kbd, with every common console layout |
 | Architecture | x86-64-v2 (roughly 2009 and newer) |
 
-Full list with versions: [packages.md](packages.md).
+Full list with versions: [packages.md](packages.md). Where it is going:
+[roadmap.md](roadmap.md).
 
 ## What it does not include
 
-No package manager. No display server — no X11, no Wayland compositor. No
-editor beyond vim, no browser, no language runtimes other than Rust.
+No second desktop, and no way to install one. No X11 server — XWayland is
+the compatibility layer, off by default. No graphical installer, settings
+application, app store or base-OS updater yet; those are the next phase of
+work and are what [roadmap.md](roadmap.md) is about.
 
 ## The short answer
 
-> AOS is a minimal Linux foundation for people who want to build their own
-> operating system. It is the kernel, glibc, PC drivers, Mesa and NVIDIA
-> graphics, and a self-hosting C and Rust toolchain — about 2.6 GB installed.
-> It has no package manager, no desktop and no applications, because those are
-> what you are expected to write. It boots on most x86-64 PCs from 2009
-> onwards and can compile its own software without another machine.
+> AOS is a Linux distribution with exactly one desktop, one package manager
+> and one native GUI stack, aimed at people who want a computer that works
+> without a terminal. Its own applications are built on that stack;
+> software written for other systems runs too, marked as third-party and at
+> the user's risk. Underneath is systemd, glibc, Mesa and NVIDIA graphics,
+> and a compiler, on any x86-64 PC from 2009 onwards.

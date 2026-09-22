@@ -1,5 +1,28 @@
 include $(sort $(wildcard $(BR2_EXTERNAL_AOS_PATH)/package/*/*.mk))
 
+# Vendoring for a Rust package built from a developer's working tree.
+#
+# pkg-cargo.mk builds --offline --locked and fills the VENDOR directory in
+# the download step. A package pointed at a checkout through
+# <PKG>_OVERRIDE_SRCDIR in local.mk has no download step, so nothing is
+# vendored and the build stops on the first dependency. Each AOS cargo
+# package adds this hook in that case and only then; a release build, from
+# the git tag, never runs it and never needs the network past download.
+#
+# The config file is removed and then written, not appended to: a second
+# "make <pkg>-rebuild" would otherwise land the [source.crates-io] block in
+# it twice and cargo stops on the duplicate key -- in this very hook, since
+# cargo reads the config before vendoring, so the build cannot recover.
+define AOS_CARGO_VENDOR
+	rm -f $(@D)/.cargo/config.toml
+	cd $(@D) && \
+	CARGO_HOME=$(BR_CARGO_HOME) \
+	$(HOST_DIR)/bin/cargo vendor --locked --versioned-dirs VENDOR \
+		>$(@D)/.cargo-vendor-config
+	mkdir -p $(@D)/.cargo
+	cp -f $(@D)/.cargo-vendor-config $(@D)/.cargo/config.toml
+endef
+
 # The live ISO stores the tree zisofs-compressed, and GRUB does not read a
 # large compressed file back correctly: a compressed /boot/microcode.img
 # reaches the kernel truncated and "Initramfs unpacking failed". Buildroot

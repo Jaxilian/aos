@@ -2,35 +2,36 @@
 
 ## The kernel
 
-The kernel version comes from one line in
+The kernel version is pinned in
 `br2ext/configs/aos_x86_64_defconfig`:
 
 ```
-BR2_LINUX_KERNEL_LATEST_VERSION=y
-```
-
-That means "whatever this Buildroot release considers latest" — currently
-**7.0.11**. It does not follow new kernels on its own; it moves when Buildroot
-itself is upgraded.
-
-To pin a specific version instead, replace that line with:
-
-```
 BR2_LINUX_KERNEL_CUSTOM_VERSION=y
-BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="7.1.12"
+BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="7.1.13"
+BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_1=y
 ```
+
+Pinned rather than `BR2_LINUX_KERNEL_LATEST_VERSION`, which moves whenever
+Buildroot is upgraded: a release has to build the same kernel next year as
+it did today. To move to a newer kernel, change the value -- and the
+headers series on the third line if the major.minor changed. That third
+line is not optional. The toolchain headers follow the kernel, and with a
+custom version Buildroot must be told which series; without it glibc drops
+out of the configuration silently (`grep BR2_TOOLCHAIN_BUILDROOT_GLIBC
+.config` comes back empty) and the build fails hours later in elfutils.
 
 Then rebuild the kernel and the image:
 
 ```sh
 make BR2_EXTERNAL=$PWD/br2ext aos_x86_64_defconfig
+grep BR2_TOOLCHAIN_BUILDROOT_GLIBC .config    # must be =y
 make linux-dirclean
 make
 ```
 
 Two things to watch. Buildroot's kernel patches and `linux-firmware` are tested
 against the version it ships, so a hand-picked kernel is less well tested. And
-the NVIDIA modules must support it — 610.57.04 builds against 7.x, but a much
+the NVIDIA modules must support it -- 610.57.04 builds against 7.x, but a much
 newer kernel may need a newer driver.
 
 ## Kernel options

@@ -127,6 +127,24 @@ else
 	echo "post-build.sh: no board/aos/authorized_keys -- SSH will accept no logins"
 fi
 
+# Stamp the build into os-release, so a running system can say exactly
+# what it is. VERSION_ID is the release: the overlay's value, overridden by
+# the tag when this commit of br2ext carries one (v0.2.0 -> 0.2.0), which is
+# the only way the number in the file and the number on the tag agree.
+# BUILD_ID is always the commit, "-dirty" if the tree had uncommitted
+# changes -- an image with -dirty in it is not a release, whatever its tag.
+OSREL="${TARGET_DIR}/usr/lib/os-release"
+BUILD_ID=$(git -C "${BR2_EXTERNAL_AOS_PATH}" describe --always --dirty --tags 2>/dev/null || echo unknown)
+TAG=$(git -C "${BR2_EXTERNAL_AOS_PATH}" describe --tags --exact-match --match 'v*' 2>/dev/null | sed 's/^v//')
+if [ -n "${TAG}" ]; then
+	sed -i -e "s/^VERSION=.*/VERSION=\"${TAG}\"/" \
+		-e "s/^VERSION_ID=.*/VERSION_ID=${TAG}/" \
+		-e "s/^PRETTY_NAME=.*/PRETTY_NAME=\"AOS ${TAG}\"/" "${OSREL}"
+fi
+sed -i '/^BUILD_ID=/d' "${OSREL}"
+echo "BUILD_ID=${BUILD_ID}" >> "${OSREL}"
+echo "post-build.sh: os-release $(grep ^VERSION_ID= "${OSREL}") BUILD_ID=${BUILD_ID}"
+
 # Pre-seed the package store. The packages a release image ships with are
 # apm packages -- the same signed artifacts a running system fetches --
 # installed here by the host's apm into the target's /opt/apm. board/aos/seed

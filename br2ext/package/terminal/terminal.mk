@@ -4,52 +4,36 @@
 #
 ################################################################################
 
-TERMINAL_VERSION = 0.1.0
-# The path symbol exists only while the package is enabled, and Buildroot
-# checks a local site for every configuration it parses, on or off; the
-# fallback is never used, it only lets a configuration without this
-# package -- the packages tree -- parse.
-TERMINAL_SITE = $(or $(call qstrip,$(BR2_PACKAGE_TERMINAL_PATH)),/nonexistent)
-TERMINAL_SITE_METHOD = local
+# A commit, not a tag -- see ade.mk. This one is v0.1.1.
+TERMINAL_VERSION = b38012ea9793ecdf15e644f6ead1f166e936eb4f
+TERMINAL_SITE = ssh://git@github.com/Jaxilian/terminal
+TERMINAL_SITE_METHOD = git
 TERMINAL_LICENSE = MIT, OFL-1.1 (Liberation Mono)
 TERMINAL_LICENSE_FILES = res/fonts/liberation-mono.ttf
 
-# Keep the developer's own target/ out of the rsync -- see the same note in
-# package/ade/ade.mk. The host and the cross build share the
-# x86_64-unknown-linux-gnu output directory, so host artifacts copied in
-# here would be picked up as if they were cross-built.
+# For a build from a working tree through TERMINAL_OVERRIDE_SRCDIR in
+# local.mk; see ade.mk for both lines.
 TERMINAL_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = --exclude=target
+ifneq ($(TERMINAL_OVERRIDE_SRCDIR),)
+TERMINAL_PRE_BUILD_HOOKS += AOS_CARGO_VENDOR
+endif
 
-# The same three as notepad, for the same reasons: libwayland-client and
-# libxkbcommon are linked, libvulkan is opened with dlopen by ash at startup
-# and so has to be on the image without appearing at link time. The pty and
-# termios calls come from rustix, which is all syscalls and needs nothing
-# here.
+# libwayland-client and libxkbcommon are linked; libvulkan is not, because
+# ash opens it with dlopen at startup. It still has to be on the image, so
+# vulkan-loader is a dependency here even though nothing refers to it at
+# link time. host-pkgconf is how the -sys crates find the first two. awin
+# and tgn come from the aos-sdk repository at a tag, named in Cargo.toml,
+# and are vendored with the rest of the crates.
 TERMINAL_DEPENDENCIES = \
 	host-pkgconf \
 	libxkbcommon \
 	vulkan-loader \
 	wayland
 
-# Vendor the crate dependencies into the build directory. pkg-cargo.mk
-# passes --offline --locked and fills the vendor directory in its download
-# step, which a local site does not have -- so without this the build stops
-# on the first dependency. See package/ade/ade.mk for why the config file is
-# rewritten rather than appended to.
-define TERMINAL_VENDOR
-	rm -f $(@D)/.cargo/config.toml
-	cd $(@D) && \
-	CARGO_HOME=$(BR_CARGO_HOME) \
-	$(HOST_DIR)/bin/cargo vendor --locked --versioned-dirs VENDOR \
-		>$(@D)/.cargo-vendor-config
-	mkdir -p $(@D)/.cargo
-	cp -f $(@D)/.cargo-vendor-config $(@D)/.cargo/config.toml
-endef
-TERMINAL_PRE_BUILD_HOOKS += TERMINAL_VENDOR
-
-# Copy the binary out rather than letting pkg-cargo.mk run "cargo install",
-# which would compile the whole tree a second time into a target directory
-# of its own to produce a file the build step already made.
+# Copy the binary out rather than letting pkg-cargo.mk run "cargo install".
+# That would compile the whole tree a second time into a target directory of
+# its own, which for this dependency graph is minutes of Vulkan and image
+# crates rebuilt to produce a file the build step already made.
 TERMINAL_PROFILE = $(if $(BR2_ENABLE_DEBUG),debug,release)
 
 define TERMINAL_INSTALL_TARGET_CMDS

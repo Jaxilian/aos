@@ -1,0 +1,27 @@
+# AOS: build the image and boot it in QEMU, nightly and on every v* tag.
+#
+# Needs a self-hosted runner: the build takes hours, the image is a
+# gigabyte, and boot-test.py needs /dev/kvm. Register one on a machine
+# that has all three, with the label "kvm".
+name: aos
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+jobs:
+  build-and-boot:
+    runs-on: [self-hosted, kvm]
+    timeout-minutes: 720
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./br2ext/board/aos/ci.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: boot-test
+          path: |
+            output/images/*.log
+            output/images/*.serial.txt
+            output/images/*.png
