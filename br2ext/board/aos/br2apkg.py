@@ -109,6 +109,8 @@ def main():
     ap.add_argument("--global", dest="global_", action="store_true",
                     help="sonames join the system loader path")
     ap.add_argument("--version")
+    ap.add_argument("--release", type=int, default=1,
+                    help="the package release: bump it when the same version is rebuilt")
     ap.add_argument("--license")
     ap.add_argument("--summary")
     ap.add_argument("--depends", action="append", default=[], metavar="org/name@track")
@@ -273,7 +275,7 @@ exec "$@"
         "name         = %s" % toml_str(pkg),
         "organization = %s" % toml_str(a.org),
         "version      = %s" % toml_str(semver),
-        "release      = 1",
+        "release      = %d" % a.release,
         "kind         = %s" % toml_str(a.kind),
         "summary      = %s" % toml_str(summary),
         "license      = %s" % toml_str(license_),

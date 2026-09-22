@@ -59,7 +59,15 @@ BR2_PACKAGE_LIBXKBCOMMON=y
 # the image has no libGL.so.1.
 BR2_PACKAGE_LIBGTK3=y
 BR2_PACKAGE_LIBGTK3_WAYLAND=y
-# BR2_PACKAGE_LIBGTK3_X11 is not set
+# The X11 backend as well, with no X server anywhere: Firefox's libxul
+# links GDK's X11 entry points directly (gdk_x11_display_get_xdisplay)
+# and will not load against a GTK3 that lacks them, Wayland or not.
+BR2_PACKAGE_LIBGTK3_X11=y
+# ...which kconfig allows only with a Mesa that provides libGL (GLX): the
+# X11 backend of GDK links it. GLX is never used on AOS -- there is no X
+# server -- but the symbols must resolve, and they do against the image's
+# libglvnd. Without this line the X11 backend is dropped silently.
+BR2_PACKAGE_MESA3D_OPENGL_GLX=y
 BR2_PACKAGE_LIBGTK3_DEMO=y
 BR2_PACKAGE_FONTCONFIG=y
 BR2_PACKAGE_ADWAITA_ICON_THEME=y
@@ -75,6 +83,8 @@ BR2_PACKAGE_XLIB_LIBXFIXES=y
 BR2_PACKAGE_XLIB_LIBXRANDR=y
 BR2_PACKAGE_XLIB_LIBXRENDER=y
 BR2_PACKAGE_XLIB_LIBXI=y
+# Xcursor is the one X library Firefox links that Electron does not.
+BR2_PACKAGE_XLIB_LIBXCURSOR=y
 
 # What Electron and Firefox need beyond the toolkit.
 BR2_PACKAGE_LIBNSS=y

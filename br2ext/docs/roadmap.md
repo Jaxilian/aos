@@ -144,11 +144,16 @@ In the order a new user meets them.
    one screen, with a restart prompt.
 6. **XWayland**, as an optional package ade-comp can host (smithay supports
    it), off by default.
-7. **The third-party proof points**, in apm-thirdparty: Visual Studio Code
-   (exists), Discord, Firefox, and Steam. Steam needs a 32-bit userspace,
-   which is a Buildroot decision with a wide blast radius; plan it as its own
-   piece of work. These are release gates, not extras: if they do not run,
-   the platform does not sell.
+7. **The third-party proof points**, in apm-thirdparty. *Firefox and
+   Discord done 2026-09-22*, beside Visual Studio Code: each installs from
+   the repository and puts a window on ade in the boot test. The runtime
+   they share (`runtime/gtk3`, now built by `board/aos/runtime-gtk3.sh`
+   rather than by hand) gained GTK3's X11 backend and libXcursor for
+   Firefox. Discord is its own bootstrap: the application lives and
+   updates in the account's home, as Discord does everywhere. Outstanding:
+   Steam, which needs a 32-bit userspace -- a Buildroot decision with a
+   wide blast radius; plan it as its own piece of work. These are release
+   gates, not extras: if they do not run, the platform does not sell.
 8. **Session basics a consumer expects.** *Sound done 2026-09-22*:
    PipeWire and WirePlumber as session services, a sink on QEMU's HDA card
    checked every desktop boot ([../PLATFORM.md](../PLATFORM.md) has the

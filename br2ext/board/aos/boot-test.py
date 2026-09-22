@@ -78,6 +78,13 @@ APM_PUB = os.path.join(OUT, "apm-pub")
 # this harness builds: the same commands, a real network path.
 APM_REPO = os.environ.get("APM_REPO")
 APM_KEY = os.environ.get("APM_KEY", os.path.join(BASE, "..", "apm-recipes", "keys", "apm.pub"))
+# The third-party repository the run adds: the published one, or a local
+# index directory (publish.sh --local in apm-thirdparty) copied into the
+# guest, so a recipe can be tested before it is published.
+APM_THIRDPARTY = os.environ.get("APM_THIRDPARTY", "https://github.com/Jaxilian/apm-thirdparty/releases/download/index")
+APM_TP_LOCAL = os.path.isdir(APM_THIRDPARTY)
+# Copied into the guest under its own name: /root/<basename>.
+APM_TP_GUEST = "file:///root/%s" % os.path.basename(APM_THIRDPARTY.rstrip("/"))
 
 CHECKS = [
     "systemctl is-system-running",
@@ -267,6 +274,12 @@ def monitor(cmd):
 # Visual Studio Code is a 280 MB download in the guest; the line is named
 # so the run can tell whether it landed before trying to open it.
 VSCODE = "apm install vscode --quiet 2>&1 | tail -3"
+# The two proof points of the roadmap's third-party tier: a browser and a
+# chat client the platform cannot sell without. Firefox is Mozilla's own
+# tarball, 80 MB; Discord ships a bootstrap that fetches the application
+# into the account's home at first start.
+FIREFOX = "apm install firefox --quiet 2>&1 | tail -3"
+DISCORD = "apm install discord --quiet 2>&1 | tail -3"
 
 # Slice 1 of the package manager: update, find, install, run, remove, on
 # the installed disk, from a one-package repository the host builds and
@@ -306,9 +319,12 @@ APM = [
     # The GTK3 runtime from the third-party repository, and a GTK program
     # started through its wrapper on the desktop; gtk_shot() below takes
     # the screendump.
-    "apm repo add thirdparty https://github.com/Jaxilian/apm-thirdparty/releases/download/index --third-party 2>/dev/null; apm update --force --quiet 2>&1 | tail -1",
+    "apm repo add thirdparty %s --third-party 2>/dev/null; apm update --force --quiet 2>&1 | tail -1"
+    % (APM_TP_GUEST if APM_TP_LOCAL else APM_THIRDPARTY),
     "apm install runtime/gtk3 --quiet 2>&1 | tail -1; ls /opt/apm/bin/",
     VSCODE,
+    FIREFOX,
+    DISCORD,
 ] if APM_REPO else []) + [
     "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
     "systemctl show ade.service -p Environment",
@@ -318,7 +334,7 @@ APM = [
 # installed goes, dependents before their dependencies, and the store must
 # be empty.
 CLEANUP = ("for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt/apm/bin/ /opt/apm/packages/"
-           % (" vscode runtime/gtk3 fonts rust terminal" if APM_REPO else ""))
+           % (" vscode firefox discord runtime/gtk3 fonts rust terminal" if APM_REPO else ""))
 
 
 def window_shot(ser, tag, exe, command, timeout=WINDOW_TIMEOUT):
@@ -326,7 +342,10 @@ def window_shot(ser, tag, exe, command, timeout=WINDOW_TIMEOUT):
     starts the explorer, and screendump before and after: a new window on
     ade is the program working end to end. `exe` is the process name to
     look for and kill. Returns True if the screen changed."""
-    env = "WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/admin"
+    # The session bus address too: su passes root's own through, and an
+    # Electron application then tries /run/user/0/bus and is refused.
+    env = ("WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/admin "
+           "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus")
     log = "/tmp/%s.log" % tag
     before = shot("%s-before" % tag, quiet=True)
     ser.run("rm -f %s; su -s /bin/sh admin -c '%s setsid %s >%s 2>&1 &'" % (log, env, command, log))
@@ -384,7 +403,7 @@ def apm_run(ser):
             ["scp", "-P", str(SSH_PORT), "-i", key, "-r",
              "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
              "-o", "ConnectTimeout=15", "-o", "BatchMode=yes",
-             APM_BIN, APM_PUB, "root@127.0.0.1:/root/"],
+             APM_BIN, APM_PUB] + ([APM_THIRDPARTY.rstrip("/")] if APM_TP_LOCAL else []) + ["root@127.0.0.1:/root/"],
             capture_output=True, text=True, timeout=120)
         if r.returncode == 0:
             break
@@ -395,7 +414,9 @@ def apm_run(ser):
     print("== scp ok after %d attempt(s)" % (attempt + 1))
     out = {}
     for c in APM:
-        out[c] = ser.run(c, timeout=900 if ("install r" in c or c == VSCODE) else 120)
+        # Every line here either finishes in a second or waits on the
+        # network through slirp; a slow link is not a failure.
+        out[c] = ser.run(c, timeout=900)
         print("\n$ %s\n%s" % (c, out[c]))
     if APM_REPO:
         window_shot(ser, "gtk", "gtk3-demo", "/opt/apm/bin/gtk3-run gtk3-demo")
@@ -406,6 +427,16 @@ def apm_run(ser):
                 "su -s /bin/sh admin -c 'timeout 60 /opt/apm/bin/code --version 2>&1 | head -20; echo exit=$?'", timeout=90))
             # Electron on llvmpipe: give it minutes, not the usual minute.
             window_shot(ser, "code", "code", "/opt/apm/bin/code --new-window --verbose", timeout=240)
+        if "Installed mozilla/firefox" in out.get(FIREFOX, ""):
+            print("\n$ firefox --version (as admin)\n%s" % ser.run(
+                "su -s /bin/sh admin -c 'timeout 60 /opt/apm/bin/firefox --version 2>&1 | head -5; echo exit=$?'", timeout=90))
+            window_shot(ser, "firefox", "firefox", "/opt/apm/bin/firefox", timeout=240)
+        if "Installed discord/discord" in out.get(DISCORD, ""):
+            # The bootstrap downloads the application first: minutes over
+            # slirp before there is a window to look for.
+            window_shot(ser, "discord", "Discord", "/opt/apm/bin/discord", timeout=600)
+            print("\n$ what the bootstrap left in the home\n%s" % ser.run(
+                "du -sh /home/admin/.local/share/discord* /home/admin/.config/discord 2>&1 | head -4"))
     out[CLEANUP] = ser.run(CLEANUP, timeout=120)
     print("\n$ %s\n%s" % (CLEANUP, out[CLEANUP]))
     # After the removes, the two `ls -A` headers must have nothing between
