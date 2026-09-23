@@ -193,7 +193,16 @@ In the order a new user meets them.
    Then: lock screen (`ade/lock` is a placeholder awaiting
    `ext-session-lock-v1`), screenshot, notifications, clipboard,
    drag-and-drop, Bluetooth, battery and power in the bar. Printing can
-   wait. Seen on the G14, 2026-09-23, small and to be fixed in the apps:
+   wait. Seen on the G14, 2026-09-23: Visual Studio Code died on Open
+   Folder -- GTK's file chooser aborts without its GSettings schema, and
+   the GTK3 runtime shipped the schema as XML only, since Buildroot
+   compiles schemas for the image at finalization and no package lists
+   the result; br2apkg compiles them now (runtime/gtk3 release 4), and
+   apm treats a newer release of the same version as an upgrade (v0.1.2),
+   which it did not before, so the fix could have reached nobody. There is
+   no desktop portal: Electron falls back to GTK's dialog, which is fine
+   until the portal becomes the way to file pickers and screen sharing.
+   Smaller, to be fixed in the apps:
    the terminal does not reflow its text when the window shrinks; in
    Files, a right-click on a sidebar entry (bookmarks, devices) paints the
    entry black until the menu closes; the desktop keyboard layout has no
