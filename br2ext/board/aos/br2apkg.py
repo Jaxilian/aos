@@ -243,6 +243,15 @@ exec "$@"
         # through it, since bare they would not find its libraries.
         commands = [a.wrapper]
 
+    # GSettings schemas: Buildroot compiles them once for the whole image at
+    # finalization, so no package's file list carries gschemas.compiled, and
+    # GLib reads nothing else -- GTK's file chooser then has no schema and
+    # the program hangs. Compile what the bundle brought, where its wrapper
+    # points GSETTINGS_SCHEMA_DIR.
+    schemas = os.path.join(work, "share", "glib-2.0", "schemas")
+    if os.path.isdir(schemas) and any(f.endswith(".gschema.xml") for f in os.listdir(schemas)):
+        subprocess.run([os.path.join(OUTPUT, "host", "bin", "glib-compile-schemas"), schemas], check=True)
+
     # A library bundle exports no commands unless it has a wrapper: its bin/
     # holds the tools its members happened to install, and for a foreign
     # ABI -- compat32's 32-bit gpg-error -- they cannot even run outside
