@@ -158,6 +158,11 @@ In the order a new user meets them.
    compositor: ade v0.1.6 offers it, with the render node in its
    feedback. On QEMU Xwayland refuses glamor on llvmpipe and serves
    software GLX; on a GPU it renders through the compositor's device.
+   Open: XWayland starts only with a session, so a package installed
+   into a running session has no DISPLAY until the next login (seen on
+   the G14: Steam installed and started in one sitting). Steam's launcher
+   says so now; the real answer is the compositor starting XWayland on
+   demand, when the package appears or the first X11 program asks.
 7. **The third-party proof points**, in apm-thirdparty. *Firefox and
    Discord done 2026-09-22*, beside Visual Studio Code: each installs from
    the repository and puts a window on ade in the boot test. The runtime
