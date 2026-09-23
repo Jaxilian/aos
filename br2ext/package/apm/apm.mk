@@ -5,7 +5,7 @@
 ################################################################################
 
 # A commit, not a tag -- see ade.mk. This one is v0.1.0.
-APM_VERSION = 66cd84c3fa62fac1592808918a50132abccfd510
+APM_VERSION = efb78a07326db0af93ee9269919ef28383f82943
 APM_SITE = ssh://git@github.com/Jaxilian/apm
 APM_SITE_METHOD = git
 APM_LICENSE = MIT
