@@ -47,11 +47,22 @@ br2ext/board/aos/rootfs-overlay/etc/vconsole.conf
 
 ## Two things worth knowing
 
-**This is the text console only.** A Wayland compositor does its own keyboard
-handling through libxkbcommon and ignores `/etc/vconsole.conf` entirely. If
-you write one, note that AOS does not currently ship libxkbcommon or the XKB
-keyboard data — Buildroot has `libxkbcommon` but not `xkeyboard-config`, so
-you will need to supply the layout data yourself.
+**This is the text console only.** The desktop does its own keyboard
+handling through libxkbcommon and ignores `/etc/vconsole.conf` entirely;
+`loadkeys` run from a terminal window fails ("Couldn't get a file
+descriptor referring to the console") because it wants a text console, and
+it would not change the desktop anyway. The desktop's layout comes from
+XKB's environment variables, which ade reads from `/etc/ade/environment`:
+
+```sh
+XKB_DEFAULT_LAYOUT=se
+```
+
+Log out and in (or reboot) for it to take. XKB names differ from console
+ones: Swedish is `se`, Norwegian `no`, Danish `dk`, Finnish `fi`, German
+`de`, French `fr`, UK `gb`; variants go in `XKB_DEFAULT_VARIANT`, e.g.
+`dvorak`. Until the Settings application exists, this file is the
+setting.
 
 **Serial consoles are unaffected.** Key translation there happens in your
 terminal emulator, not in AOS, so the setting does nothing for a login on

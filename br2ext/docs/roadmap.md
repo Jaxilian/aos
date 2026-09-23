@@ -188,7 +188,13 @@ In the order a new user meets them.
    Then: lock screen (`ade/lock` is a placeholder awaiting
    `ext-session-lock-v1`), screenshot, notifications, clipboard,
    drag-and-drop, Bluetooth, battery and power in the bar. Printing can
-   wait.
+   wait. Seen on the G14, 2026-09-23, small and to be fixed in the apps:
+   the terminal does not reflow its text when the window shrinks; in
+   Files, a right-click on a sidebar entry (bookmarks, devices) paints the
+   entry black until the menu closes; the desktop keyboard layout has no
+   setting yet -- `/etc/ade/environment` with `XKB_DEFAULT_LAYOUT=se` is
+   the way today ([keyboard.md](keyboard.md)), the Settings app is the
+   way it should be.
 
 ## Phase 3 — Stability and performance
 
