@@ -6,7 +6,7 @@ screendump the VGA output.
     ./br2ext/board/aos/boot-test.py usb       the ISO as a USB mass-storage
                                               device, which is what a stick
                                               written with dd looks like
-    ./br2ext/board/aos/boot-test.py install   live ISO + a blank 16G disk,
+    ./br2ext/board/aos/boot-test.py install   live ISO + a blank 32G disk,
                                               then runs aos-install on it
     ./br2ext/board/aos/boot-test.py disk      boot what install left behind
     ./br2ext/board/aos/boot-test.py desktop   live ISO, but checks the ade
@@ -91,6 +91,10 @@ CHECKS = [
     # The diagnostics bundle, every boot: it must run to completion on a
     # read-only root and contain what a bug report is read from.
     "aos-report /tmp/r.tgz >/dev/null && tar tzf /tmp/r.tgz | tr '\\n' ' ' | cut -c1-160",
+    # ldconfig: what apm's library packages are exposed through. It was
+    # missing once -- glibc-utils enabled after glibc had been built, and
+    # Buildroot never re-ran the install -- and nothing noticed.
+    "ls -l /usr/bin/ldconfig /sbin/ldconfig 2>&1 | cut -c1-90",
     "systemctl --failed --no-pager",
     "journalctl -b -p err --no-pager | tail -30",
     "systemd-analyze",
@@ -284,6 +288,12 @@ DISCORD = "apm install discord --quiet 2>&1 | tail -3"
 # start is the client updating itself into the home -- minutes over slirp
 # before a window.
 STEAM = "apm install steam --quiet 2>&1 | tail -3"
+# The 32-bit runtime on its own: Steam's client no longer needs it, the
+# sandbox's --lib32 is proven with it below.
+COMPAT32 = "apm install runtime/compat32 --quiet 2>&1 | tail -3"
+# XWayland for it: installing the package is the switch, the compositor
+# starts it at the next session, so the session is restarted here.
+XWAYLAND = "apm install xwayland --quiet 2>&1 | tail -4"
 
 # Slice 1 of the package manager: update, find, install, run, remove, on
 # the installed disk, from a one-package repository the host builds and
@@ -302,7 +312,8 @@ APM = [
     "install -D -m 755 /root/apm /usr/bin/apm && apm help | head -1",
     "apm repo add main %s" % (APM_REPO or "file:///root/apm-pub"),
     "apm key trust /root/apm-pub/apm.pub",
-    "apm update",
+    # The first fetch after boot: resolved can still be settling.
+    "for i in $(seq 30); do getent hosts github.com >/dev/null 2>&1 && break; sleep 1; done; apm update",
     "apm find ell",
     "apm install hello --quiet",
     "ls -l /opt/apm/bin/ /opt/apm/packages/aos/hello/",
@@ -334,6 +345,10 @@ APM = [
     VSCODE,
     FIREFOX,
     DISCORD,
+    XWAYLAND,
+    COMPAT32,
+    "systemctl restart ade; sleep 12; pgrep -a Xwayland | cut -c1-80; pgrep -c -x ade-shell; "
+    "tr '\\0' '\\n' < /proc/$(pgrep -x ade-shell | head -1)/environ | grep ^DISPLAY=; journalctl -b -u ade --no-pager | grep -v 'ade-shell\\[' | tail -12 | cut -c17-200",
     STEAM,
 ] if APM_REPO else []) + [
     "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
@@ -344,31 +359,46 @@ APM = [
 # installed goes, dependents before their dependencies, and the store must
 # be empty.
 CLEANUP = ("for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt/apm/bin/ /opt/apm/packages/"
-           % (" vscode firefox discord steam runtime/gtk3 runtime/compat32 fonts rust terminal" if APM_REPO else ""))
+           % (" vscode firefox discord steam runtime/xwayland runtime/gtk3 runtime/compat32 fonts rust terminal" if APM_REPO else ""))
 
 
-def window_shot(ser, tag, exe, command, timeout=WINDOW_TIMEOUT):
+def window_shot(ser, tag, exe, command, timeout=WINDOW_TIMEOUT, wait_for=None):
     """Start `command` through the desktop user's session, the way probe()
     starts the explorer, and screendump before and after: a new window on
     ade is the program working end to end. `exe` is the process name to
-    look for and kill. Returns True if the screen changed."""
+    look for and kill. `wait_for` names a process (a pgrep -f pattern) the
+    screen change does not count before: a program whose first window is
+    an updater's, and the real one comes later. Returns True if the screen
+    changed."""
     # The session bus address too: su passes root's own through, and an
     # Electron application then tries /run/user/0/bus and is refused.
     env = ("WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/admin "
-           "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus")
+           "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus DISPLAY=:0")
     log = "/tmp/%s.log" % tag
     before = shot("%s-before" % tag, quiet=True)
     ser.run("rm -f %s; su -s /bin/sh admin -c '%s setsid %s >%s 2>&1 &'" % (log, env, command, log))
     changed = False
-    for _ in range(timeout // 3):
+    # By the clock, not by count: a screendump costs seconds of its own,
+    # and counting iterations turned fifteen minutes into an hour.
+    t_end = time.time() + timeout
+    while time.time() < t_end:
         time.sleep(3)
         after = shot("%s-after" % tag, quiet=True)
         if after and before and abs(after[0] - before[0]) > 0.015:
+            if wait_for and not ser.run("pgrep -f %s >/dev/null && echo up" % wait_for).strip().endswith("up"):
+                continue
             changed = True
             break
-    time.sleep(2)
+    # The window that just appeared is still drawing itself.
+    time.sleep(60 if wait_for else 2)
     shot("%s-after" % tag)
-    print("\n$ pgrep -fa %s; cat %s\n%s" % (exe, log, ser.run("pgrep -fa %s | head -4; head -c 2000 %s" % (exe, log))))
+    out = ser.run("pgrep -fa %s | head -4; head -c 2000 %s" % (exe, log))
+    print("\n$ pgrep -fa %s; cat %s\n%s" % (exe, log, out))
+    if "No space left" in out:
+        # Seen twice with 17 GB free, right after a large install; the
+        # numbers at that moment are what will explain it.
+        print("\n$ (no space) df; df -i; dmesg\n%s" % ser.run(
+            "df -h /home /tmp; df -i /home | tail -1; dmesg | tail -8 | cut -c1-160"))
     ser.run("pkill -f %s; sleep 1" % exe)
     return changed
 
@@ -450,17 +480,30 @@ def apm_run(ser):
             window_shot(ser, "discord", "Discord", "/opt/apm/bin/discord", timeout=600)
             print("\n$ what the bootstrap left in the home\n%s" % ser.run(
                 "du -sh /home/admin/.local/share/discord* /home/admin/.config/discord 2>&1 | head -4"))
-        if "Installed valve/steam" in out.get(STEAM, ""):
+        if "Installed runtime/xwayland" in out.get(XWAYLAND, ""):
+            # An X11 client on the desktop: GTK3's X11 backend through
+            # XWayland, drawn by ade like any window.
+            window_shot(ser, "x11", "gtk3-demo", "env GDK_BACKEND=x11 /opt/apm/bin/gtk3-run gtk3-demo")
+        if "Installed runtime/compat32" in out.get(COMPAT32, ""):
             # A 32-bit program runs at all: the loader path resolves inside
             # the sandbox and nowhere else.
             print("\n$ 32-bit in and out of the sandbox\n%s" % ser.run(
                 "ls -l /lib/ld-linux.so.2 2>&1; "
                 "su -s /bin/sh admin -c 'aos-sandbox --lib32 runtime/compat32 --package runtime/compat32 -- "
                 "sh -c \"ls -l /lib/ld-linux.so.2; file -L /lib/libc.so.6 2>/dev/null | cut -c1-80; /lib/ld-linux.so.2 --version | head -1\"' 2>&1"))
-            window_shot(ser, "steam", "steam", "/opt/apm/bin/steam", timeout=900)
+        if "Installed valve/steam" in out.get(STEAM, ""):
+            # The first start downloads the client itself, half a gigabyte
+            # over slirp, then the beta package it is opted into, before
+            # there is anything to draw; the wait covers that and the start
+            # after it.
+            window_shot(ser, "steam", "steam", "/opt/apm/bin/steam", timeout=2400, wait_for="steamrt64/steam")
             print("\n$ steam's own log\n%s" % ser.run(
-                "tail -25 /home/admin/.steam/steam/logs/bootstrap_log.txt 2>&1 | cut -c1-160; "
-                "ls /home/admin/.local/share/Steam/ 2>&1 | head; du -sh /home/admin/.local/share/Steam 2>&1", timeout=60))
+                "df -h /home /tmp /run 2>&1 | tail -3; "
+                "su -s /bin/sh admin -c 'aos-sandbox -- df -h /home/admin /tmp /run 2>&1 | tail -3'; echo ---; "
+                "tail -12 /home/admin/.steam/steam/logs/bootstrap_log.txt 2>&1 | cut -c1-160; echo ---; "
+                "grep -ihE 'display|wayland|x11|xcb|error|fail|steamwebhelper|crash' "
+                "/home/admin/.local/share/Steam/logs/*.txt /home/admin/.steam/steam/logs/*.txt 2>/dev/null | grep -v 'Download\\|http error' | tail -20 | cut -c1-160; "
+                "du -sh /home/admin/.local/share/Steam 2>&1", timeout=60))
     out[CLEANUP] = ser.run(CLEANUP, timeout=120)
     print("\n$ %s\n%s" % (CLEANUP, out[CLEANUP]))
     # After the removes, the two `ls -A` headers must have nothing between
@@ -526,15 +569,18 @@ def qemu_command():
     # desktop gets virtio-vga, which is also what run-qemu.sh hands you.
     # usb-tablet comes with it so the pointer is absolute; the xHCI
     # controller is needed because "pc" has no USB bus of its own.
+    # Every mode that runs the desktop gets it; virtio-gpu also has a render
+    # node, which GBM, and so GLX through XWayland, needs.
+    if MODE in ("desktop", "probe", "soak", "disk", "apm"):
+        cmd += ["-device", "virtio-vga"]
+    else:
+        cmd += ["-vga", "std"]
     if MODE in ("desktop", "probe", "soak"):
         make_stick()
-        cmd += ["-device", "virtio-vga",
-                "-device", "qemu-xhci,id=xhci",
+        cmd += ["-device", "qemu-xhci,id=xhci",
                 "-device", "usb-tablet,bus=xhci.0",
                 "-drive", "if=none,id=usb1,format=raw,file=%s" % STICK,
                 "-device", "usb-storage,bus=xhci.0,drive=usb1"]
-    else:
-        cmd += ["-vga", "std"]
     cdrom = ["-drive", "if=none,id=cd0,media=cdrom,format=raw,file=%s" % ISO,
              "-device", "ide-cd,drive=cd0,bootindex=0"]
     if MODE in ("live", "desktop", "probe", "soak"):
@@ -548,8 +594,11 @@ def qemu_command():
     if MODE == "install":
         if os.path.exists(DISK):
             os.unlink(DISK)
+        # Sparse, so the size costs nothing until used. 32 GB: the apm run
+        # installs Rust, Visual Studio Code, Discord, Firefox and Steam's
+        # 2.4 GB of client beside a 4 GB swap file, and 16 GB filled up.
         with open(DISK, "wb") as f:
-            f.truncate(16 * 1024 ** 3)
+            f.truncate(32 * 1024 ** 3)
         return cmd + cdrom + ["-drive", "if=none,id=hd0,format=raw,file=%s" % DISK,
                               "-device", "virtio-blk-pci,drive=hd0,bootindex=1"]
     if MODE in ("disk", "apm"):
@@ -971,9 +1020,6 @@ def soak(ser, q):
     if not count(ser, "ade-shell"):
         print("!! ade-shell is not running")
         return False
-    for c in EXTRA:
-        print("\n$ %s\n%s" % (c, ser.run(c)))
-
     rounds = max(1, SOAK_MINUTES * 60 // SOAK_INTERVAL)
     print("\n== soak: %d rounds, one every %ds, baseline after round %d"
           % (rounds, SOAK_INTERVAL, SOAK_WARMUP))
@@ -1056,7 +1102,7 @@ def soak(ser, q):
 
 
 # Ad-hoc diagnostics without editing the lists above: BOOT_TEST_EXTRA holds
-# commands separated by " ;; ", run after the mode's own checks.
+# commands separated by " ;; ", run after the standing checks in every mode.
 EXTRA = [c.strip() for c in os.environ.get("BOOT_TEST_EXTRA", "").split(" ;; ") if c.strip()]
 
 
@@ -1089,7 +1135,7 @@ def main():
                 ok = True
                 ser.send("stty -echo cols 200 rows 50; export SYSTEMD_PAGER= PAGER=cat\n")
                 ser.read_until(b"# ", 10)
-                for c in CHECKS:
+                for c in CHECKS + EXTRA:
                     print("\n$ %s\n%s" % (c, ser.run(c)))
                 if MODE in ("live", "usb"):
                     print("\n$ (from the host) ssh -p %d root@127.0.0.1\n%s"
@@ -1100,7 +1146,7 @@ def main():
                     ser.send("poweroff\n")
                     ser.read_until(b"reboot: Power down", 90)
                 if MODE == "desktop":
-                    for c in DESKTOP + EXTRA:
+                    for c in DESKTOP:
                         print("\n$ %s\n%s" % (c, ser.run(c)))
                     ok = desktop(ser, q)
                 if MODE == "probe":

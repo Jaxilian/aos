@@ -26,12 +26,22 @@
 #                      the other's class. Without it, /lib is /usr/lib.
 #   $HOME              read-write; --no-home gives a private, empty one
 #   $XDG_RUNTIME_DIR   the session's Wayland, PipeWire and D-Bus sockets
-#   /run/udev /run/dbus
-#                      device enumeration for SDL and libinput, the system bus
+#   /tmp/.X11-unix     XWayland's socket, when the xwayland package is
+#                      installed and the compositor started it
+#   /run/udev /run/dbus /run/systemd/resolve
+#                      device enumeration for SDL and libinput, the system
+#                      bus, and the resolver: /etc/resolv.conf is a symlink
+#                      into the last, and /run in here is otherwise empty --
+#                      without it a program has no DNS and reports every
+#                      server as unreachable
 #   /dev/dri /dev/snd /dev/input
 #                      the GPU, the sound card, controllers -- through the
 #                      ACL logind set for the seat, since the uid is kept
 #   /proc /tmp /run    this sandbox's own
+#
+# IPC is not unshared: X11's MIT-SHM and some game launchers use System V
+# shared memory to talk to a server outside, and the point here is what a
+# program sees on disk, not that.
 #
 # Not visible: the rest of /opt/apm (other packages, the store's state,
 # the bin farm -- so a program is named by its store path), other
@@ -88,6 +98,8 @@ exec bwrap \
 	--dev-bind-try /dev/input /dev/input \
 	--ro-bind-try /run/udev /run/udev \
 	--ro-bind-try /run/dbus /run/dbus \
+	--ro-bind-try /run/systemd/resolve /run/systemd/resolve \
+	--ro-bind-try /tmp/.X11-unix /tmp/.X11-unix \
 	$RUN_BIND $HOME_BIND $BINDS \
-	--unshare-pid --unshare-ipc --unshare-uts --die-with-parent \
+	--unshare-pid --unshare-uts --die-with-parent \
 	-- "$@"

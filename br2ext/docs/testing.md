@@ -82,7 +82,7 @@ black.
 ```sh
 ./br2ext/board/aos/boot-test.py live      # the ISO in an optical drive
 ./br2ext/board/aos/boot-test.py usb       # the ISO as a USB mass-storage device
-./br2ext/board/aos/boot-test.py install   # live ISO + blank disk, runs aos-install
+./br2ext/board/aos/boot-test.py install   # live ISO + blank 32 GB disk, runs aos-install
 ./br2ext/board/aos/boot-test.py disk      # boot what install left behind
 ./br2ext/board/aos/boot-test.py desktop   # the ade session
 ./br2ext/board/aos/boot-test.py soak      # the session held and churned; see below
@@ -91,8 +91,8 @@ black.
 It writes `<mode>.serial.txt` and `<mode>.screen.png` next to the images.
 
 For a one-off look inside a booted guest without editing the check lists,
-put commands in `BOOT_TEST_EXTRA`, separated by ` ;; `; `desktop` runs them
-after its own checks:
+put commands in `BOOT_TEST_EXTRA`, separated by ` ;; `; every mode runs
+them after the standing checks:
 
 ```sh
 BOOT_TEST_EXTRA="lsmod | grep snd ;; su - admin -c 'XDG_RUNTIME_DIR=/run/user/1000 wpctl status'" \

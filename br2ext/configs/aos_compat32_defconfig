@@ -38,3 +38,40 @@ BR2_SYSTEM_BIN_SH_NONE=y
 
 # What every 32-bit binary links besides libc.
 BR2_PACKAGE_ZLIB=y
+
+# A 32-bit libGL. Steam's steamui.so links the GLX flavour of it and will
+# not load without one, so here is Mesa with GLX through libglvnd, and the
+# X client libraries GLX is made of. softpipe is its one driver: no LLVM
+# in 32-bit, and what the client itself draws with it is a login window.
+# A 32-bit game gets software GL until a 32-bit hardware driver is worth
+# its build; 64-bit games, which is nearly all of them under Proton, use
+# the image's own Vulkan and never come here.
+BR2_PACKAGE_LIBDRM=y
+BR2_PACKAGE_LIBGLVND=y
+BR2_PACKAGE_MESA3D=y
+BR2_PACKAGE_MESA3D_OPENGL_GLX=y
+BR2_PACKAGE_MESA3D_OPENGL_EGL=y
+BR2_PACKAGE_MESA3D_GBM=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_SOFTPIPE=y
+BR2_PACKAGE_XORG7=y
+BR2_PACKAGE_XLIB_LIBX11=y
+BR2_PACKAGE_XLIB_LIBXEXT=y
+BR2_PACKAGE_XLIB_LIBXFIXES=y
+BR2_PACKAGE_XLIB_LIBXDAMAGE=y
+BR2_PACKAGE_XLIB_LIBXXF86VM=y
+BR2_PACKAGE_XLIB_LIBXRANDR=y
+BR2_PACKAGE_XLIB_LIBXSHMFENCE=y
+BR2_PACKAGE_XLIB_LIBXRENDER=y
+BR2_PACKAGE_XLIB_LIBXI=y
+
+# The rest of what Valve's own launcher package lists as the host's 32-bit
+# side (debian/control, steam-libs-i386), and what the client asked for
+# first: libnsl, which glibc no longer ships and Buildroot does not
+# package -- br2ext/package/libnsl -- and libcrypt, likewise out of glibc.
+# eudev only for its libudev; controllers are found through it.
+BR2_PACKAGE_LIBNSL=y
+BR2_PACKAGE_LIBXCRYPT=y
+BR2_PACKAGE_LIBGPG_ERROR=y
+BR2_PACKAGE_XLIB_LIBXINERAMA=y
+BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
+BR2_PACKAGE_EUDEV=y

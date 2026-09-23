@@ -38,6 +38,7 @@ apm on PATH or in APM.
 """
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -114,6 +115,8 @@ def main():
     ap.add_argument("--license")
     ap.add_argument("--summary")
     ap.add_argument("--depends", action="append", default=[], metavar="org/name@track")
+    ap.add_argument("--extra", action="append", default=[], metavar="pkg:./target/path",
+                    help="one file of another package, for a bundle that must not carry the rest of it")
     ap.add_argument("--launcher", action="store_true",
                     help="derive [launcher] from the .desktop the package installed")
     ap.add_argument("--out", default=os.getcwd())
@@ -137,6 +140,19 @@ def main():
     for member in a.packages:
         with open(os.path.join(build_dir(member), ".files-list.txt")) as f:
             files += [line.rstrip("\n").split(",", 1)[1] for line in f if line.startswith(member + ",")]
+    # --extra pkg:./path (a glob): single files borrowed from a package that
+    # is not a member, for a bundle that must not carry the rest of it --
+    # Mesa's GLX vendor library without Mesa.
+    for e in a.extra:
+        pkg_name, _, pattern = e.partition(":")
+        if not pattern.startswith("./"):
+            sys.exit("br2apkg: --extra wants pkg:./target/path, got %s" % e)
+        with open(os.path.join(build_dir(pkg_name), ".files-list.txt")) as f:
+            hits = [line.rstrip("\n").split(",", 1)[1] for line in f
+                    if line.startswith(pkg_name + ",") and fnmatch.fnmatch(line.rstrip("\n").split(",", 1)[1], pattern)]
+        if not hits:
+            sys.exit("br2apkg: --extra %s matched nothing in %s" % (pattern, pkg_name))
+        files += hits
     files = sorted(set(files))
     if not files:
         sys.exit("br2apkg: %s installed nothing to the target" % pkg)
@@ -227,6 +243,13 @@ exec "$@"
         # through it, since bare they would not find its libraries.
         commands = [a.wrapper]
 
+    # A library bundle exports no commands unless it has a wrapper: its bin/
+    # holds the tools its members happened to install, and for a foreign
+    # ABI -- compat32's 32-bit gpg-error -- they cannot even run outside
+    # the sandbox. They stay in the payload for whoever runs in there.
+    if a.kind == "lib" and not a.wrapper:
+        commands = []
+
     # An app's .desktop entry: apm generates its own from [launcher], so the
     # installed file becomes the manifest table and is not shipped.
     launcher = None
@@ -299,7 +322,11 @@ exec "$@"
                      "categories = [%s]" % ", ".join(toml_str(c) for c in launcher["categories"]),
                      "terminal   = false"]
     if a.global_ and sonames:
-        manifest += ["", "[hooks]", 'post_install = "ldconfig"', 'post_remove  = "ldconfig"']
+        # No ldconfig hook: apm runs "ldconfig <farm>" itself for a global
+        # package, and a bare "ldconfig" after it rebuilds the cache from the
+        # trusted directories alone -- there is no ld.so.conf on AOS -- and
+        # throws the farm out again eleven milliseconds later.
+        pass
     with open(os.path.join(work, "manifest.toml"), "w") as f:
         f.write("\n".join(manifest) + "\n")
 

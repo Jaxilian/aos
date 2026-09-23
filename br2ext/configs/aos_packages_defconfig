@@ -72,6 +72,15 @@ BR2_PACKAGE_LIBGTK3_DEMO=y
 BR2_PACKAGE_FONTCONFIG=y
 BR2_PACKAGE_ADWAITA_ICON_THEME=y
 
+# XWayland: an X server that is a Wayland client, for the programs that
+# still need X11 -- Steam's client, until its CEF learns Wayland. It ships
+# as an apm package, not in the image: installing it is the switch that
+# turns the compatibility layer on, and ade-comp starts it when it is on
+# PATH. glamor renders through the image's EGL; no GLX, there is no libGL
+# for X clients to want and Steam brings its own.
+BR2_PACKAGE_XWAYLAND=y
+BR2_PACKAGE_XAPP_XKBCOMP=y
+
 # X client libraries. No X server, but every one of the target
 # applications links these and will not start without them.
 BR2_PACKAGE_XORG7=y

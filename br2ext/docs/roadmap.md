@@ -142,18 +142,42 @@ In the order a new user meets them.
    clearly separated: search, install, update, remove, and who signed it.
 5. **Updates in one place.** Base OS (Phase 1, item 5) and applications on
    one screen, with a restart prompt.
-6. **XWayland**, as an optional package ade-comp can host (smithay supports
-   it), off by default.
+6. **XWayland.** *Done 2026-09-23*: `runtime/xwayland` in apm-thirdparty,
+   built out of the packages tree by `board/aos/runtime-xwayland.sh`.
+   Installing it is the switch: ade-comp starts Xwayland at the next
+   session when it finds one on PATH, manages its windows like Wayland
+   ones (`comp/src/ade/xw.rs`), and every program started from the session
+   inherits DISPLAY; without the package the code is inert. The boot test
+   restarts the session after installing it and draws GTK3's demo through
+   the X11 backend. What the OS itself had to gain for it: GLX. The GLX
+   client library must share the image's libgallium (its DRI3 loader is
+   built only with the X11 platform), so it cannot come from a package;
+   the image's Mesa now builds GLX, which brings libGL, the X client
+   libraries and xkbcomp into the OS. No official software uses them. And
+   glamor, Xwayland's GPU path, wants linux-dmabuf version 4 from the
+   compositor: ade v0.1.6 offers it, with the render node in its
+   feedback. On QEMU Xwayland refuses glamor on llvmpipe and serves
+   software GLX; on a GPU it renders through the compositor's device.
 7. **The third-party proof points**, in apm-thirdparty. *Firefox and
    Discord done 2026-09-22*, beside Visual Studio Code: each installs from
    the repository and puts a window on ade in the boot test. The runtime
    they share (`runtime/gtk3`, now built by `board/aos/runtime-gtk3.sh`
    rather than by hand) gained GTK3's X11 backend and libXcursor for
    Firefox. Discord is its own bootstrap: the application lives and
-   updates in the account's home, as Discord does everywhere. Outstanding:
-   Steam, which needs a 32-bit userspace -- a Buildroot decision with a
-   wide blast radius; plan it as its own piece of work. These are release
+   updates in the account's home, as Discord does everywhere. *Steam done
+   2026-09-23*: Valve's launcher package as a recipe (`st/valve.steam`),
+   its 64-bit SteamRT3 client selected by `STEAM_FORCE_CLIENT`, running in
+   `aos-sandbox` with `runtime/compat32` bound at `/lib` for the one 32-bit
+   program left, the bootstrap's updater; the sign-in window draws on ade
+   through XWayland with GLX (`steam-after.screen.png` in the boot test).
+   Games are the next proof, on hardware: Proton needs the GPU, and the
+   compositor's direct-scanout path (Phase 3, item 4). These are release
    gates, not extras: if they do not run, the platform does not sell.
+   Open: twice the boot test saw a program's first `mkdir` in the home
+   fail with "No space left on device" on a disk with 17 GB free, right
+   after a large install (Steam once, Discord once); not reproduced by
+   hand, not understood, to be caught with `df`, `df -i` and `dmesg` at
+   the moment it happens.
 8. **Session basics a consumer expects.** *Sound done 2026-09-22*:
    PipeWire and WirePlumber as session services, a sink on QEMU's HDA card
    checked every desktop boot ([../PLATFORM.md](../PLATFORM.md) has the

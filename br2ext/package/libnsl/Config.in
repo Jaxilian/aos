@@ -1,0 +1,17 @@
+config BR2_PACKAGE_LIBNSL
+	bool "libnsl"
+	depends on BR2_TOOLCHAIN_HAS_THREADS # libtirpc
+	depends on BR2_USE_MMU # libtirpc
+	depends on !BR2_STATIC_LIBS # libtirpc
+	select BR2_PACKAGE_LIBTIRPC
+	help
+	  The NIS/YP client library glibc dropped in 2.32, as its own
+	  project on libtirpc. Nothing on AOS uses NIS; this exists
+	  because Steam's steamui.so still links libnsl.so.1, so the
+	  32-bit compat32 runtime carries it.
+
+	  https://github.com/thkukuk/libnsl
+
+comment "libnsl needs a toolchain w/ threads, dynamic library"
+	depends on BR2_USE_MMU
+	depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS

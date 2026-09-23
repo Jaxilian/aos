@@ -76,6 +76,7 @@ libseccomp 2.6.0
 | wayland | 1.24.0 (libwayland only — no compositor) |
 | wayland-protocols | 1.48 |
 | aos-nvidia / aos-nvidia-open | 610.57.04 |
+| libX11, libxcb and the X client libraries | for GLX, the X11 compatibility layer's; no X server |
 
 Gallium drivers: iris, crocus, radeonsi, r600, nouveau, llvmpipe, zink.
 Vulkan drivers: Intel, AMD, llvmpipe (lvp), virtio, and NVIDIA from the blob.
@@ -91,7 +92,7 @@ There is no X server. The Wayland compositor is ade, below.
 | libinput | 1.31.3 |
 | libxkbcommon | 1.9.2 |
 | seatd | 0.9.1 (libseat only; it talks to logind) |
-| xkeyboard-config | 2.38 (keymap data, no X11) |
+| xkeyboard-config | 2.38 (keymap data; xkbcomp for XWayland) |
 | files | 0.1.0 (a custom package) |
 | apm | 0.1.0 (a custom package) |
 

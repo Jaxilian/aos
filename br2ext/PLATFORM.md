@@ -204,7 +204,9 @@ enable `BR2_PACKAGE_AOS_NVIDIA` to include them.
 - **A second desktop.** ade is the compositor and the shell; nothing else
   ships and nothing else is supported.
 - **An X server.** XWayland is a compatibility layer, off by default, turned
-  on by the user. No official package depends on it.
+  on by the user: installing `runtime/xwayland` from the third-party
+  repository is the switch, and the compositor starts it at the next
+  session. No official package depends on it.
 - **A second way to install software.** apm is the only one. No tarballs,
   no `curl | sh`, no vendor installers.
 - **A base-OS update mechanism, a GUI installer, a settings application and
@@ -224,6 +226,9 @@ cargo build --release
 `libglvnd` means your compositor links against `libEGL.so.1` and
 `libGL.so.1` generically, and the right vendor -- Mesa or NVIDIA -- is
 selected per device at run time. Do not link a vendor library directly.
+GLX (`libGL.so.1` over X11) and the X client libraries are in the image
+for the X11 compatibility layer alone: native software reaches GL through
+EGL on Wayland, and no official package links X11.
 
 Vulkan ICDs are registered in `/usr/share/vulkan/icd.d/`, EGL vendors in
 `/usr/share/glvnd/egl_vendor.d/`, and EGL external platforms in

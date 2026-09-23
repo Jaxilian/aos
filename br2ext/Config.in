@@ -25,5 +25,6 @@ comment "Graphics"
 
 source "$BR2_EXTERNAL_AOS_PATH/package/aos-nvidia-open/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/aos-nvidia/Config.in"
+source "$BR2_EXTERNAL_AOS_PATH/package/libnsl/Config.in"
 
 endmenu

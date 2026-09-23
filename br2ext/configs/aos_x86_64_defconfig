@@ -326,16 +326,23 @@ BR2_PACKAGE_LINUX_FIRMWARE_BRCM_BCM43XXX=y
 # lets the Mesa drivers and the NVIDIA blob coexist and be selected per
 # device -- exactly what a hybrid Intel + NVIDIA laptop needs.
 #
-# Note there is no OPENGL_GL symbol: Buildroot offers OPENGL_GLX, which needs
-# X11. Desktop GL is reached through EGL here.
+# Desktop GL is reached through EGL by everything native. GLX -- libGL over
+# X11 -- is here for one reason: the X11 compatibility layer. XWayland
+# comes from the third-party repository, but the GLX client library it
+# serves must share this image's libgallium (its DRI3 loader lives in
+# there and is built only with the X11 platform), so it cannot come from a
+# package. XORG7 is the kconfig umbrella for the X client libraries; no X
+# server is built. No official software uses any of it.
 ################################################################################
 BR2_PACKAGE_LIBDRM=y
+BR2_PACKAGE_XORG7=y
 BR2_PACKAGE_LIBGLVND=y
 BR2_PACKAGE_MESA3D=y
 # Gates iris, radeonsi, llvmpipe and the Intel/AMD Vulkan drivers. Without
 # it kconfig silently drops all of them and you get a Mesa with almost no
 # hardware support. Pulls in LLVM, which dominates the build time.
 BR2_PACKAGE_MESA3D_LLVM=y
+BR2_PACKAGE_MESA3D_OPENGL_GLX=y
 BR2_PACKAGE_MESA3D_OPENGL_EGL=y
 BR2_PACKAGE_MESA3D_OPENGL_ES=y
 BR2_PACKAGE_MESA3D_GBM=y
@@ -372,9 +379,8 @@ BR2_PACKAGE_LIBINPUT=y
 BR2_PACKAGE_LIBXKBCOMMON=y
 BR2_PACKAGE_SEATD=y
 
-# The keymap data libxkbcommon compiles at startup. Data only -- the X11
-# pieces its Config.in selects are all conditional on BR2_PACKAGE_XORG7,
-# which stays off.
+# The keymap data libxkbcommon compiles at startup; with XORG7 on (see
+# Mesa) it also brings xkbcomp, which XWayland runs.
 BR2_PACKAGE_XKEYBOARD_CONFIG=y
 
 # The desktop environment itself. Takes tty1, so getty@tty1 does not run.
