@@ -158,11 +158,14 @@ In the order a new user meets them.
    compositor: ade v0.1.6 offers it, with the render node in its
    feedback. On QEMU Xwayland refuses glamor on llvmpipe and serves
    software GLX; on a GPU it renders through the compositor's device.
-   Open: XWayland starts only with a session, so a package installed
-   into a running session has no DISPLAY until the next login (seen on
-   the G14: Steam installed and started in one sitting). Steam's launcher
-   says so now; the real answer is the compositor starting XWayland on
-   demand, when the package appears or the first X11 program asks.
+   *On demand, done 2026-09-24 (ade v0.1.9)*: XWayland used to start
+   only with a session, so a package installed into a running session had
+   no DISPLAY until the next login (seen on the G14: Steam installed and
+   started in one sitting). Now a session that began without it looks for
+   the binary every five seconds and starts it when the package appears;
+   a program the shell launches after that, or Steam's wrapper from a
+   terminal older than the start, finds the display by its socket in
+   `/tmp/.X11-unix`, since neither inherited DISPLAY.
    Seen on the G14, 2026-09-24: Steam's window could not be moved or
    resized. Steam draws its own titlebar and asks the window manager for
    the drag (`_NET_WM_MOVERESIZE`); ade answered neither request. ade

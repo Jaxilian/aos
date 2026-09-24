@@ -205,8 +205,8 @@ enable `BR2_PACKAGE_AOS_NVIDIA` to include them.
   ships and nothing else is supported.
 - **An X server.** XWayland is a compatibility layer, off by default, turned
   on by the user: installing `runtime/xwayland` from the third-party
-  repository is the switch, and the compositor starts it at the next
-  session. No official package depends on it.
+  repository is the switch, and the compositor starts it within seconds,
+  or at the next session's start. No official package depends on it.
 - **A second way to install software.** apm is the only one. No tarballs,
   no `curl | sh`, no vendor installers.
 - **A base-OS update mechanism, a GUI installer, a settings application and

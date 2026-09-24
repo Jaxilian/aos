@@ -291,8 +291,10 @@ STEAM = "apm install steam --quiet 2>&1 | tail -3"
 # The 32-bit runtime on its own: Steam's client no longer needs it, the
 # sandbox's --lib32 is proven with it below.
 COMPAT32 = "apm install runtime/compat32 --quiet 2>&1 | tail -3"
-# XWayland for it: installing the package is the switch, the compositor
-# starts it at the next session, so the session is restarted here.
+# XWayland for it: installing the package is the switch, and the
+# compositor starts it within seconds of the binary appearing on PATH;
+# the line after it below waits for that rather than restarting the
+# session, which is the path a user takes.
 XWAYLAND = "apm install xwayland --quiet 2>&1 | tail -4"
 
 # Slice 1 of the package manager: update, find, install, run, remove, on
@@ -347,8 +349,8 @@ APM = [
     DISCORD,
     XWAYLAND,
     COMPAT32,
-    "systemctl restart ade; sleep 12; pgrep -a Xwayland | cut -c1-80; pgrep -c -x ade-shell; "
-    "tr '\\0' '\\n' < /proc/$(pgrep -x ade-shell | head -1)/environ | grep ^DISPLAY=; journalctl -b -u ade --no-pager | grep -v 'ade-shell\\[' | tail -12 | cut -c17-200",
+    "for i in $(seq 20); do pgrep -x Xwayland >/dev/null && break; sleep 1; done; pgrep -a Xwayland | cut -c1-80; "
+    "journalctl -b _COMM=ade-comp --no-pager | grep xwayland | tail -4 | cut -c17-200",
     STEAM,
 ] if APM_REPO else []) + [
     "sh -lc 'echo PATH=$PATH; echo XDG_DATA_DIRS=$XDG_DATA_DIRS'",
