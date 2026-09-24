@@ -230,7 +230,7 @@ export LD_LIBRARY_PATH="$P/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$P/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export GSETTINGS_SCHEMA_DIR="$P/share/glib-2.0/schemas"
 export FONTCONFIG_FILE="$P/etc/fonts/fonts.conf"
-export GDK_BACKEND=wayland
+export GDK_BACKEND="${GDK_BACKEND:-wayland}"
 for cache in "$P"/lib/gdk-pixbuf-2.0/*/loaders.cache; do
 	[ -f "$cache" ] && export GDK_PIXBUF_MODULE_FILE="$cache"
 done

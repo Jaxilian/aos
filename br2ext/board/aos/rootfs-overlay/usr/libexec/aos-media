@@ -13,6 +13,16 @@ dev="$2"
 name="${ID_FS_LABEL:-$(basename "$dev")}"
 case "$1" in
 add)
+	# The stick the OS itself was installed on is USB too, and every
+	# partition on it arrives here at boot: the root, mounted already,
+	# and the ESP, which is systemd's. Neither is media. lsblk names the
+	# whole disk and its partitions by MAJ:MIN, which is how / is known
+	# whatever the kernel calls its device.
+	disk="/dev/$(lsblk -no PKNAME "$dev")"
+	[ -b "$disk" ] || disk="$dev"
+	if lsblk -no MAJ:MIN "$disk" | tr -d " " | grep -qx "$(findmnt -n -o MAJ:MIN /)"; then
+		exit 0
+	fi
 	opts=""
 	case "$ID_FS_TYPE" in
 	vfat|exfat) opts="--options=uid=1000,gid=1000,umask=022" ;;

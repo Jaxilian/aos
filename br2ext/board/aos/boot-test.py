@@ -483,7 +483,7 @@ def apm_run(ser):
         if "Installed runtime/xwayland" in out.get(XWAYLAND, ""):
             # An X11 client on the desktop: GTK3's X11 backend through
             # XWayland, drawn by ade like any window.
-            window_shot(ser, "x11", "gtk3-demo", "env GDK_BACKEND=x11 /opt/apm/bin/gtk3-run gtk3-demo")
+            window_shot(ser, "x11", "gtk3-demo", "/opt/apm/bin/gtk3-run env GDK_BACKEND=x11 gtk3-demo")
         if "Installed runtime/compat32" in out.get(COMPAT32, ""):
             # A 32-bit program runs at all: the loader path resolves inside
             # the sandbox and nowhere else.

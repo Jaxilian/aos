@@ -163,6 +163,17 @@ In the order a new user meets them.
    the G14: Steam installed and started in one sitting). Steam's launcher
    says so now; the real answer is the compositor starting XWayland on
    demand, when the package appears or the first X11 program asks.
+   Seen on the G14, 2026-09-24: Steam's window could not be moved or
+   resized. Steam draws its own titlebar and asks the window manager for
+   the drag (`_NET_WM_MOVERESIZE`); ade answered neither request. ade
+   v0.1.8 starts the same grabs an xdg toplevel's get, proven in the
+   boot-test harness with gtk3-demo's header bar dragged through QEMU's
+   tablet -- which took two findings of its own: the GTK3 runtime's
+   wrapper forced `GDK_BACKEND=wayland`, so the boot test's "X11 window"
+   had been a Wayland one all along (runtime/gtk3 release 5 only defaults
+   it; the check now sets x11 inside the wrapper), and the HMP monitor's
+   `mouse_move` never reaches the usb-tablet, only QMP's
+   `input-send-event` does (buttons and the PS/2 mouse work either way).
 7. **The third-party proof points**, in apm-thirdparty. *Firefox and
    Discord done 2026-09-22*, beside Visual Studio Code: each installs from
    the repository and puts a window on ade in the boot test. The runtime
@@ -176,7 +187,13 @@ In the order a new user meets them.
    program left, the bootstrap's updater; the sign-in window draws on ade
    through XWayland with GLX (`steam-after.screen.png` in the boot test).
    Games are the next proof, on hardware: Proton needs the GPU, and the
-   compositor's direct-scanout path (Phase 3, item 4). These are release
+   compositor's direct-scanout path (Phase 3, item 4). Open, seen on the
+   G14 2026-09-24: Steam started from the launcher offered one install
+   location, a path under `/run`, and Install did nothing; no log was
+   taken. On a stick-installed system the media rule was mounting the
+   OS's own root and ESP again under `/run/media` (they are USB
+   partitions too), fixed in `aos-media`; whether that is what Steam
+   showed is unconfirmed until its `logs/content_log.txt` is read. These are release
    gates, not extras: if they do not run, the platform does not sell.
    Open: twice the boot test saw a program's first `mkdir` in the home
    fail with "No space left on device" on a disk with 17 GB free, right
