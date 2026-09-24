@@ -34,6 +34,8 @@
 #                      into the last, and /run in here is otherwise empty --
 #                      without it a program has no DNS and reports every
 #                      server as unreachable
+#   /run/media         removable drives, read-write, as the media rule
+#                      mounts them: a game library on a second stick
 #   /dev/dri /dev/snd /dev/input
 #                      the GPU, the sound card, controllers -- through the
 #                      ACL logind set for the seat, since the uid is kept
@@ -99,6 +101,7 @@ exec bwrap \
 	--ro-bind-try /run/udev /run/udev \
 	--ro-bind-try /run/dbus /run/dbus \
 	--ro-bind-try /run/systemd/resolve /run/systemd/resolve \
+	--bind-try /run/media /run/media \
 	--ro-bind-try /tmp/.X11-unix /tmp/.X11-unix \
 	$RUN_BIND $HOME_BIND $BINDS \
 	--unshare-pid --unshare-uts --die-with-parent \

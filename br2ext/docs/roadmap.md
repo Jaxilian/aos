@@ -191,12 +191,24 @@ In the order a new user meets them.
    through XWayland with GLX (`steam-after.screen.png` in the boot test).
    Games are the next proof, on hardware: Proton needs the GPU, and the
    compositor's direct-scanout path (Phase 3, item 4). Open, seen on the
-   G14 2026-09-24: Steam started from the launcher offered one install
-   location, a path under `/run`, and Install did nothing; no log was
-   taken. On a stick-installed system the media rule was mounting the
-   OS's own root and ESP again under `/run/media` (they are USB
-   partitions too), fixed in `aos-media`; whether that is what Steam
-   showed is unconfirmed until its `logs/content_log.txt` is read. These are release
+   G14 2026-09-24: Steam's install dialog named the library's drive by
+   a path under `/run` and Install did nothing. The journal on the stick
+   (persistent on an installed system) and Steam's own logs show a
+   healthy client, a second library made at `/home/admin/games`, and no
+   install ever attempted: the button never reached the content system.
+   Steam's client runs in its own container (pressure-vessel), whose
+   mount table starts with the host's `/usr` at `/run/host/usr` on every
+   distribution -- seen on Fedora too, running the same tool from the
+   stick -- so that alone is not it. What differs on AOS: the sandbox's
+   root and its `/home` are tmpfs, so no device-backed mount covers the
+   home's filesystem as a whole, where a normal distribution has "/".
+   Steam's rule for naming a drive is not known; the layout that behaves
+   like everyone else's is `/home` on its own filesystem, an installer
+   change. First the cheap test: the sandbox now shares `/run/media`,
+   so a library on a second stick says whether the drive identity is
+   the whole story. (Also fixed on the way: on a stick-installed system
+   the media rule mounted the OS's own root and ESP again under
+   `/run/media`; `aos-media` skips the disk `/` lives on.) These are release
    gates, not extras: if they do not run, the platform does not sell.
    Open: twice the boot test saw a program's first `mkdir` in the home
    fail with "No space left on device" on a disk with 17 GB free, right
