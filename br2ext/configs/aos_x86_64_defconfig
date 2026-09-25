@@ -436,6 +436,11 @@ BR2_PACKAGE_FILES=y
 # from /proc, on the same awin + tgn stack.
 BR2_PACKAGE_SYSMON=y
 
+# The settings application: network and Wi-Fi, sound, display, keyboard,
+# power, users, time, updates and the compatibility switches, on the same
+# awin + tgn stack; every change goes through sudo and the tools above.
+BR2_PACKAGE_SETTINGS=y
+
 ################################################################################
 # M4 -- self-hosting.
 #

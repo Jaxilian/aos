@@ -61,8 +61,8 @@ XKB_DEFAULT_LAYOUT=se
 Log out and in (or reboot) for it to take. XKB names differ from console
 ones: Swedish is `se`, Norwegian `no`, Danish `dk`, Finnish `fi`, German
 `de`, French `fr`, UK `gb`; variants go in `XKB_DEFAULT_VARIANT`, e.g.
-`dvorak`. Until the Settings application exists, this file is the
-setting.
+`dvorak`. The Settings application's Keyboard page writes this line, and
+the console's `KEYMAP` with it where the two names are known to match.
 
 **Serial consoles are unaffected.** Key translation there happens in your
 terminal emulator, not in AOS, so the setting does nothing for a login on

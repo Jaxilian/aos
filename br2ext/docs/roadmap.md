@@ -134,10 +134,16 @@ In the order a new user meets them.
 2. **First-boot setup.** Account, Wi-Fi, time zone, and the choice to enable
    the third-party repository. This is what lets the released image carry
    no account at all.
-3. **A Settings application.** Display and scale, sound, network and Wi-Fi,
-   keyboard layout, power and suspend, users, updates, the XWayland switch,
-   the third-party repository switch. systemd-networkd, resolved, localed
-   and logind already expose all of it over D-Bus.
+3. **A Settings application.** *Done 2026-09-25 (settings v0.1.0)*:
+   network and Wi-Fi, sound, display, keyboard layout, power and the lid,
+   users, date and time, apm updates, the XWayland switch, the
+   third-party repository switch, about with the diagnostics report. It
+   drives the tools the image has (iw and aos-wifi, wpctl, timedatectl,
+   hostnamectl, the shadow tools, apm) through sudo, and asks for the
+   password itself since there is no polkit agent; suspend, restart and
+   power off go through the seat's polkit rule. Outstanding: display
+   scale and arrangement, which need a setting in ade first; idle
+   blanking and a lock screen, which need ade's session lock.
 4. **The app store.** A graphical front to apm, with Official and Third-party
    clearly separated: search, install, update, remove, and who signed it.
 5. **Updates in one place.** Base OS (Phase 1, item 5) and applications on
@@ -177,7 +183,8 @@ In the order a new user meets them.
    error on the runtime's `.ref` first. `aos-report --steam` now bundles
    Steam's, the runtime's and Proton's logs for the next round. And the
    wifi driver worked all along; what was missing was a way to join a
-   network: `aos-wifi SSID`, until the settings panel.
+   network: `aos-wifi SSID`; the Settings application's Network page
+   runs it now.
    Seen on the G14, 2026-09-24: Steam's window could not be moved or
    resized. Steam draws its own titlebar and asks the window manager for
    the drag (`_NET_WM_MOVERESIZE`); ade answered neither request. ade
@@ -251,8 +258,8 @@ In the order a new user meets them.
    Files, a right-click on a sidebar entry (bookmarks, devices) paints the
    entry black until the menu closes; the desktop keyboard layout has no
    setting yet -- `/etc/ade/environment` with `XKB_DEFAULT_LAYOUT=se` is
-   the way today ([keyboard.md](keyboard.md)), the Settings app is the
-   way it should be.
+   the way today ([keyboard.md](keyboard.md)); the Settings application's
+   Keyboard page writes it since 2026-09-25.
 
 ## Phase 3 — Stability and performance
 
@@ -273,8 +280,8 @@ In the order a new user meets them.
 5. **A crash story.** coredump and journald are configured. *`aos-report`
    added 2026-09-22*: one command, one tarball -- this boot's journal, the
    errors, failed units, the compositor's log, the hardware, what apm has
-   installed. Outstanding: a "send diagnostics" button in Settings that
-   produces the same file.
+   installed. The Settings application's About page has a Save Report
+   button that runs it (2026-09-25).
 6. **Fault isolation.** A shell crash must not end the session (ade's
    design already separates them). A compositor crash must restart the
    session with an explanation, never leave a black screen.

@@ -1,0 +1,27 @@
+config BR2_PACKAGE_SETTINGS
+	bool "settings (settings application)"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_HOST_RUSTC
+	select BR2_PACKAGE_LIBXKBCOMMON
+	select BR2_PACKAGE_VULKAN_LOADER
+	select BR2_PACKAGE_WAYLAND
+	help
+	  The settings application: network and Wi-Fi, sound, display,
+	  keyboard layout, power and the lid, users, date and time,
+	  updates with the third-party and XWayland switches, and
+	  about. Built on awin (Wayland + Vulkan) and tgn like notepad,
+	  terminal, files and sysmon, so it has the same runtime needs
+	  and the same Vulkan ICD caveat described under notepad.
+
+	  It sets nothing itself: every change goes through the tools
+	  the image has -- sudo, iw and aos-wifi, wpctl, timedatectl,
+	  hostnamectl, the shadow tools, apm, tee for the files under
+	  /etc. There is no polkit agent, so it asks for the password
+	  itself and hands it to sudo once; the seat's polkit rule
+	  covers suspend, restart and power off without one.
+
+comment "settings needs a toolchain w/ threads and dynamic libs"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS

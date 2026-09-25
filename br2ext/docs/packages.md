@@ -95,6 +95,7 @@ There is no X server. The Wayland compositor is ade, below.
 | xkeyboard-config | 2.38 (keymap data; xkbcomp for XWayland) |
 | files | 0.1.0 (a custom package) |
 | sysmon | 0.1.0 (a custom package) |
+| settings | 0.1.0 (a custom package) |
 | apm | 0.1.0 (a custom package) |
 
 ## Sound

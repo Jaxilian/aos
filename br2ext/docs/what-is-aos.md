@@ -46,7 +46,7 @@ it. No official package depends on it.
 | Init | systemd 258.7, all of it — journald, udev, logind, polkit, networkd, resolved, oomd, nspawn |
 | Desktop | ade: a Wayland compositor on smithay, and a shell on the awin/tgn Vulkan stack |
 | Package manager | apm, with an official repository and a third-party one |
-| Applications | terminal, notepad, files, sysmon; Visual Studio Code and more from the third-party repository |
+| Applications | terminal, notepad, files, sysmon, settings; Visual Studio Code and more from the third-party repository |
 | Compilers | gcc 15.3.0 (C and C++) on the image; Rust 1.96.1 with cargo through apm |
 | Userland | Real GNU tools — coreutils, bash, gawk, sed, grep, tar, findutils, vim |
 | Graphics | Mesa 26.1.8, Vulkan, libglvnd, NVIDIA 610.57.04 |

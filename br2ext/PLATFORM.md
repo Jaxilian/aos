@@ -209,9 +209,10 @@ enable `BR2_PACKAGE_AOS_NVIDIA` to include them.
   or at the next session's start. No official package depends on it.
 - **A second way to install software.** apm is the only one. No tarballs,
   no `curl | sh`, no vendor installers.
-- **A base-OS update mechanism, a GUI installer, a settings application and
-  an app store** -- not yet. `aos-install` is a shell script. These are the
-  next phase of work; see [docs/roadmap.md](docs/roadmap.md).
+- **A base-OS update mechanism, a GUI installer and an app store** -- not
+  yet. `aos-install` is a shell script. These are the next phase of work;
+  see [docs/roadmap.md](docs/roadmap.md). The settings application exists
+  (`settings`); it drives the tools named above through sudo.
 
 ## Building on top
 

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Settings
+GenericName=Settings
+Comment=Network, sound, display, keyboard, power, users, time, updates
+Exec=settings
+Icon=org.aos.Settings
+Categories=Settings;System;
+Keywords=settings;preferences;network;wifi;sound;display;keyboard;power;users;updates;
+StartupWMClass=org.aos.Settings
