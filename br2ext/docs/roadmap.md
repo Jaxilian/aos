@@ -166,6 +166,18 @@ In the order a new user meets them.
    a program the shell launches after that, or Steam's wrapper from a
    terminal older than the start, finds the display by its socket in
    `/tmp/.X11-unix`, since neither inherited DISPLAY.
+   Round 3 on the G14, 2026-09-25: Alt+Tab onto Steam raised it but
+   typing stayed with the previous window -- an X client takes input
+   only once the window manager has marked the window active, and only
+   the map path did; ade v0.1.10 does it on every focus change, and
+   Super+Tab is an alias. Same round: the game (Thronefall, Proton
+   Experimental) crashed with "d3d11: failed to create factory", no
+   usable Vulkan inside the game's runtime container, though Steam's
+   own container sees the Intel GPU; pressure-vessel had logged a lock
+   error on the runtime's `.ref` first. `aos-report --steam` now bundles
+   Steam's, the runtime's and Proton's logs for the next round. And the
+   wifi driver worked all along; what was missing was a way to join a
+   network: `aos-wifi SSID`, until the settings panel.
    Seen on the G14, 2026-09-24: Steam's window could not be moved or
    resized. Steam draws its own titlebar and asks the window manager for
    the drag (`_NET_WM_MOVERESIZE`); ade answered neither request. ade

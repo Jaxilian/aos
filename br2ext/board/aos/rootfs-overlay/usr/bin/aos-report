@@ -4,13 +4,19 @@
 #
 #   aos-report            writes /tmp/aos-report-<host>-<date>.tar.gz
 #   aos-report <file>     writes there instead
+#   aos-report --steam    ... and Steam's own logs from your home
 #
 # What is in it: which build this is, this boot's journal (kernel included),
 # failed units, the compositor's own log, the hardware, and what apm has
 # installed. Nothing from /home, no passwords, no keys. Read it before
-# sending it if you want to be sure.
+# sending it if you want to be sure. --steam is the one exception, opted
+# into: Steam's logs directory, the runtime's launch logs, Proton's
+# steam-<appid>.log (written with PROTON_LOG=1 in a game's launch
+# options), and a crashed Unity game's Player.log.
 
 set -e
+STEAM=no
+case "$1" in --steam) STEAM=yes; shift ;; esac
 OUT=${1:-/tmp/aos-report-$(hostname)-$(date +%Y%m%d-%H%M%S).tar.gz}
 D=$(mktemp -d)
 trap 'rm -rf "$D"' EXIT
@@ -42,6 +48,23 @@ run drm                 sh -c 'for c in /sys/class/drm/card*-*; do echo "$c $(ca
 run vulkan              sh -c 'ls /usr/share/vulkan/icd.d/ /usr/share/glvnd/egl_vendor.d/'
 run apm-list            apm list
 run apm-repos           cat /opt/apm/etc/config.toml
+
+if [ "$STEAM" = yes ]; then
+	h=${SUDO_USER:+$(getent passwd "$SUDO_USER" | cut -d: -f6)}
+	h=${h:-$HOME}
+	s="$h/.local/share/Steam"
+	mkdir -p "$D/steam"
+	cp -r "$s/logs" "$D/steam/" 2>/dev/null || echo "no $s/logs" > "$D/steam/missing"
+	cp "$h"/steam-*.log "$D/steam/" 2>/dev/null || true
+	for r in "$s"/steamapps/common/SteamLinuxRuntime*/var/*.log; do
+		[ -f "$r" ] && cp "$r" "$D/steam/$(basename "$(dirname "$(dirname "$r")")")-$(basename "$r")"
+	done
+	find "$s/steamapps/compatdata" -name Player.log 2>/dev/null | while read -r p; do
+		app=$(echo "$p" | sed 's|.*/compatdata/\([0-9]*\)/.*|\1|')
+		cp "$p" "$D/steam/player-$app-$(basename "$(dirname "$p")").log"
+	done
+	run steam-libraries    cat "$s/config/libraryfolders.vdf"
+fi
 
 tar -C "$D" -czf "$OUT" .
 echo "$OUT"

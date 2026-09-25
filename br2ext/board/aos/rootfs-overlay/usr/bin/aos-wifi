@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+# aos-wifi -- join a wireless network, until the settings panel exists.
+#
+#   aos-wifi                       the wireless interfaces and their state
+#   aos-wifi SSID                  join SSID; asks for the passphrase
+#   aos-wifi SSID PASSPHRASE
+#   aos-wifi --forget              stop and drop the saved network
+#
+# The network goes into /etc/wpa_supplicant/wpa_supplicant-<iface>.conf,
+# the file wpa_supplicant@<iface> reads, and that unit is enabled so the
+# link comes back at boot. Addresses are networkd's, from
+# /etc/systemd/network/25-wireless.network, once the link is up. The
+# interface's name is whatever the kernel and networkd gave it (wlo1,
+# wlp2s0, ...), which is why this asks iw rather than assuming wlan0.
+
+set -e
+
+iface=$(iw dev 2>/dev/null | awk '$1 == "Interface" { print $2; exit }')
+[ -n "$iface" ] || { echo "aos-wifi: no wireless interface (is the driver loaded? see dmesg)" >&2; exit 1; }
+
+if [ $# -eq 0 ]; then
+	iw dev "$iface" link
+	networkctl status "$iface" --no-pager 2>/dev/null | head -12
+	exit 0
+fi
+
+[ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
+
+conf="/etc/wpa_supplicant/wpa_supplicant-$iface.conf"
+unit="wpa_supplicant@$iface"
+
+if [ "$1" = --forget ]; then
+	systemctl disable --now "$unit" 2>/dev/null || true
+	rm -f "$conf"
+	echo "aos-wifi: $iface: network forgotten"
+	exit 0
+fi
+
+ssid=$1
+case "$ssid" in
+	*'"'*) echo "aos-wifi: a \" in the network name is not supported" >&2; exit 1 ;;
+esac
+if [ $# -ge 2 ]; then
+	pass=$2
+else
+	printf 'Passphrase for %s: ' "$ssid" >&2
+	stty -echo; read -r pass; stty echo; echo >&2
+fi
+[ ${#pass} -ge 8 ] || { echo "aos-wifi: a WPA passphrase is 8 to 63 characters" >&2; exit 1; }
+
+install -d -m 700 /etc/wpa_supplicant
+umask 077
+cat > "$conf" <<CONF
+ctrl_interface=/run/wpa_supplicant
+network={
+	ssid="$ssid"
+	psk="$pass"
+}
+CONF
+
+systemctl enable --now "$unit"
+echo "aos-wifi: joining $ssid on $iface ..."
+for i in $(seq 20); do
+	sleep 1
+	if networkctl status "$iface" --no-pager 2>/dev/null | grep -q 'State: routable'; then
+		networkctl status "$iface" --no-pager | grep -E 'State|Address|Gateway|DNS' | head -6
+		exit 0
+	fi
+done
+echo "aos-wifi: not routable after 20 s; check: journalctl -u $unit -b" >&2
+iw dev "$iface" link
+exit 1
