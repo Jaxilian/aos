@@ -141,9 +141,12 @@ In the order a new user meets them.
    drives the tools the image has (iw and aos-wifi, wpctl, timedatectl,
    hostnamectl, the shadow tools, apm) through sudo, and asks for the
    password itself since there is no polkit agent; suspend, restart and
-   power off go through the seat's polkit rule. Outstanding: display
-   scale and arrangement, which need a setting in ade first; idle
-   blanking and a lock screen, which need ade's session lock.
+   power off go through the seat's polkit rule. *Display scale and a
+   Lock button added 2026-09-25 (settings v0.1.1, ade v0.1.11)*: the
+   scale goes to `~/.config/ade/display`, which the compositor rereads
+   within seconds. Outstanding: display arrangement and per-output
+   scale in the page (the file already takes a line per output), and
+   idle blanking, which ade does not do yet.
 4. **The app store.** A graphical front to apm, with Official and Third-party
    clearly separated: search, install, update, remove, and who signed it.
 5. **Updates in one place.** Base OS (Phase 1, item 5) and applications on
@@ -241,8 +244,11 @@ In the order a new user meets them.
    logind, real-time through the pipewire group). Outstanding for sound:
    Intel SOF and AMD ACP -- kernel options and firmware for the DSPs on
    laptops from 2019 on, which QEMU cannot test -- and Bluetooth audio.
-   Then: lock screen (`ade/lock` is a placeholder awaiting
-   `ext-session-lock-v1`), screenshot, notifications, clipboard,
+   *Lock screen done 2026-09-25 (ade v0.1.11)*: `ade-lock` on
+   `ext-session-lock-v1`, the password through PAM (`/etc/pam.d/ade-lock`),
+   Super+L and the Settings Power page start it, and the compositor
+   keeps the session locked and restarts a locker that died. Then:
+   screenshot, notifications, clipboard,
    drag-and-drop, Bluetooth, battery and power in the bar. Printing can
    wait. Seen on the G14, 2026-09-23: Visual Studio Code died on Open
    Folder -- GTK's file chooser aborts without its GSettings schema, and

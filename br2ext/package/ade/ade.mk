@@ -5,10 +5,10 @@
 ################################################################################
 
 # A commit, not a tag: a tag can be moved, and the point of pinning is that
-# this file and the sources it names cannot drift apart. This one is v0.1.10.
+# this file and the sources it names cannot drift apart. This one is v0.1.11.
 # Over ssh, because the repositories are private: whoever builds needs a
 # key GitHub knows. The applications' Cargo.toml fetch the SDK the same way.
-ADE_VERSION = fc3ad617310de72ab76b816ede7a38495602f5ab
+ADE_VERSION = d0e1fda77581011505cc5f3c67cfc1ea84e6ce9b
 ADE_SITE = ssh://git@github.com/Jaxilian/ade
 ADE_SITE_METHOD = git
 ADE_LICENSE = MIT
@@ -42,11 +42,11 @@ ADE_DEPENDENCIES = \
 	wayland \
 	wayland-protocols
 
-# The compositor and the shell. Both are workspace members; nothing else in
-# the workspace is a binary. The shell's awin and tgn come from the aos-sdk
-# repository at a tag, named in its Cargo.toml, and are vendored with the
-# rest of its crates.
-ADE_CARGO_BUILD_OPTS = --package ade-comp --package ade-shell
+# The compositor, the shell and the lock screen. All three are workspace
+# members; nothing else in the workspace is a binary. The shell's and the
+# locker's awin and tgn come from the aos-sdk repository at a tag, named in
+# their Cargo.toml, and are vendored with the rest of the crates.
+ADE_CARGO_BUILD_OPTS = --package ade-comp --package ade-shell --package ade-lock
 
 # The install step is written out here rather than left to pkg-cargo.mk.
 # That one runs "cargo install --path ./", and ./ is a virtual workspace
@@ -63,6 +63,11 @@ define ADE_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 \
 		$(@D)/target/$(RUSTC_TARGET_NAME)/$(ADE_PROFILE)/ade-shell \
 		$(TARGET_DIR)/usr/bin/ade-shell
+	$(INSTALL) -D -m 0755 \
+		$(@D)/target/$(RUSTC_TARGET_NAME)/$(ADE_PROFILE)/ade-lock \
+		$(TARGET_DIR)/usr/bin/ade-lock
+	$(INSTALL) -D -m 0644 $(@D)/dist/ade-lock.pam \
+		$(TARGET_DIR)/etc/pam.d/ade-lock
 endef
 
 define ADE_INSTALL_INIT_SYSTEMD

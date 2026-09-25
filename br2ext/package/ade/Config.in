@@ -31,6 +31,12 @@ config BR2_PACKAGE_ADE
 	  the seat gets no keyboard and the compositor exits. It brings
 	  no X11 with it -- its xlib selects are conditional on XORG7.
 
+	  ade-lock, the lock screen, checks the password through
+	  libpam.so.0, opened at run time, with the service file this
+	  package installs at /etc/pam.d/ade-lock; linux-pam is on the
+	  image for systemd. Without it the lock refuses every password
+	  and the VT switch is the way out.
+
 	  terminal is equally not optional, for a different reason: it
 	  is what Super+Return and Super+T spawn, and with no terminal
 	  on the image there is no way to reach a shell, shut down or
