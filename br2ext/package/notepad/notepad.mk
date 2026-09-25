@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-# A commit, not a tag -- see ade.mk. This one is v0.1.1.
-NOTEPAD_VERSION = e89191879a1e724887e9f15647f9125d7b3e3a56
+# A commit, not a tag -- see ade.mk. This one is v0.1.2.
+NOTEPAD_VERSION = 9b9cf9de4091bd5129f4251d905d0f688ae44568
 NOTEPAD_SITE = ssh://git@github.com/Jaxilian/notepad
 NOTEPAD_SITE_METHOD = git
 NOTEPAD_LICENSE = MIT
@@ -20,9 +20,9 @@ endif
 # libwayland-client and libxkbcommon are linked; libvulkan is not, because
 # ash opens it with dlopen at startup. It still has to be on the image, so
 # vulkan-loader is a dependency here even though nothing refers to it at
-# link time. host-pkgconf is how the -sys crates find the first two. awin
-# and tgn come from the aos-sdk repository at a tag, named in Cargo.toml,
-# and are vendored with the rest of the crates.
+# link time. host-pkgconf is how the -sys crates find the first two. tgn,
+# and awin through it, come from the aos-sdk repository at a tag, named in
+# Cargo.toml, and are vendored with the rest of the crates.
 NOTEPAD_DEPENDENCIES = \
 	host-pkgconf \
 	libxkbcommon \

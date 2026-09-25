@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-# A commit, not a tag -- see ade.mk. This one is v0.1.1.
-FILES_VERSION = 3dde89061f45fa393ab20edec19eecb0382fc091
+# A commit, not a tag -- see ade.mk. This one is v0.1.2.
+FILES_VERSION = 7b971e1b19fd63a3f729c1c92bacbb62cfbb11fd
 FILES_SITE = ssh://git@github.com/Jaxilian/files
 FILES_SITE_METHOD = git
 FILES_LICENSE = MIT
@@ -20,9 +20,9 @@ endif
 # libwayland-client and libxkbcommon are linked; libvulkan is not, because
 # ash opens it with dlopen at startup. It still has to be on the image, so
 # vulkan-loader is a dependency here even though nothing refers to it at
-# link time. host-pkgconf is how the -sys crates find the first two. awin
-# and tgn come from the aos-sdk repository at a tag, named in Cargo.toml,
-# and are vendored with the rest of the crates.
+# link time. host-pkgconf is how the -sys crates find the first two. tgn,
+# and awin through it, come from the aos-sdk repository at a tag, named in
+# Cargo.toml, and are vendored with the rest of the crates.
 FILES_DEPENDENCIES = \
 	host-pkgconf \
 	libxkbcommon \
