@@ -10,6 +10,8 @@
 #                             password, and the install creates that account
 #                             instead of the demo one (admin / 123321) and
 #                             locks root's console login. Nothing else differs.
+#   ./usb.sh --seed=DIR       afterwards copy DIR's contents into that
+#                             account's home on the stick (test notes)
 #
 # Options combine: "./usb.sh /dev/sda --no-build --release --test".
 #
@@ -44,11 +46,13 @@ BUILD=yes
 TEST=no
 RELEASE=no
 ACCOUNT=""
+SEED=""
 for a in "$@"; do
 	case "$a" in
 		--no-build) BUILD=no ;;
 		--test)     TEST=yes ;;
 		--release)  RELEASE=yes ;;
+		--seed=*)   SEED=$(realpath "${a#--seed=}") ;;
 		--help|-h)  sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 		/dev/*)     DEV="$a" ;;
 		*)          echo "make-usb.sh: unknown argument '$a'" >&2; exit 1 ;;
@@ -176,6 +180,29 @@ echo
 # more, and the answer travels down the pipe.
 # shellcheck disable=SC2086
 printf 'YES\n' | sudo "$WRITE" "$DEV" --install --auto ${ACCOUNT:+--account "$ACCOUNT"}
+
+# --seed=DIR: DIR's contents into the account's home on the installed
+# stick -- notes and scripts for the next test round. After the install,
+# on the host: the root partition by its label, the account by name, the
+# owner by the uid the stick's own passwd gives it.
+if [ -n "$SEED" ]; then
+	echo ">>> Seeding the home from $SEED"
+	who=${NEWUSER:-admin}
+	part=$(lsblk -lnpo PATH,LABEL "$DEV" | awk '$2 == "aos" { print $1; exit }')
+	[ -n "$part" ] || { echo "make-usb.sh: no partition labelled aos on $DEV; not seeded" >&2; exit 1; }
+	mnt=$(mktemp -d)
+	sudo mount "$part" "$mnt"
+	uid=$(awk -F: -v u="$who" '$1 == u { print $3 ":" $4 }' "$mnt/etc/passwd")
+	if [ -n "$uid" ] && [ -d "$mnt/home/$who" ]; then
+		sudo cp -r "$SEED"/. "$mnt/home/$who/"
+		sudo chown -R "$uid" "$mnt/home/$who"
+		echo "    $(ls "$SEED" | tr '\n' ' ')-> /home/$who"
+	else
+		echo "make-usb.sh: no account $who on the stick; not seeded" >&2
+	fi
+	sudo umount "$mnt"
+	rmdir "$mnt"
+fi
 
 if [ "$TEST" = yes ]; then
 	echo
