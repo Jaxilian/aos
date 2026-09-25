@@ -1,0 +1,16 @@
+#!/bin/sh
+# prime-run -- run a program on the NVIDIA GPU of a hybrid laptop, while
+# the desktop stays on the integrated one: PRIME render offload, as NVIDIA
+# documents it. Vulkan through the Optimus layer, GLX through glvnd's
+# vendor choice, EGL through its vendor list.
+#
+#   prime-run glxgears
+#   in Steam's launch options:  prime-run %command%
+#
+# DXVK and VKD3D (Proton) already prefer a discrete GPU on their own; this
+# is for OpenGL programs and for Vulkan ones that take the first device.
+export __NV_PRIME_RENDER_OFFLOAD=1
+export __VK_LAYER_NV_optimus=NVIDIA_only
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json
+exec "$@"

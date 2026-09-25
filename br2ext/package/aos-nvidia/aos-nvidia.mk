@@ -25,10 +25,24 @@ define AOS_NVIDIA_EXTRACT_CMDS
 	rm -rf $(@D)/tmp-extract
 endef
 
-# EGL, GLES and Vulkan vendor libraries plus the driver core they sit on.
-# No libGLX_nvidia and no X11 platform libraries: AOS ships no X server, so
-# they would be unloadable.
+# EGL, GLES, GLX and Vulkan vendor libraries plus the driver core they sit
+# on. libGLX_nvidia is not optional even without X: it is also the Vulkan
+# driver -- nvidia_icd.json names it -- so leaving it out left the NVIDIA
+# GPU with EGL alone. It is the GLX vendor for XWayland too, now that the
+# image has one (__GLX_VENDOR_LIBRARY_NAME=nvidia picks it). The
+# libnvidia-egl-* libraries are the EGL external platforms the manifests
+# below name: Wayland for the compositor's clients, GBM for the
+# compositor and Xwayland, xcb/xlib for EGL programs on XWayland.
+# Not libnvidia-present: the Vulkan layer for NVIDIA's Smooth Motion, off
+# unless NVPRESENT_ENABLE_SMOOTH_MOTION=1, and it needs libcuda, which is
+# installed only with BR2_PACKAGE_AOS_NVIDIA_CUDA.
 AOS_NVIDIA_LIBS = \
+	libGLX_nvidia.so.$(AOS_NVIDIA_VERSION) \
+	libnvidia-egl-wayland.so.1.1.20 \
+	libnvidia-egl-wayland2.so.1.0.1 \
+	libnvidia-egl-gbm.so.1.1.3 \
+	libnvidia-egl-xcb.so.1.0.5 \
+	libnvidia-egl-xlib.so.1.0.5 \
 	libEGL_nvidia.so.$(AOS_NVIDIA_VERSION) \
 	libGLESv1_CM_nvidia.so.$(AOS_NVIDIA_VERSION) \
 	libGLESv2_nvidia.so.$(AOS_NVIDIA_VERSION) \
@@ -48,6 +62,7 @@ AOS_NVIDIA_LIBS = \
 
 ifeq ($(BR2_PACKAGE_AOS_NVIDIA_CUDA),y)
 AOS_NVIDIA_LIBS += \
+	libnvidia-present.so.$(AOS_NVIDIA_VERSION) \
 	libcuda.so.$(AOS_NVIDIA_VERSION) \
 	libnvidia-nvvm.so.$(AOS_NVIDIA_VERSION) \
 	libnvidia-ptxjitcompiler.so.$(AOS_NVIDIA_VERSION)
@@ -96,9 +111,25 @@ define AOS_NVIDIA_INSTALL_MANIFESTS
 		$(TARGET_DIR)/usr/share/vulkan/icd.d/nvidia_icd.json
 	$(INSTALL) -D -m 0644 $(@D)/nvidia_layers.json \
 		$(TARGET_DIR)/usr/share/vulkan/implicit_layer.d/nvidia_layers.json
-	$(foreach f,09_nvidia_wayland2.json 10_nvidia_wayland.json 15_nvidia_gbm.json, \
+	$(foreach f,09_nvidia_wayland2.json 10_nvidia_wayland.json 15_nvidia_gbm.json \
+			20_nvidia_xcb.json 20_nvidia_xlib.json, \
 		$(INSTALL) -D -m 0644 $(@D)/$(f) \
 			$(TARGET_DIR)/usr/share/egl/egl_external_platform.d/$(f)$(sep))
+	# Mesa's GBM loads <drm driver>_gbm.so from here for a device it does
+	# not drive itself; for nvidia-drm that is the allocator.
+	ln -sf ../libnvidia-allocator.so.1 \
+		$(TARGET_DIR)/usr/lib/gbm/nvidia-drm_gbm.so
+endef
+
+# The device nodes and PRIME offload: see 60-nvidia.rules and prime-run
+# (nvidia-drm follows nvidia by a softdep in aos-nvidia-open). The
+# driver ships nvidia-modprobe setuid root; here only udev runs it, as
+# root already, so it is installed without the bit.
+define AOS_NVIDIA_INSTALL_DEVICES
+	$(INSTALL) -D -m 0755 $(@D)/nvidia-modprobe $(TARGET_DIR)/usr/bin/nvidia-modprobe
+	$(INSTALL) -D -m 0644 $(AOS_NVIDIA_PKGDIR)/60-nvidia.rules \
+		$(TARGET_DIR)/usr/lib/udev/rules.d/60-nvidia.rules
+	$(INSTALL) -D -m 0755 $(AOS_NVIDIA_PKGDIR)/prime-run $(TARGET_DIR)/usr/bin/prime-run
 endef
 
 define AOS_NVIDIA_INSTALL_TARGET_CMDS
@@ -110,6 +141,7 @@ define AOS_NVIDIA_INSTALL_TARGET_CMDS
 		$(INSTALL) -D -m 0444 $(@D)/firmware/$(f) \
 			$(TARGET_DIR)/lib/firmware/nvidia/$(AOS_NVIDIA_VERSION)/$(f)$(sep))
 	$(AOS_NVIDIA_INSTALL_MANIFESTS)
+	$(AOS_NVIDIA_INSTALL_DEVICES)
 	$(INSTALL) -D -m 0644 $(@D)/LICENSE \
 		$(TARGET_DIR)/usr/share/licenses/nvidia/LICENSE
 endef

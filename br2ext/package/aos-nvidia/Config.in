@@ -13,8 +13,11 @@ config BR2_PACKAGE_AOS_NVIDIA
 	  for Wayland and GBM, and -- critically -- the GSP firmware the
 	  open kernel modules load at probe time.
 
-	  X11/GLX components are deliberately not installed. AOS ships
-	  no display server, so they would only be dangling.
+	  The GLX vendor library is installed: it is also the Vulkan
+	  driver, and XWayland programs reach the NVIDIA GPU through it
+	  with __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia.
+	  The X server module (libglxserver_nvidia) is not: AOS's only X
+	  server is XWayland, which never loads it.
 
 	  This coexists with Mesa rather than replacing it: libglvnd
 	  dispatches per-device, so the Intel or AMD GPU keeps using

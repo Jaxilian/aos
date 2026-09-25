@@ -1,0 +1,11 @@
+# The NVIDIA userspace talks to /dev/nvidiactl, /dev/nvidia0, /dev/nvidia-uvm
+# and /dev/nvidia-modeset, which the kernel modules never create: on other
+# distributions the X driver or a setuid nvidia-modprobe makes them on first
+# use. AOS has neither path, so udev makes them once the GPU is bound to
+# nvidia -- the same rule Arch and Fedora ship. -c0 is the device node for
+# the first GPU, -u loads nvidia-uvm and makes its nodes, -m the modeset one.
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", \
+	DRIVER=="nvidia", TEST!="/dev/nvidia-uvm", \
+	RUN+="/usr/bin/nvidia-modprobe", \
+	RUN+="/usr/bin/nvidia-modprobe -c0 -u", \
+	RUN+="/usr/bin/nvidia-modprobe -m"

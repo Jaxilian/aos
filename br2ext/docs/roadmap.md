@@ -282,7 +282,17 @@ In the order a new user meets them.
 4. **A gaming baseline.** A Vulkan game at native resolution on Intel, AMD
    and NVIDIA, through ade-comp's direct-scanout path, measured against a
    stock distribution. Steam with Proton is the real test. Variable refresh
-   and 10-bit output come later.
+   and 10-bit output come later. *NVIDIA made usable 2026-09-25*, for the
+   G14's RTX 5070 Laptop (Blackwell, so the open kernel modules are the
+   only choice): the image had the modules and EGL but not the Vulkan
+   driver (libGLX_nvidia, which the Vulkan manifest names), not the
+   Wayland/GBM/X11 EGL platforms its manifests named, no /dev/nvidia*
+   nodes (udev now runs nvidia-modprobe), no nvidia-drm (a softdep on
+   nvidia, so machines without the GPU load nothing), and nouveau, which
+   won the GPU and left it dark without GSP firmware (blacklisted). The
+   sandbox passes the nodes through; `prime-run` offloads a program. Not
+   yet proven on the hardware, and no 32-bit NVIDIA libraries yet (32-bit
+   GL games under Proton).
 5. **A crash story.** coredump and journald are configured. *`aos-report`
    added 2026-09-22*: one command, one tarball -- this boot's journal, the
    errors, failed units, the compositor's log, the hardware, what apm has

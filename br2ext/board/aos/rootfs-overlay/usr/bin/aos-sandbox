@@ -39,6 +39,9 @@
 #   /dev/dri /dev/snd /dev/input
 #                      the GPU, the sound card, controllers -- through the
 #                      ACL logind set for the seat, since the uid is kept
+#   /dev/nvidia*       an NVIDIA GPU's own nodes, which its userspace uses
+#                      beside /dev/dri; world-accessible as the driver makes
+#                      them
 #   /proc /tmp /run    this sandbox's own
 #
 # IPC is not unshared: X11's MIT-SHM and some game launchers use System V
@@ -84,6 +87,10 @@ if [ "$NOHOME" = yes ]; then
 else
 	HOME_BIND="--bind $HOME $HOME"
 fi
+NVIDIA=""
+for n in /dev/nvidiactl /dev/nvidia[0-9]* /dev/nvidia-uvm /dev/nvidia-uvm-tools /dev/nvidia-modeset; do
+	[ -e "$n" ] && NVIDIA="$NVIDIA --dev-bind $n $n"
+done
 RUN_BIND=""
 [ -n "$XDG_RUNTIME_DIR" ] && [ -d "$XDG_RUNTIME_DIR" ] && RUN_BIND="--bind $XDG_RUNTIME_DIR $XDG_RUNTIME_DIR"
 
@@ -98,6 +105,7 @@ exec bwrap \
 	--dev-bind-try /dev/dri /dev/dri \
 	--dev-bind-try /dev/snd /dev/snd \
 	--dev-bind-try /dev/input /dev/input \
+	$NVIDIA \
 	--ro-bind-try /run/udev /run/udev \
 	--ro-bind-try /run/dbus /run/dbus \
 	--ro-bind-try /run/systemd/resolve /run/systemd/resolve \
