@@ -3,8 +3,12 @@
 # aos-wifi -- join a wireless network, until the settings panel exists.
 #
 #   aos-wifi                       the wireless interfaces and their state
-#   aos-wifi SSID                  join SSID; asks for the passphrase
-#   aos-wifi SSID PASSPHRASE
+#   aos-wifi SSID                  join SSID; asks for the passphrase, or
+#                                  reads it from stdin when that is not a
+#                                  terminal (how Settings calls it: a
+#                                  command line is in ps and, under sudo,
+#                                  in the journal)
+#   aos-wifi SSID PASSPHRASE       for scripts; the passphrase is visible
 #   aos-wifi --forget              stop and drop the saved network
 #
 # The network goes into /etc/wpa_supplicant/wpa_supplicant-<iface>.conf,
@@ -43,23 +47,43 @@ case "$ssid" in
 esac
 if [ $# -ge 2 ]; then
 	pass=$2
-else
+elif [ -t 0 ]; then
 	printf 'Passphrase for %s: ' "$ssid" >&2
 	stty -echo; read -r pass; stty echo; echo >&2
+else
+	read -r pass || true
 fi
 [ ${#pass} -ge 8 ] || { echo "aos-wifi: a WPA passphrase is 8 to 63 characters" >&2; exit 1; }
 
 install -d -m 700 /etc/wpa_supplicant
 umask 077
+# WPA2, WPA3 and the two mixed: key_mgmt offers PSK and SAE, and
+# management-frame protection is optional, as WPA3 requires and WPA2
+# allows. sae_pwe=2 speaks both SAE derivations -- hash-to-element is
+# the only one allowed on 6 GHz and for Wi-Fi 7. ctrl_interface is what
+# wpa_cli and Settings talk to.
 cat > "$conf" <<CONF
 ctrl_interface=/run/wpa_supplicant
+sae_pwe=2
 network={
 	ssid="$ssid"
 	psk="$pass"
+	key_mgmt=WPA-PSK WPA-PSK-SHA256 SAE
+	ieee80211w=1
 }
 CONF
 
-systemctl enable --now "$unit"
+# Checked before the unit starts: wpa_supplicant 2.12 hides a bad line
+# unless asked (-y), and the unit then fails with no reason given. The
+# file is parsed before the driver is touched, so an interface that does
+# not exist makes this a parse and nothing more.
+err=$(wpa_supplicant -y -c "$conf" -i aos-wifi-check 2>&1 | grep -m1 -E '^Line [0-9]+: ' || true)
+if [ -n "$err" ]; then
+	echo "aos-wifi: wpa_supplicant rejects the configuration: $err" >&2
+	exit 1
+fi
+systemctl enable "$unit" >/dev/null 2>&1
+systemctl restart "$unit"
 echo "aos-wifi: joining $ssid on $iface ..."
 for i in $(seq 20); do
 	sleep 1
@@ -68,6 +92,7 @@ for i in $(seq 20); do
 		exit 0
 	fi
 done
-echo "aos-wifi: not routable after 20 s; check: journalctl -u $unit -b" >&2
-iw dev "$iface" link
+echo "aos-wifi: not connected after 20 s. wpa_supplicant said:" >&2
+journalctl -u "$unit" -b --no-pager -n 8 -o cat >&2
+iw dev "$iface" link >&2
 exit 1

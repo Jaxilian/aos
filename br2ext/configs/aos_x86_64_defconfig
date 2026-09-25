@@ -245,6 +245,14 @@ BR2_PACKAGE_IPROUTE2=y
 BR2_PACKAGE_IW=y
 BR2_PACKAGE_WPA_SUPPLICANT=y
 BR2_PACKAGE_WPA_SUPPLICANT_NL80211=y
+# The control interface: aos-wifi's config names it, and wpa_supplicant
+# 2.12 without it rejects that whole file with no reason shown -- the
+# G14's wifi never joined. wpa_cli comes with it. WPA3 (SAE, OWE): a
+# Wi-Fi 6E/7 card on a current router needs it, and 6 GHz allows nothing
+# else.
+BR2_PACKAGE_WPA_SUPPLICANT_WPA3=y
+BR2_PACKAGE_WPA_SUPPLICANT_CLI=y
+BR2_PACKAGE_WPA_SUPPLICANT_PASSPHRASE=y
 BR2_PACKAGE_WIRELESS_REGDB=y
 BR2_PACKAGE_OPENSSL=y
 BR2_PACKAGE_CA_CERTIFICATES=y
