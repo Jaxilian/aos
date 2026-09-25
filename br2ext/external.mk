@@ -158,6 +158,16 @@ define BUBBLEWRAP_PERMISSIONS
 endef
 endif
 
+# libinput without Lua plugins. Buildroot turns them on whenever lua is in
+# the image, and liblua is built without libm in its NEEDED: ld.so then
+# refuses ade-comp at start ("Relink liblua with libm for IFUNC symbol
+# tanh"). Nothing on AOS writes input plugins in Lua anyway. Expanded at
+# configure time, so it can be corrected from here.
+ifeq ($(BR2_PACKAGE_LIBINPUT),y)
+LIBINPUT_CONF_OPTS := $(filter-out -Dlua-plugins=enabled,$(LIBINPUT_CONF_OPTS)) \
+	-Dlua-plugins=disabled
+endif
+
 # PipeWire and WirePlumber for the session only, never system-wide.
 #
 # Buildroot builds both with their system-service units, and preset-all

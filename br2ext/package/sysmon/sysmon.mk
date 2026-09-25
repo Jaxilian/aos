@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-# A commit, not a tag -- see ade.mk. This one is v0.1.1.
-SYSMON_VERSION = 03e5e5b665059a4a4ca53039385d28d66c06365f
+# A commit, not a tag -- see ade.mk. This one is v0.1.2.
+SYSMON_VERSION = df6180a153c9a0b9a1e8daae001f69dcda84684e
 SYSMON_SITE = ssh://git@github.com/Jaxilian/sysmon
 SYSMON_SITE_METHOD = git
 SYSMON_LICENSE = MIT

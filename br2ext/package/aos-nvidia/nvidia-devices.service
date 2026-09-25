@@ -1,0 +1,15 @@
+# The NVIDIA device nodes: -c0 the first GPU's and nvidiactl, -u nvidia-uvm's
+# (loading it), -m nvidia-modeset's. Started by 60-nvidia.rules when an
+# NVIDIA GPU binds to the nvidia module; on other machines nothing asks.
+[Unit]
+Description=NVIDIA device nodes
+DefaultDependencies=no
+After=systemd-udevd.service systemd-modules-load.service
+Before=graphical.target multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/nvidia-modprobe -c0 -u
+ExecStart=/usr/bin/nvidia-modprobe -m
+ExecStart=/bin/sh -c 'ls -l /dev/nvidia*'

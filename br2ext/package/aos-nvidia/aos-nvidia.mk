@@ -121,7 +121,8 @@ define AOS_NVIDIA_INSTALL_MANIFESTS
 		$(TARGET_DIR)/usr/lib/gbm/nvidia-drm_gbm.so
 endef
 
-# The device nodes and PRIME offload: see 60-nvidia.rules and prime-run
+# The device nodes and PRIME offload: see 60-nvidia.rules,
+# nvidia-devices.service and prime-run
 # (nvidia-drm follows nvidia by a softdep in aos-nvidia-open). The
 # driver ships nvidia-modprobe setuid root; here only udev runs it, as
 # root already, so it is installed without the bit.
@@ -129,6 +130,8 @@ define AOS_NVIDIA_INSTALL_DEVICES
 	$(INSTALL) -D -m 0755 $(@D)/nvidia-modprobe $(TARGET_DIR)/usr/bin/nvidia-modprobe
 	$(INSTALL) -D -m 0644 $(AOS_NVIDIA_PKGDIR)/60-nvidia.rules \
 		$(TARGET_DIR)/usr/lib/udev/rules.d/60-nvidia.rules
+	$(INSTALL) -D -m 0644 $(AOS_NVIDIA_PKGDIR)/nvidia-devices.service \
+		$(TARGET_DIR)/usr/lib/systemd/system/nvidia-devices.service
 	$(INSTALL) -D -m 0755 $(AOS_NVIDIA_PKGDIR)/prime-run $(TARGET_DIR)/usr/bin/prime-run
 endef
 

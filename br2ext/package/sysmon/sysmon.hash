@@ -1,3 +1,3 @@
 # Locally computed from the vendored tarball; the commit pins the content,
 # this guards the download.
-sha256  017f426a91b49e888d7a39dc52cc491bc04362b4c2f5b0db884469aa4d88eb76  sysmon-03e5e5b665059a4a4ca53039385d28d66c06365f-git4-cargo6.tar.gz
+sha256  4076f74ce8278fcee8ae4269c5a99d4e11f4de65bd8b000c4969a63d6208f443  sysmon-df6180a153c9a0b9a1e8daae001f69dcda84684e-git4-cargo6.tar.gz

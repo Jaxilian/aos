@@ -243,6 +243,9 @@ BR2_PACKAGE_BZIP2=y
 ################################################################################
 BR2_PACKAGE_IPROUTE2=y
 BR2_PACKAGE_IW=y
+# lspci: aos-report's hardware section runs it, and Steam's system
+# information asks for it on every start.
+BR2_PACKAGE_PCIUTILS=y
 BR2_PACKAGE_WPA_SUPPLICANT=y
 BR2_PACKAGE_WPA_SUPPLICANT_NL80211=y
 # The control interface: aos-wifi's config names it, and wpa_supplicant

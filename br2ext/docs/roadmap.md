@@ -175,6 +175,23 @@ In the order a new user meets them.
    a program the shell launches after that, or Steam's wrapper from a
    terminal older than the start, finds the display by its socket in
    `/tmp/.X11-unix`, since neither inherited DISPLAY.
+   Round 5 on the G14, 2026-09-25 evening, three findings. Alt+Tab onto
+   Steam still typed into the old window: an X client takes keys only
+   where the X server's input focus is, which only the window manager
+   sets, and ade's keyboard focus was a bare wl_surface; ade v0.1.14
+   focuses an X11 window as itself (`foc.rs`). Copy never pasted between
+   any two programs: the compositor never passed the clipboard along
+   with the keyboard (fixed in the same ade), and awin created its data
+   device after its surface, so a new window was focused -- and offered
+   the clipboard -- before it had anything to receive it (aos-sdk
+   v0.4.2; smithay never re-offers, wlroots does). And the game: no
+   Vulkan in its container because the Vulkan loader had been built
+   before the X11 libraries entered the image and knew no X11 surfaces
+   -- Buildroot does not rebuild a package when a dependency it probes
+   at configure time appears later; five such packages were rebuilt.
+   NVIDIA's device nodes were still missing on the G14: the udev RUN
+   never showed why, so a udev-started unit makes them now, and its log
+   is in the journal.
    Round 3 on the G14, 2026-09-25: Alt+Tab onto Steam raised it but
    typing stayed with the previous window -- an X client takes input
    only once the window manager has marked the window active, and only
