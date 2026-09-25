@@ -432,6 +432,10 @@ BR2_PACKAGE_WIREPLUMBER=y
 # on an image that has no zenity.
 BR2_PACKAGE_FILES=y
 
+# The system monitor: CPU, memory, network, disks and a process list, all
+# from /proc, on the same awin + tgn stack.
+BR2_PACKAGE_SYSMON=y
+
 ################################################################################
 # M4 -- self-hosting.
 #

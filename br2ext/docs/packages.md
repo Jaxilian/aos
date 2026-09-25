@@ -94,6 +94,7 @@ There is no X server. The Wayland compositor is ade, below.
 | seatd | 0.9.1 (libseat only; it talks to logind) |
 | xkeyboard-config | 2.38 (keymap data; xkbcomp for XWayland) |
 | files | 0.1.0 (a custom package) |
+| sysmon | 0.1.0 (a custom package) |
 | apm | 0.1.0 (a custom package) |
 
 ## Sound

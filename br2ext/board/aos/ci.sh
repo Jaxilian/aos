@@ -25,7 +25,7 @@ make BR2_EXTERNAL="$BASE/br2ext" aos_x86_64_defconfig >/dev/null
 # ones a release stands on before spending the hours.
 for sym in BR2_TOOLCHAIN_BUILDROOT_GLIBC BR2_REPRODUCIBLE BR2_LINUX_KERNEL_CUSTOM_VERSION \
 	BR2_PACKAGE_ADE BR2_PACKAGE_APM BR2_PACKAGE_TERMINAL \
-	BR2_PACKAGE_NOTEPAD BR2_PACKAGE_FILES BR2_PACKAGE_AOS_GCC; do
+	BR2_PACKAGE_NOTEPAD BR2_PACKAGE_FILES BR2_PACKAGE_SYSMON BR2_PACKAGE_AOS_GCC; do
 	grep -q "^${sym}=y" .config || { echo "ci.sh: ${sym} did not take" >&2; exit 1; }
 done
 

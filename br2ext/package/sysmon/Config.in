@@ -1,0 +1,30 @@
+config BR2_PACKAGE_SYSMON
+	bool "sysmon (system monitor)"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_HOST_RUSTC
+	select BR2_PACKAGE_LIBXKBCOMMON
+	select BR2_PACKAGE_VULKAN_LOADER
+	select BR2_PACKAGE_WAYLAND
+	help
+	  The system monitor: CPU with a history and one bar per core,
+	  the graphics cards, memory and swap, network rates, the
+	  mounted disks, and a process list that sorts by column and
+	  ends a process with Delete (SIGTERM) or Shift+Delete
+	  (SIGKILL).
+	  Everything is read from /proc and sysfs, so it has no runtime
+	  dependencies beyond the awin + tgn stack it shares with
+	  notepad, terminal and files, and the same Vulkan ICD caveat
+	  described under notepad.
+
+	  NVIDIA figures come from NVML, libnvidia-ml.so.1 from the
+	  aos-nvidia package, opened with dlopen at run time: without it
+	  there is simply no NVIDIA entry, so this does not depend on
+	  that package. AMD figures come from amdgpu's sysfs, Intel ones
+	  from the per-client counters i915 and xe put in fdinfo, which
+	  count the processes the user can read.
+
+comment "sysmon needs a toolchain w/ threads and dynamic libs"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS

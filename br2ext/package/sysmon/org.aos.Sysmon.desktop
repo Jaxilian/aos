@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=System Monitor
+GenericName=System Monitor
+Comment=CPU, memory, network, disks and processes
+Exec=sysmon
+Icon=org.aos.Sysmon
+Categories=System;Monitor;
+Keywords=system;monitor;cpu;memory;processes;task;manager;
+StartupWMClass=org.aos.Sysmon
