@@ -1,11 +1,14 @@
 # The NVIDIA device nodes: -c0 the first GPU's and nvidiactl, -u nvidia-uvm's
-# (loading it), -m nvidia-modeset's. Started by 60-nvidia.rules when an
-# NVIDIA GPU binds to the nvidia module; on other machines nothing asks.
+# (loading it), -m nvidia-modeset's. Wanted by multi-user, after udev's
+# coldplug has bound the GPU, and only where one is bound to nvidia: on any
+# other machine the condition fails and nothing runs. 60-nvidia.rules asks
+# for it from udev as well, for a GPU that appears later.
 [Unit]
 Description=NVIDIA device nodes
-DefaultDependencies=no
-After=systemd-udevd.service systemd-modules-load.service
-Before=graphical.target multi-user.target
+ConditionPathExistsGlob=/sys/bus/pci/drivers/nvidia/0000:*
+Wants=systemd-udev-settle.service
+After=systemd-udev-settle.service systemd-modules-load.service
+Before=graphical.target
 
 [Service]
 Type=oneshot
@@ -13,3 +16,6 @@ RemainAfterExit=yes
 ExecStart=/usr/bin/nvidia-modprobe -c0 -u
 ExecStart=/usr/bin/nvidia-modprobe -m
 ExecStart=/bin/sh -c 'ls -l /dev/nvidia*'
+
+[Install]
+WantedBy=multi-user.target

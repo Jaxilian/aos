@@ -175,6 +175,19 @@ In the order a new user meets them.
    a program the shell launches after that, or Steam's wrapper from a
    terminal older than the start, finds the display by its socket in
    `/tmp/.X11-unix`, since neither inherited DISPLAY.
+   Round 6, 2026-09-26: Thronefall installed, launched and an entire map
+   was played -- on the Intel GPU. The stick that round was written
+   through a stale page cache of the previous stick's root, which the
+   host still had mounted, and came out with every group descriptor
+   checksum wrong; the writer flushes the partition buffers now. The
+   NVIDIA device-node service had not reached that image (a package
+   whose files change under br2ext/package needs its own `-rebuild`;
+   a plain `make` keeps the old install), so `prime-run` found no GPU
+   and the game waited without a window. Alt+Tab with Steam's
+   Properties open went to Steam's own window under the dialog; ade
+   v0.1.15 cycles main windows only and brings a target's dialogs up
+   with it. And the launcher read its entries once at start, so Steam
+   appeared in it only after a reboot; it rereads them on every show.
    Round 5 on the G14, 2026-09-25 evening, three findings. Alt+Tab onto
    Steam still typed into the old window: an X client takes keys only
    where the X server's input focus is, which only the window manager
@@ -241,11 +254,10 @@ In the order a new user meets them.
    stick -- so that alone is not it. What differs on AOS: the sandbox's
    root and its `/home` are tmpfs, so no device-backed mount covers the
    home's filesystem as a whole, where a normal distribution has "/".
-   Steam's rule for naming a drive is not known; the layout that behaves
-   like everyone else's is `/home` on its own filesystem, an installer
-   change. First the cheap test: the sandbox now shares `/run/media`,
-   so a library on a second stick says whether the drive identity is
-   the whole story. (Also fixed on the way: on a stick-installed system
+   Round 6 named it: the entry reads `/run/host/usr`, the first mount
+   on the home's disk inside the container -- and the install works
+   regardless; only the label is odd. A `/home` of its own would fix
+   the label; not worth an installer change for a label. (Also fixed on the way: on a stick-installed system
    the media rule mounted the OS's own root and ESP again under
    `/run/media`; `aos-media` skips the disk `/` lives on.) These are release
    gates, not extras: if they do not run, the platform does not sell.

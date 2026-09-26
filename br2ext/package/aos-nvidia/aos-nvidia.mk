@@ -132,6 +132,9 @@ define AOS_NVIDIA_INSTALL_DEVICES
 		$(TARGET_DIR)/usr/lib/udev/rules.d/60-nvidia.rules
 	$(INSTALL) -D -m 0644 $(AOS_NVIDIA_PKGDIR)/nvidia-devices.service \
 		$(TARGET_DIR)/usr/lib/systemd/system/nvidia-devices.service
+	$(INSTALL) -d $(TARGET_DIR)/usr/lib/systemd/system/multi-user.target.wants
+	ln -sf ../nvidia-devices.service \
+		$(TARGET_DIR)/usr/lib/systemd/system/multi-user.target.wants/nvidia-devices.service
 	$(INSTALL) -D -m 0755 $(AOS_NVIDIA_PKGDIR)/prime-run $(TARGET_DIR)/usr/bin/prime-run
 endef
 
