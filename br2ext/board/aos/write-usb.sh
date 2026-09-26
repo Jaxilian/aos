@@ -162,11 +162,25 @@ verify() {
 # The desktop auto-mounts whatever it recognises on the stick -- the old
 # vfat, or the ESP and root of a previous install -- and a guest writing to a
 # filesystem the host has mounted corrupts it.
+# And what the host cached of those filesystems has to go too: the guest
+# writes the whole disk with direct I/O, which leaves the partition
+# devices' page cache untouched, and the next host-side mount of the new
+# filesystem then reads -- and writes back -- blocks of the old one. The
+# G14's stick came out of that with every group descriptor checksum wrong.
+flush_dev() {
+	sync
+	for part in $(lsblk -rno NAME "$DEV" | tail -n +2); do
+		blockdev --flushbufs "/dev/$part" 2>/dev/null || true
+	done
+	blockdev --flushbufs "$DEV" 2>/dev/null || true
+}
+
 unmount_dev() {
 	echo ">>> Unmounting anything mounted from $DEV"
 	for part in $(lsblk -rno NAME "$DEV" | tail -n +2); do
 		umount "/dev/$part" 2>/dev/null || true
 	done
+	flush_dev
 }
 
 # --auto: the serial console and the QEMU monitor go on unix sockets in a
@@ -300,9 +314,10 @@ EOF
 	rm -f /tmp/aos-ovmf-vars.*.fd
 
 	echo ">>> Re-reading the partition table"
-	sync
+	flush_dev
 	blockdev --rereadpt "$DEV" 2>/dev/null || partx -u "$DEV" 2>/dev/null || true
 	sleep 1
+	flush_dev
 	lsblk -o NAME,SIZE,PARTLABEL,PARTTYPENAME,FSTYPE,LABEL "$DEV"
 	esp=$(lsblk -rno NAME,PARTTYPE "$DEV" 2>/dev/null | \
 		awk 'tolower($2) == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b" { print "/dev/"$1; exit }')

@@ -191,6 +191,9 @@ if [ -n "$SEED" ]; then
 	part=$(lsblk -lnpo PATH,LABEL "$DEV" | awk '$2 == "aos" { print $1; exit }')
 	[ -n "$part" ] || { echo "make-usb.sh: no partition labelled aos on $DEV; not seeded" >&2; exit 1; }
 	mnt=$(mktemp -d)
+	# Nothing the host cached of a previous stick may reach this mount:
+	# see flush_dev in write-usb.sh.
+	sudo blockdev --flushbufs "$part" "$DEV" 2>/dev/null || true
 	sudo mount "$part" "$mnt"
 	uid=$(awk -F: -v u="$who" '$1 == u { print $3 ":" $4 }' "$mnt/etc/passwd")
 	if [ -n "$uid" ] && [ -d "$mnt/home/$who" ]; then
@@ -201,6 +204,7 @@ if [ -n "$SEED" ]; then
 		echo "make-usb.sh: no account $who on the stick; not seeded" >&2
 	fi
 	sudo umount "$mnt"
+	sudo blockdev --flushbufs "$part" 2>/dev/null || true
 	rmdir "$mnt"
 fi
 
