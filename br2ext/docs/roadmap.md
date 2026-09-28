@@ -295,8 +295,17 @@ In the order a new user meets them.
    `ext-session-lock-v1`, the password through PAM (`/etc/pam.d/ade-lock`),
    Super+L and the Settings Power page start it, and the compositor
    keeps the session locked and restarts a locker that died. Then:
-   screenshot, notifications, clipboard,
-   drag-and-drop, Bluetooth, battery and power in the bar. Printing can
+   *The desktop's chrome, 2026-09-28 (ade v0.1.17)*: the Super tap
+   opens an overview -- search, the applications as tiles, the running
+   ones as a dock along the bottom that brings a window up or, with
+   several of one application, offers them by title; Super+A keeps the
+   quick launcher; the bar shows the network, battery and volume beside
+   the clock, and a click there opens a quick panel with the session
+   buttons, volume and brightness sliders and tiles into Settings. The
+   shell asks the compositor for its windows over a control socket.
+   Application icons wait on tgn's image drawing: the tiles carry the
+   initial for now. Then:
+   screenshot, clipboard, drag-and-drop, Bluetooth. Printing can
    wait. Seen on the G14, 2026-09-23: Visual Studio Code died on Open
    Folder -- GTK's file chooser aborts without its GSettings schema, and
    the GTK3 runtime shipped the schema as XML only, since Buildroot
