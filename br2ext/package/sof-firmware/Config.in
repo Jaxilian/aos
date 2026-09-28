@@ -1,0 +1,15 @@
+config BR2_PACKAGE_SOF_FIRMWARE
+	bool "sof-firmware (Sound Open Firmware for Intel audio DSPs)"
+	depends on BR2_x86_64
+	help
+	  The firmware and topologies for the audio DSP in Intel laptops
+	  from Cannon Lake (2018) to Panther Lake and beyond, as the SOF
+	  project releases them in sof-bin: the IPC3 firmware and
+	  topologies for the older parts, the IPC4 ones for Meteor Lake
+	  on. Without these the kernel's SOF driver loads, finds no
+	  firmware, and the machine has no sound at all.
+
+	  Intel's signed firmware is under Intel's binary licence; the
+	  topologies and the community builds are BSD-3-Clause.
+
+	  https://github.com/thesofproject/sof-bin

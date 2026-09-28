@@ -23,6 +23,10 @@ source "$BR2_EXTERNAL_AOS_PATH/package/files/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/sysmon/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/settings/Config.in"
 
+comment "Sound"
+
+source "$BR2_EXTERNAL_AOS_PATH/package/sof-firmware/Config.in"
+
 comment "Graphics"
 
 source "$BR2_EXTERNAL_AOS_PATH/package/aos-nvidia-open/Config.in"

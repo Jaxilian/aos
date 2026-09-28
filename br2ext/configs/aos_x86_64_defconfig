@@ -281,6 +281,7 @@ BR2_PACKAGE_OPENSSH_SANDBOX=y
 # GB. These cover the wireless and GPU parts actually found in PCs of the last
 # fifteen years or so.
 ################################################################################
+BR2_PACKAGE_SOF_FIRMWARE=y
 BR2_PACKAGE_LINUX_FIRMWARE=y
 # CPU microcode. Errata are a leading cause of the unreproducible hangs a
 # foundation exists to rule out, and new silicon has the most of them.

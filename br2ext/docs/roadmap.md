@@ -49,9 +49,10 @@ other item is a result no one else can reproduce.
    application used to reach by an absolute path into one machine, are one
    workspace in the `aos-sdk` repository and a git dependency at a tag. A
    developer's working tree goes in through `local.mk`
-   ([building.md](building.md)). Outstanding: the repositories exist only
-   locally until pushed, and there are no `.hash` files yet -- the commit
-   pins the content, the hash would guard the download.
+   ([building.md](building.md)). The repositories are on GitHub (private),
+   and each package has a `.hash` for its vendored tarball; repinning an
+   application means rewriting that line (`make <pkg>-source` fetches
+   the tarball to hash).
 2. **Pin what floats.**
    *Done 2026-09-22*, except the archive. Kernel pinned
    ([upgrading.md](upgrading.md) has the headers trap that comes with it),
@@ -86,17 +87,17 @@ other item is a result no one else can reproduce.
    manifest beside the ISO.
    *Written 2026-09-22*: [release.sh](../board/aos/release.sh) does all of
    it with `apm sign`, and refuses a `-dirty` build.
-6. **Cadence and support window, in writing.** For instance: a 0.x release
-   monthly, each supported until the next. The number matters less than its
-   existence.
+6. **Cadence and support window, in writing.** *Done 2026-09-28*: a 0.x
+   release monthly, each supported until the next --
+   [policies.md](policies.md).
 
 ## Phase 1 — Trust and security
 
 What an evaluator checks before anything else.
 
-1. **A security policy that is AOS's.** Today the root `SECURITY.md` is
-   Buildroot's, untouched. Done: reporting address, what happens to a report,
-   and an honest statement of what an alpha promises.
+1. **A security policy that is AOS's.** *Done*: the root `SECURITY.md`
+   has the reporting address, what happens to a report, the disclosure
+   window, and what an alpha promises.
 2. **apm refuses unknown keys.** *Done 2026-09-22*: an index no trusted
    key verifies is refused (`trust = "required"` is the default), and the
    image ships the official key already trusted with the official
@@ -106,22 +107,21 @@ What an evaluator checks before anything else.
 3. **A CVE report per release.** Buildroot's `make pkg-stats` against the
    tagged configuration, published with the release, with a paragraph on
    how a fix reaches an installed machine.
-4. **Secure Boot: decide.** Today nothing is signed and a machine with
-   Secure Boot on cannot boot AOS at all. Either shim plus a MOK-enrolled
-   kernel and modules (the NVIDIA modules need signing too), or "unsupported;
-   turn it off" at the top of the known limitations. Decide before any
-   evaluation, not during one.
+4. **Secure Boot: decide.** *Decided 2026-09-28*: unsupported, turn it
+   off, first line of the known limitations ([policies.md](policies.md)).
+   Shim plus a MOK-enrolled kernel and signed modules (NVIDIA's too) is
+   known engineering and ongoing maintenance; it waits for a reason.
 5. **Base OS updates.** Today an installed machine is updated by
    reinstalling. Done: a signed, versioned root image in A/B slots and a
    "previous version" entry in the boot menu next to the existing
    safe-graphics one. `systemd-sysupdate` is already in the image and fits
    the no-initramfs, `root=PARTUUID=` layout. Until it lands, a documented
    reinstall that preserves `/home`.
-6. **Disk encryption: decide.** Without an initramfs the root cannot be on
-   LUKS ([../PLATFORM.md](../PLATFORM.md)). Either a minimal initramfs for
-   LUKS, or `/home` only. Evaluators ask.
-7. **No telemetry**, written down as a guarantee. It is true today; it
-   should be a promise.
+6. **Disk encryption: decide.** *Decided 2026-09-28*: `/home` on LUKS,
+   unlocked at login, when it comes; the root stays in the clear and there
+   is no initramfs ([policies.md](policies.md)). Not built yet.
+7. **No telemetry**, written down as a guarantee. *Done 2026-09-28*:
+   [policies.md](policies.md).
 
 ## Phase 2 — Everything a user does, without a terminal
 
@@ -146,7 +146,10 @@ In the order a new user meets them.
    scale goes to `~/.config/ade/display`, which the compositor rereads
    within seconds. Outstanding: display arrangement and per-output
    scale in the page (the file already takes a line per output), and
-   idle blanking, which ade does not do yet.
+   *idle blanking added 2026-09-28*: `blank=<seconds>` in the same file,
+   ten minutes by default; ade switches every head off through its DPMS
+   property after that long without input and on again at the next key
+   or pointer event, and the Display page offers the times.
 4. **The app store.** A graphical front to apm, with Official and Third-party
    clearly separated: search, install, update, remove, and who signed it.
 5. **Updates in one place.** Base OS (Phase 1, item 5) and applications on
@@ -279,9 +282,15 @@ In the order a new user meets them.
    PipeWire and WirePlumber as session services, a sink on QEMU's HDA card
    checked every desktop boot ([../PLATFORM.md](../PLATFORM.md) has the
    three things that had to be right: modular controller, ACL through
-   logind, real-time through the pipewire group). Outstanding for sound:
-   Intel SOF and AMD ACP -- kernel options and firmware for the DSPs on
-   laptops from 2019 on, which QEMU cannot test -- and Bluetooth audio.
+   logind, real-time through the pipewire group). *SOF and ACP added 2026-09-28*: the SOF
+   driver for every Intel generation from Bay Trail to Nova Lake,
+   SoundWire, the generic HDA and SoundWire machine drivers and the I2S
+   boards, the Cirrus and TI amplifiers gaming laptops hang beside an HDA
+   codec, and AMD's ACP drivers, legacy and SOF; the firmware is the
+   `sof-firmware` package (sof-bin, since linux-firmware no longer
+   carries it; AMD's SOF firmware is in neither, so AMD runs the legacy
+   ACP path). QEMU cannot test any of it; the G14 (Panther Lake) is the
+   first check. Outstanding for sound: Bluetooth audio.
    *Lock screen done 2026-09-25 (ade v0.1.11)*: `ade-lock` on
    `ext-session-lock-v1`, the password through PAM (`/etc/pam.d/ade-lock`),
    Super+L and the Settings Power page start it, and the compositor

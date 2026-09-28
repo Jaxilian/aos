@@ -34,6 +34,7 @@ Installed size is **2.6 GB**. The ISO is 956 MB because it is compressed.
 | sudo | 1.9.17p2 |
 | grub2 | 2.14 (BIOS and UEFI) |
 | linux-firmware | 20260810 |
+| sof-firmware | 2026.09.1 (sof-bin: the Intel audio DSP firmware and topologies, 57 MB; a custom package) |
 
 ## Toolchain — the self-hosting part
 

@@ -12,6 +12,7 @@ Short guides for working on AOS. Start here.
 - [ssh.md](ssh.md) — remote access, and the key you must add before building
 - [roadmap.md](roadmap.md) — the platform contract, and the plan to an alpha: release engineering, trust, the no-terminal user path, stability, hardware
 - [publishing.md](publishing.md) — how to hand the image to someone else
+- [policies.md](policies.md) — what AOS promises and has decided: cadence, no telemetry, Secure Boot, encryption, updates
 
 The platform contract — what AOS guarantees to software built on top of it —
 is one level up in [../PLATFORM.md](../PLATFORM.md).
