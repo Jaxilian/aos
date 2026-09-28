@@ -259,7 +259,16 @@ In the order a new user meets them.
    regardless; only the label is odd. A `/home` of its own would fix
    the label; not worth an installer change for a label. (Also fixed on the way: on a stick-installed system
    the media rule mounted the OS's own root and ESP again under
-   `/run/media`; `aos-media` skips the disk `/` lives on.) These are release
+   `/run/media`; `aos-media` skips the disk `/` lives on.)
+   Seen on the G14, 2026-09-26, fixed 2026-09-28: every page in
+   Firefox rendered as hex boxes while its own chrome was fine. The
+   content processes run in Firefox's sandbox, which reads fonts only
+   from directories Firefox names itself (`/usr/share/fonts` and a
+   few more) and never learns fontconfig's; AOS keeps the fonts and
+   the runtime under `/opt/apm`. Firefox release 2 ships a default
+   preference (`security.sandbox.content.read_path_whitelist`) that
+   opens the store to them read-only, and the boot test's Firefox
+   window now shows a text page rather than the New Tab. These are release
    gates, not extras: if they do not run, the platform does not sell.
    Open: twice the boot test saw a program's first `mkdir` in the home
    fail with "No space left on device" on a disk with 17 GB free, right
@@ -288,11 +297,12 @@ In the order a new user meets them.
    which it did not before, so the fix could have reached nobody. There is
    no desktop portal: Electron falls back to GTK's dialog, which is fine
    until the portal becomes the way to file pickers and screen sharing.
-   Smaller, to be fixed in the apps:
-   the terminal does not reflow its text when the window shrinks; in
-   Files, a right-click on a sidebar entry (bookmarks, devices) paints the
-   entry black until the menu closes; the desktop keyboard layout has no
-   setting yet -- `/etc/ade/environment` with `XKB_DEFAULT_LAYOUT=se` is
+   Smaller, fixed in the apps 2026-09-28: the terminal rewraps its
+   lines when the window changes width (terminal v0.1.5); in Files, a
+   right-click on a sidebar entry painted the entry black until the
+   menu closed -- the rows under the popup are hidden while it is up
+   (files v0.1.5); the desktop keyboard layout had no
+   setting -- `/etc/ade/environment` with `XKB_DEFAULT_LAYOUT=se` is
    the way today ([keyboard.md](keyboard.md)); the Settings application's
    Keyboard page writes it since 2026-09-25.
 

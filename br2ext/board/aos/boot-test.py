@@ -475,7 +475,9 @@ def apm_run(ser):
         if "Installed mozilla/firefox" in out.get(FIREFOX, ""):
             print("\n$ firefox --version (as admin)\n%s" % ser.run(
                 "su -s /bin/sh admin -c 'timeout 60 /opt/apm/bin/firefox --version 2>&1 | head -5; echo exit=$?'", timeout=90))
-            window_shot(ser, "firefox", "firefox", "/opt/apm/bin/firefox", timeout=240)
+            # A text page, not the New Tab: page text is drawn by the sandboxed
+            # content process, whose font access is what this proves.
+            window_shot(ser, "firefox", "firefox", "/opt/apm/bin/firefox file:///etc/os-release", timeout=240)
         if "Installed discord/discord" in out.get(DISCORD, ""):
             # The bootstrap downloads the application first: minutes over
             # slirp before there is a window to look for.
