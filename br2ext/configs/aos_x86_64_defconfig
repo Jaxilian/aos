@@ -450,6 +450,7 @@ BR2_PACKAGE_FILES=y
 # The system monitor: CPU, memory, network, disks and a process list, all
 # from /proc, on the same awin + tgn stack.
 BR2_PACKAGE_SYSMON=y
+BR2_PACKAGE_IMAGES=y
 
 # The settings application: network and Wi-Fi, sound, display, keyboard,
 # power, users, time, updates and the compatibility switches, on the same

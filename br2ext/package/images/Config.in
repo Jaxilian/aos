@@ -1,0 +1,19 @@
+config BR2_PACKAGE_IMAGES
+	bool "images (image viewer)"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_HOST_RUSTC
+	select BR2_PACKAGE_LIBXKBCOMMON
+	select BR2_PACKAGE_VULKAN_LOADER
+	select BR2_PACKAGE_WAYLAND
+	help
+	  The image viewer: PNG, JPEG and SVG, on the aos-sdk's picture
+	  path. Walks the folder with Left and Right, zooms, pans. Files
+	  opens pictures with it. Same stack and same dependencies as
+	  notepad; see there for why the Vulkan loader alone is not
+	  enough and where the drivers come from.
+
+comment "images needs a toolchain w/ threads and dynamic libs"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS

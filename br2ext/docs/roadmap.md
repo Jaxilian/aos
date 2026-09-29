@@ -307,7 +307,10 @@ In the order a new user meets them.
    pictures -- PNG, JPEG, and SVG rasterised at the asked size -- on a
    frame, and the tiles show each application's icon from its desktop
    entry; the image installs the official applications' SVGs into the
-   hicolor theme. The same path is what an image viewer needs. Then:
+   hicolor theme. *An image viewer the same day*: `images`
+   (Jaxilian/images, in the image and in apm as `aos/images`), PNG,
+   JPEG and SVG, the folder walked with Left and Right, zoom and pan;
+   Files opens a picture with it. Then:
    screenshot, clipboard, drag-and-drop, Bluetooth. Printing can
    wait. Seen on the G14, 2026-09-23: Visual Studio Code died on Open
    Folder -- GTK's file chooser aborts without its GSettings schema, and

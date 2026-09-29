@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Images
+GenericName=Image Viewer
+Comment=Look at pictures
+Exec=images %f
+Icon=org.aos.Images
+MimeType=image/png;image/jpeg;image/svg+xml;
+Categories=Graphics;Viewer;
+Keywords=image;picture;photo;viewer;png;jpeg;svg;
+StartupWMClass=org.aos.Images

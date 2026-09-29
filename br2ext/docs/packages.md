@@ -97,6 +97,7 @@ There is no X server. The Wayland compositor is ade, below.
 | files | 0.1.0 (a custom package) |
 | sysmon | 0.1.0 (a custom package) |
 | settings | 0.1.0 (a custom package) |
+| images | 0.1.0 (the image viewer -- a custom package) |
 | apm | 0.1.0 (a custom package) |
 
 ## Sound

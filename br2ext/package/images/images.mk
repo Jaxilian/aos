@@ -1,20 +1,20 @@
 ################################################################################
 #
-# files
+# images
 #
 ################################################################################
 
-# A commit, not a tag -- see ade.mk. This one is v0.1.6.
-FILES_VERSION = 9a14474caf7acaefb3650bbdf4f91d2aa19b2354
-FILES_SITE = ssh://git@github.com/Jaxilian/files
-FILES_SITE_METHOD = git
-FILES_LICENSE = MIT
+# A commit, not a tag -- see ade.mk. This one is v0.1.0.
+IMAGES_VERSION = d80c295409463e959367b4dc9d7239351567e55e
+IMAGES_SITE = ssh://git@github.com/Jaxilian/images
+IMAGES_SITE_METHOD = git
+IMAGES_LICENSE = MIT
 
-# For a build from a working tree through FILES_OVERRIDE_SRCDIR in
+# For a build from a working tree through IMAGES_OVERRIDE_SRCDIR in
 # local.mk; see ade.mk for both lines.
-FILES_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = --exclude=target
-ifneq ($(FILES_OVERRIDE_SRCDIR),)
-FILES_PRE_BUILD_HOOKS += AOS_CARGO_VENDOR
+IMAGES_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = --exclude=target
+ifneq ($(IMAGES_OVERRIDE_SRCDIR),)
+IMAGES_PRE_BUILD_HOOKS += AOS_CARGO_VENDOR
 endif
 
 # libwayland-client and libxkbcommon are linked; libvulkan is not, because
@@ -23,7 +23,7 @@ endif
 # link time. host-pkgconf is how the -sys crates find the first two. tgn,
 # and awin through it, come from the aos-sdk repository at a tag, named in
 # Cargo.toml, and are vendored with the rest of the crates.
-FILES_DEPENDENCIES = \
+IMAGES_DEPENDENCIES = \
 	host-pkgconf \
 	libxkbcommon \
 	vulkan-loader \
@@ -33,16 +33,16 @@ FILES_DEPENDENCIES = \
 # That would compile the whole tree a second time into a target directory of
 # its own, which for this dependency graph is minutes of Vulkan and image
 # crates rebuilt to produce a file the build step already made.
-FILES_PROFILE = $(if $(BR2_ENABLE_DEBUG),debug,release)
+IMAGES_PROFILE = $(if $(BR2_ENABLE_DEBUG),debug,release)
 
-define FILES_INSTALL_TARGET_CMDS
+define IMAGES_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 \
-		$(@D)/target/$(RUSTC_TARGET_NAME)/$(FILES_PROFILE)/files \
-		$(TARGET_DIR)/usr/bin/files
-	$(INSTALL) -D -m 0644 $(FILES_PKGDIR)/org.aos.Files.desktop \
-		$(TARGET_DIR)/usr/share/applications/org.aos.Files.desktop
-	$(INSTALL) -D -m 0644 $(@D)/res/files.svg \
-		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Files.svg
+		$(@D)/target/$(RUSTC_TARGET_NAME)/$(IMAGES_PROFILE)/images \
+		$(TARGET_DIR)/usr/bin/images
+	$(INSTALL) -D -m 0644 $(IMAGES_PKGDIR)/org.aos.Images.desktop \
+		$(TARGET_DIR)/usr/share/applications/org.aos.Images.desktop
+	$(INSTALL) -D -m 0644 $(@D)/res/images.svg \
+		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Images.svg
 endef
 
 $(eval $(cargo-package))

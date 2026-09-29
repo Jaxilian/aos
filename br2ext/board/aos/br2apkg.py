@@ -72,9 +72,14 @@ SKIP = ("./usr/share/doc/", "./usr/share/man/", "./usr/share/info/", "./usr/shar
 
 
 def build_dir(pkg):
-    dirs = sorted(d for d in os.listdir(BUILD) if re.fullmatch(re.escape(pkg) + r"-[0-9][^/]*", d))
+    """The package's build directory: a version can be a number or a git
+    commit, and an old version's directory stays beside the new one, so
+    the one installed most recently is the one meant."""
+    dirs = [d for d in os.listdir(BUILD) if re.fullmatch(re.escape(pkg) + r"-[0-9a-f][^/]*", d)]
+    dirs = [d for d in dirs if os.path.exists(os.path.join(BUILD, d, ".stamp_target_installed"))]
     if not dirs:
-        sys.exit("br2apkg: no output/build/%s-<version>; is it built?" % pkg)
+        sys.exit("br2apkg: no built output/build/%s-<version>; is it built?" % pkg)
+    dirs.sort(key=lambda d: os.path.getmtime(os.path.join(BUILD, d, ".stamp_target_installed")))
     return os.path.join(BUILD, dirs[-1])
 
 
@@ -94,6 +99,23 @@ def payload_path(target_path):
         if target_path.startswith(prefix):
             return dest + target_path[len(prefix):]
     return None
+
+
+def icon_in(work, icon):
+    """The desktop entry's Icon as a path inside the payload: a name is
+    looked up in the hicolor theme the package carries, a path is kept
+    if it is one of the package's own files. Empty when neither."""
+    if not icon:
+        return ""
+    if icon.startswith("/"):
+        rel = payload_path("." + icon)
+        return rel if rel and os.path.exists(os.path.join(work, rel)) else ""
+    for size in ["scalable", "512x512", "256x256", "128x128", "64x64", "48x48"]:
+        for ext in ["svg", "png"]:
+            rel = os.path.join("share", "icons", "hicolor", size, "apps", icon + "." + ext)
+            if os.path.exists(os.path.join(work, rel)):
+                return rel
+    return ""
 
 
 def toml_str(s):
@@ -278,6 +300,7 @@ exec "$@"
                     "comment": entry.get("Comment", ""),
                     "exec": "bin/" + exe if exe in commands else exe,
                     "categories": [c for c in entry.get("Categories", "").split(";") if c],
+                    "icon": icon_in(work, entry.get("Icon", "")),
                 }
                 shutil.rmtree(os.path.join(work, "share", "applications"), ignore_errors=True)
                 break
@@ -327,8 +350,10 @@ exec "$@"
         manifest += ["", "[launcher]",
                      "name       = %s" % toml_str(launcher["name"]),
                      "comment    = %s" % toml_str(launcher["comment"]),
-                     "exec       = %s" % toml_str(launcher["exec"]),
-                     "categories = [%s]" % ", ".join(toml_str(c) for c in launcher["categories"]),
+                     "exec       = %s" % toml_str(launcher["exec"])]
+        if launcher["icon"]:
+            manifest += ["icon       = %s" % toml_str(launcher["icon"])]
+        manifest += ["categories = [%s]" % ", ".join(toml_str(c) for c in launcher["categories"]),
                      "terminal   = false"]
     if a.global_ and sonames:
         # No ldconfig hook: apm runs "ldconfig <farm>" itself for a global

@@ -333,6 +333,8 @@ APM = [
     # An app lifted out of the image by br2apkg: the launcher entry must
     # land under exports, which ade now reads through XDG_DATA_DIRS.
     "apm install terminal --quiet 2>&1 | tail -2; cat /opt/apm/exports/share/applications/aos.terminal.desktop",
+    # The viewer, published the same way; its entry must carry the icon.
+    "apm install images --quiet 2>&1 | tail -2; grep -E 'Icon|Exec' /opt/apm/exports/share/applications/aos.images.desktop",
     # The GTK3 runtime from the third-party repository, and a GTK program
     # started through its wrapper on the desktop; gtk_shot() below takes
     # the screendump.
@@ -361,7 +363,7 @@ APM = [
 # installed goes, dependents before their dependencies, and the store must
 # be empty.
 CLEANUP = ("for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt/apm/bin/ /opt/apm/packages/"
-           % (" vscode firefox discord steam runtime/xwayland runtime/gtk3 runtime/compat32 fonts rust terminal" if APM_REPO else ""))
+           % (" vscode firefox discord steam runtime/xwayland runtime/gtk3 runtime/compat32 fonts rust terminal images" if APM_REPO else ""))
 
 
 def window_shot(ser, tag, exe, command, timeout=WINDOW_TIMEOUT, wait_for=None):
