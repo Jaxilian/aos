@@ -309,8 +309,12 @@ In the order a new user meets them.
    entry; the image installs the official applications' SVGs into the
    hicolor theme. *An image viewer the same day*: `images`
    (Jaxilian/images, in the image and in apm as `aos/images`), PNG,
-   JPEG and SVG, the folder walked with Left and Right, zoom and pan;
-   Files opens a picture with it. Then:
+   JPEG and SVG, the folder walked with Left and Right, zoom and pan,
+   turns and Set as Wallpaper (ade's wallpaper draws a picture since
+   v0.1.19); Files opens a picture with it, and `/etc/xdg/mimeapps.list`
+   makes it the system's default for PNG, JPEG and SVG. Fixed on the
+   way: tgn uploaded pictures as sRGB onto a UNORM swapchain, so every
+   icon and picture was drawn as a dark fade of itself (aos-sdk v0.4.7). Then:
    screenshot, clipboard, drag-and-drop, Bluetooth. Printing can
    wait. Seen on the G14, 2026-09-23: Visual Studio Code died on Open
    Folder -- GTK's file chooser aborts without its GSettings schema, and

@@ -1,0 +1,10 @@
+# The applications AOS opens a file type with when nothing else is
+# chosen: the freedesktop default for every program that asks (a
+# browser's download, xdg-open), and a person's own
+# ~/.config/mimeapps.list overrides it.
+[Default Applications]
+image/png=org.aos.Images.desktop
+image/jpeg=org.aos.Images.desktop
+image/svg+xml=org.aos.Images.desktop
+text/plain=org.aos.Notepad.desktop
+inode/directory=org.aos.Files.desktop
