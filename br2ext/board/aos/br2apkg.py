@@ -312,13 +312,16 @@ exec "$@"
         org_name, _, track = d.partition("@")
         org, _, name = org_name.partition("/")
         deps.append((org, name, track or "*"))
-        # Fonts come from their own package; fontconfig has to be told.
+        # Fonts come from their own package, reached through the image's
+        # /usr/share/fonts link into it: a sandboxed program (Firefox's
+        # content processes read fonts only from the directories Firefox
+        # names, /usr/share among them) then sees paths it may open.
         fonts_conf = os.path.join(work, "etc", "fonts", "fonts.conf")
         if name == "fonts" and os.path.exists(fonts_conf):
             with open(fonts_conf) as f:
                 text = f.read()
             text = text.replace("<dir>%s/share/fonts</dir>" % runtime_prefix,
-                                "<dir>/opt/apm/packages/%s/fonts/current/share/fonts</dir>\n\t<dir>%s/share/fonts</dir>" % (org, runtime_prefix), 1)
+                                "<dir>/usr/share/fonts</dir>\n\t<dir>%s/share/fonts</dir>" % runtime_prefix, 1)
             with open(fonts_conf, "w") as f:
                 f.write(text)
 

@@ -1,0 +1,48 @@
+#!/bin/sh
+# nvidia-nodes -- the device files NVIDIA's userspace opens, which the
+# kernel modules never create. nvidia-modprobe is asked first, as the
+# driver intends; on the G14 it returned 0 and made nvidia-uvm's and
+# nvidia-modeset's nodes but not nvidiactl and nvidia0, with nothing to
+# say why, so what it left out is made here from what the kernel
+# reports: the "nvidia-frontend" major in /proc/devices (195 by
+# convention), minor 255 for nvidiactl and each GPU's own minor for its
+# node. Everything found and made is logged for the journal.
+set -u
+
+modprobe nvidia 2>/dev/null
+modprobe nvidia-uvm 2>/dev/null
+modprobe nvidia-modeset 2>/dev/null
+/usr/bin/nvidia-modprobe -c0 -u -m 2>&1
+
+major=$(awk '$2 == "nvidia-frontend" || $2 == "nvidia" { print $1; exit }' /proc/devices)
+if [ -z "$major" ]; then
+	echo "nvidia-nodes: no nvidia char major in /proc/devices:"
+	grep -i nvidia /proc/devices
+	major=195
+fi
+
+node() {
+	[ -c "$1" ] && return
+	rm -f "$1"
+	mknod -m 666 "$1" c "$2" "$3" && echo "nvidia-nodes: made $1 ($2:$3)"
+}
+
+node /dev/nvidiactl "$major" 255
+
+made=0
+for info in /proc/driver/nvidia/gpus/*/information; do
+	[ -f "$info" ] || continue
+	minor=$(sed -n 's/^Device Minor:[[:space:]]*//p' "$info")
+	[ -n "$minor" ] || continue
+	node "/dev/nvidia$minor" "$major" "$minor"
+	made=1
+done
+[ "$made" = 1 ] || node /dev/nvidia0 "$major" 0
+
+uvm=$(awk '$2 == "nvidia-uvm" { print $1; exit }' /proc/devices)
+if [ -n "$uvm" ]; then
+	node /dev/nvidia-uvm "$uvm" 0
+	node /dev/nvidia-uvm-tools "$uvm" 1
+fi
+
+ls -l /dev/nvidia*

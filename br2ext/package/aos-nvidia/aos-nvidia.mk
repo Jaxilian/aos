@@ -136,6 +136,7 @@ define AOS_NVIDIA_INSTALL_DEVICES
 	ln -sf ../nvidia-devices.service \
 		$(TARGET_DIR)/usr/lib/systemd/system/multi-user.target.wants/nvidia-devices.service
 	$(INSTALL) -D -m 0755 $(AOS_NVIDIA_PKGDIR)/prime-run $(TARGET_DIR)/usr/bin/prime-run
+	$(INSTALL) -D -m 0755 $(AOS_NVIDIA_PKGDIR)/nvidia-nodes $(TARGET_DIR)/usr/bin/nvidia-nodes
 endef
 
 define AOS_NVIDIA_INSTALL_TARGET_CMDS
