@@ -5,10 +5,10 @@
 ################################################################################
 
 # A commit, not a tag: a tag can be moved, and the point of pinning is that
-# this file and the sources it names cannot drift apart. This one is v0.1.18.
+# this file and the sources it names cannot drift apart. This one is v0.1.19.
 # Over ssh, because the repositories are private: whoever builds needs a
 # key GitHub knows. The applications' Cargo.toml fetch the SDK the same way.
-ADE_VERSION = f723b47855b646816bd0b4fb55ee63ce74c5bdef
+ADE_VERSION = 0117517ac483a8bd2de779f6d7f829fdea1a056b
 ADE_SITE = ssh://git@github.com/Jaxilian/ade
 ADE_SITE_METHOD = git
 ADE_LICENSE = MIT
