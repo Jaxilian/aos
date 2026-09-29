@@ -170,3 +170,16 @@ if [ -n "${PACKAGES}" ]; then
 		"${TARGET_DIR}/opt/apm/cache/staging" "${TARGET_DIR}/opt/apm/state/lock"
 	unset APM_DESTDIR APM_NO_HOOKS
 fi
+
+# The commits the image's own packages were built from, appended to the
+# repository index so a patch can start from exactly what is running.
+: "${BR2_EXTERNAL_AOS_PATH:?post-build.sh: BR2_EXTERNAL_AOS_PATH not set}"
+{
+	printf '\nBuilt from:\n'
+	printf '  %-17s %s\n' aos "$(git -C "${BR2_EXTERNAL_AOS_PATH}" describe --always --dirty 2>/dev/null || echo unknown)"
+	for mk in "${BR2_EXTERNAL_AOS_PATH}"/package/*/*.mk; do
+		grep -q '_SITE = ssh://git@github.com/Jaxilian/' "$mk" || continue
+		ver=$(sed -n 's/^[A-Z0-9_]*_VERSION = //p' "$mk" | head -n 1)
+		printf '  %-17s %s\n' "$(basename "$mk" .mk)" "$ver"
+	done
+} >> "${TARGET_DIR}/usr/share/aos/index.txt"

@@ -1,0 +1,28 @@
+AOS source repositories
+
+Every repository this system is built from. All are private under
+github.com/Jaxilian and cloned over SSH. The commits this image was
+built from are listed at the end.
+
+  repo              branch  what it is
+  aos               main    the OS: Buildroot tree, packages, overlay, docs (br2ext/)
+  ade               master  the desktop: compositor (comp/) and shell (shell/)
+  aos-sdk           main    the SDK every app uses: awin (windows) and tgn (GUI)
+  terminal          master  Terminal
+  files             main    Files
+  notepad           main    Notepad
+  settings          main    Settings
+  sysmon            master  System Monitor
+  images            main    Images, the picture viewer
+  apm               main    apm, the package manager
+  apm-recipes       main    recipes for the official package index (aos/*)
+  apm-thirdparty    main    recipes for third-party packages (Firefox, Steam, runtimes)
+
+The SDK is not listed below: each app pins its aos-sdk tag in Cargo.lock.
+
+Clone one:
+  git clone git@github.com:Jaxilian/<repo>.git
+
+Upstream sources fetched as release tarballs, not repositories:
+  libnsl            github.com/thkukuk/libnsl
+  sof-firmware      github.com/thesofproject/sof-bin
