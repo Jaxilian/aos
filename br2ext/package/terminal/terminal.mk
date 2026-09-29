@@ -42,6 +42,8 @@ define TERMINAL_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/bin/terminal
 	$(INSTALL) -D -m 0644 $(TERMINAL_PKGDIR)/org.aos.Terminal.desktop \
 		$(TARGET_DIR)/usr/share/applications/org.aos.Terminal.desktop
+	$(INSTALL) -D -m 0644 $(@D)/res/terminal.svg \
+		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Terminal.svg
 endef
 
 $(eval $(cargo-package))

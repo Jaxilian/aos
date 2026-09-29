@@ -5,7 +5,7 @@
 #   run-qemu.sh              live ISO, UEFI firmware  (default)
 #   run-qemu.sh bios         live ISO, legacy BIOS
 #   run-qemu.sh disk [file]  boot an installed disk image (default: output/images/aos-disk.img)
-#   run-qemu.sh install      live ISO plus a fresh blank 8G disk, for aos-install
+#   run-qemu.sh install      live ISO plus a fresh blank 32G disk, for aos-install
 #
 # Add "serial" as a second word to run headless on the terminal instead of
 # opening a window, e.g.  run-qemu.sh bios serial
@@ -140,7 +140,7 @@ case "$MODE" in
 		IMG="${IMG_ARG:-$IMAGES/aos-disk.img}"
 		[ -f "$IMG" ] || { echo "no disk image at $IMG -- run 'install' first"; exit 1; }
 		# A disk that was created by 'install' but never actually installed
-		# to is 8G of zeros. Booting it just lands in the firmware with no
+		# to is 32G of zeros. Booting it just lands in the firmware with no
 		# explanation, so check for a GPT header before launching.
 		if ! dd if="$IMG" bs=512 skip=1 count=1 2>/dev/null | grep -q "EFI PART"; then
 			echo "$IMG has no partition table -- nothing was installed on it."
@@ -161,7 +161,7 @@ case "$MODE" in
 			echo "Discarding previous install at $IMG"
 			rm -f "$IMG"
 		fi
-		truncate -s 8G "$IMG"
+		truncate -s 32G "$IMG"
 		echo "Blank disk at $IMG -- log in as root and run: aos-install /dev/vda"
 		# shellcheck disable=SC2086
 		exec qemu-system-x86_64 $ACCEL -m 4G -smp 4 \

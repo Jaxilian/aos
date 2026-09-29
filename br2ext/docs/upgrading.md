@@ -34,6 +34,28 @@ against the version it ships, so a hand-picked kernel is less well tested. And
 the NVIDIA modules must support it -- 610.57.04 builds against 7.x, but a much
 newer kernel may need a newer driver.
 
+### Shipping it without a new ISO
+
+An installed system takes a kernel from apm. After `make`:
+
+```sh
+./br2ext/board/aos/kernel-apkg.sh            # -> apm-recipes/index/aos-kernel-<ver>-1.x86_64.apkg
+```
+
+lifts `/boot/bzImage` and the whole `/usr/lib/modules/<ver>` (depmod's files
+and the NVIDIA modules included) out of `output/target` into a signed
+package. Publish it, or `apm install` the file, then reboot. The package's
+hooks write only symlinks: `/usr/lib/modules/<ver>` into the store, and
+`/boot/bzImage.apm`, with what it pointed at before becoming
+`/boot/bzImage.prev`. The grub.cfg `aos-install` writes boots `.apm` when it
+exists, offers "AOS (previous kernel)" and "AOS (image kernel)", and never
+touches the image's own `/boot/bzImage`. Because the NVIDIA modules ride in
+the package, build it from the same tree as the image's NVIDIA userspace.
+
+A disk installed before this grub.cfg existed keeps booting the image
+kernel; give it the new file once (the heredoc in `aos-install`, with its
+`root=PARTUUID=`) and it joins in.
+
 ## Kernel options
 
 Driver and feature choices live in

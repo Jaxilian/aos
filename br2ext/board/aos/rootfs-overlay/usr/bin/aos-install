@@ -284,6 +284,16 @@ terminal_output console serial
 set default="0"
 set timeout="5"
 
+# The kernel apm installed, when there is one: the aos/kernel package's
+# hooks point /boot/bzImage.apm into the store and /boot/bzImage.prev at the
+# kernel before it; GRUB follows ext4 symlinks, and a dangling one fails the
+# test. The image's own /boot/bzImage is never replaced: it is the last
+# resort, and what a fresh install boots.
+set kernel=/boot/bzImage
+if [ -f /boot/bzImage.apm ]; then set kernel=/boot/bzImage.apm; fi
+set prev=/boot/bzImage
+if [ -f /boot/bzImage.prev ]; then set prev=/boot/bzImage.prev; fi
+
 # "ro": the root is checked by systemd-fsck-root before systemd-remount-fs
 # makes it writable from /etc/fstab. The initrd is CPU microcode only.
 # rootwait: harmless on an internal disk, and required when the system was
@@ -296,12 +306,17 @@ set timeout="5"
 # scrolls over the console. The serial entry keeps the default 7 -- serial
 # is the channel you watch a boot on.
 menuentry "AOS" {
-	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
+	linux \$kernel root=PARTUUID=$ROOT_PARTUUID ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
+	initrd /boot/microcode.img
+}
+
+menuentry "AOS (previous kernel)" {
+	linux \$prev root=PARTUUID=$ROOT_PARTUUID ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
 	initrd /boot/microcode.img
 }
 
 menuentry "AOS (serial console)" {
-	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait console=ttyS0,115200
+	linux \$kernel root=PARTUUID=$ROOT_PARTUUID ro rootwait console=ttyS0,115200
 	initrd /boot/microcode.img
 }
 
@@ -310,7 +325,13 @@ menuentry "AOS (serial console)" {
 # way back in when a graphics driver fails: log in, read journalctl -b -1,
 # fix, reboot normally.
 menuentry "AOS (safe graphics, no GPU driver)" {
-	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait nomodeset loglevel=4 console=ttyS0,115200 console=tty1
+	linux \$kernel root=PARTUUID=$ROOT_PARTUUID ro rootwait nomodeset loglevel=4 console=ttyS0,115200 console=tty1
+	initrd /boot/microcode.img
+}
+
+# The kernel the image was installed with, whatever apm has done since.
+menuentry "AOS (image kernel)" {
+	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
 	initrd /boot/microcode.img
 }
 GRUBCFG

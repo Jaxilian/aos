@@ -303,8 +303,11 @@ In the order a new user meets them.
    the clock, and a click there opens a quick panel with the session
    buttons, volume and brightness sliders and tiles into Settings. The
    shell asks the compositor for its windows over a control socket.
-   Application icons wait on tgn's image drawing: the tiles carry the
-   initial for now. Then:
+   *Icons, 2026-09-29 (aos-sdk v0.4.5, ade v0.1.18)*: tgn draws
+   pictures -- PNG, JPEG, and SVG rasterised at the asked size -- on a
+   frame, and the tiles show each application's icon from its desktop
+   entry; the image installs the official applications' SVGs into the
+   hicolor theme. The same path is what an image viewer needs. Then:
    screenshot, clipboard, drag-and-drop, Bluetooth. Printing can
    wait. Seen on the G14, 2026-09-23: Visual Studio Code died on Open
    Folder -- GTK's file chooser aborts without its GSettings schema, and

@@ -273,6 +273,9 @@ BR2_PACKAGE_OPENSSH_CLIENT=y
 # ssh-keygen, which sshd's own start-up needs to make its host keys.
 BR2_PACKAGE_OPENSSH_KEY_UTILS=y
 BR2_PACKAGE_OPENSSH_SANDBOX=y
+# git: the apps' Cargo.toml pull aos-sdk over git, so building them on the
+# machine itself needs it; VS Code's source control view too.
+BR2_PACKAGE_GIT=y
 
 ################################################################################
 # M2 -- firmware.

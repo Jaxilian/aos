@@ -41,6 +41,8 @@ define SETTINGS_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/bin/settings
 	$(INSTALL) -D -m 0644 $(SETTINGS_PKGDIR)/org.aos.Settings.desktop \
 		$(TARGET_DIR)/usr/share/applications/org.aos.Settings.desktop
+	$(INSTALL) -D -m 0644 $(@D)/res/settings.svg \
+		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Settings.svg
 endef
 
 $(eval $(cargo-package))

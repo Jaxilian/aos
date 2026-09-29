@@ -41,6 +41,8 @@ define NOTEPAD_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/bin/notepad
 	$(INSTALL) -D -m 0644 $(NOTEPAD_PKGDIR)/org.aos.Notepad.desktop \
 		$(TARGET_DIR)/usr/share/applications/org.aos.Notepad.desktop
+	$(INSTALL) -D -m 0644 $(@D)/res/notes.svg \
+		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Notepad.svg
 endef
 
 $(eval $(cargo-package))

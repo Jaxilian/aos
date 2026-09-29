@@ -41,6 +41,8 @@ define FILES_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/bin/files
 	$(INSTALL) -D -m 0644 $(FILES_PKGDIR)/org.aos.Files.desktop \
 		$(TARGET_DIR)/usr/share/applications/org.aos.Files.desktop
+	$(INSTALL) -D -m 0644 $(@D)/res/files.svg \
+		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Files.svg
 endef
 
 $(eval $(cargo-package))

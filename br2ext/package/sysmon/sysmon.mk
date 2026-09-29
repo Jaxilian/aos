@@ -41,6 +41,8 @@ define SYSMON_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/bin/sysmon
 	$(INSTALL) -D -m 0644 $(SYSMON_PKGDIR)/org.aos.Sysmon.desktop \
 		$(TARGET_DIR)/usr/share/applications/org.aos.Sysmon.desktop
+	$(INSTALL) -D -m 0644 $(@D)/res/sysmon.svg \
+		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Sysmon.svg
 endef
 
 $(eval $(cargo-package))

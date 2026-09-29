@@ -119,3 +119,42 @@ To ship the change: commit, tag, push, and put the new commit in the `.mk`.
 The SDK -- awin and tgn, in the `aos-sdk` repository -- is a git dependency
 of every application at a tag, so a change there is tagged first and the
 applications move to the new tag in their `Cargo.toml`.
+
+## Shipping a change without a new ISO
+
+The image is the foundation; what runs on it comes from apm, and a running
+system takes an update with `apm upgrade`. So the loop while working on an
+application is not a rebuild of the image at all:
+
+```sh
+./br2ext/board/aos/ship-rust.sh ~/Projects/Rust/terminal     # -> aos-terminal-0.1.0-<time>.x86_64.apkg
+sudo apm install ./aos-terminal-*.apkg                        # on the machine itself
+```
+
+`ship-rust.sh` builds the cargo project, takes name, version, summary and
+license from `Cargo.toml`, the `[launcher]` from
+`br2ext/package/<name>/*.desktop`, and numbers the release with the build's
+Unix time: apm refuses a package whose version and release it already has,
+and a day of work is one version. The script runs on AOS -- VS Code and Rust
+are packages there, and `git` is in the image for cargo's git dependencies
+-- or on the host as a shortcut, since Fedora's glibc is older than AOS's.
+An apm-installed application shadows the image's copy: `/opt/apm/bin` comes
+first on `PATH`, and the launcher shows the store's entry.
+
+To reach another machine, make a repository out of a directory and copy it
+over; the same key signs it that the image already trusts:
+
+```sh
+apm index dev/ --sign                       # dev/ holds the .apkg files
+rsync -a dev/ admin@aos:repo/
+ssh admin@aos 'sudo apm repo add dev file:///home/admin/repo && sudo apm update --force && sudo apm upgrade --yes'
+```
+
+Repositories are `https://` or `file://`, nothing else, so a LAN web server
+is not an option; rsync is. `publish.sh` in apm-recipes is for releases:
+GitHub's edge cache serves the old index for minutes.
+
+Buildroot-built libraries go through `br2apkg.py` (see plans/08 in the apm
+repository), and the kernel through `kernel-apkg.sh` (docs/upgrading.md).
+What still needs an ISO: glibc, systemd, GRUB, apm itself, and anything in
+the rootfs overlay.
