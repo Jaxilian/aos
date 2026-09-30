@@ -124,7 +124,7 @@ face.
 ## Networking and storage
 
 wpa_supplicant 2.12 · iw 6.17 · iproute2 7.1.0 · libnl 3.12.0 ·
-openssl 3.6.4 · ca-certificates 20260223 · libcurl 8.22.0 ·
+openssl 3.6.4 · ca-certificates 20260223 · libcurl 8.22.0 · nftables 1.1.4 ·
 e2fsprogs 1.47.4 · dosfstools 4.2 · parted 3.6 · efibootmgr 18
 
 ## The seven custom packages

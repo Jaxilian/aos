@@ -113,18 +113,24 @@ rm -rf "${ucode}"
 #
 # Deliberately an untracked, optional file: a published AOS image must not
 # carry anyone's key, or whoever built it can log into every machine that
-# installs it. With no key the image still runs sshd, and simply refuses
-# every login until someone adds one. See docs/ssh.md.
+# installs it. sshd is enabled only when there is a key: a desktop that
+# nobody can log into remotely has no business listening on port 22. With
+# no key the image ships sshd disabled; "systemctl enable --now sshd" after
+# adding a key turns it on. See docs/ssh.md.
 keys="${BR2_EXTERNAL_AOS_PATH}/board/aos/authorized_keys"
+wants="${TARGET_DIR}/etc/systemd/system/multi-user.target.wants"
 if [ -s "${keys}" ]; then
 	mkdir -p "${TARGET_DIR}/root/.ssh"
 	chmod 700 "${TARGET_DIR}/root/.ssh"
 	grep -v '^[[:space:]]*#' "${keys}" | grep -v '^[[:space:]]*$' \
 		> "${TARGET_DIR}/root/.ssh/authorized_keys"
 	chmod 600 "${TARGET_DIR}/root/.ssh/authorized_keys"
-	echo "post-build.sh: installed $(wc -l < "${TARGET_DIR}/root/.ssh/authorized_keys") SSH key(s) for root"
+	mkdir -p "${wants}"
+	ln -sf /usr/lib/systemd/system/sshd.service "${wants}/sshd.service"
+	echo "post-build.sh: installed $(wc -l < "${TARGET_DIR}/root/.ssh/authorized_keys") SSH key(s) for root; sshd enabled"
 else
-	echo "post-build.sh: no board/aos/authorized_keys -- SSH will accept no logins"
+	rm -f "${wants}/sshd.service" "${TARGET_DIR}/root/.ssh/authorized_keys"
+	echo "post-build.sh: no board/aos/authorized_keys -- sshd disabled"
 fi
 
 # Stamp the build into os-release, so a running system can say exactly

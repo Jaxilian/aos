@@ -137,10 +137,17 @@ bundle and curl. Enough that whatever fetches your first package can use TLS
 on first boot.
 
 **SSH.** An OpenSSH server, key authentication only — root has no password
-and password authentication is off. A published image carries no key and so
-accepts no login; the builder supplies one in
-`board/aos/authorized_keys` before building. See [docs/ssh.md](docs/ssh.md).
-An SSH login is a logind session, with a seat and an `XDG_RUNTIME_DIR`.
+and password authentication is off. A published image carries no key and
+ships sshd disabled; the builder supplies one in
+`board/aos/authorized_keys` before building, which also enables sshd. See
+[docs/ssh.md](docs/ssh.md). An SSH login is a logind session, with a seat
+and an `XDG_RUNTIME_DIR`.
+
+**Firewall.** nftables, loaded before any interface comes up from
+`/etc/nftables.conf`: inbound is dropped unless it is a reply, ICMP, a
+DHCP answer or SSH. Nothing else in the image listens; resolved's LLMNR
+and mDNS responders are off (`/etc/systemd/resolved.conf.d`). A service
+you add that must be reachable needs a line in that file.
 
 **Accounts.** The desktop session belongs to a real user, not to root or to
 a service account: the terminal it opens is that user's shell in that
@@ -160,6 +167,12 @@ sshd refuses passwords. The demo account exists on the live ISO only:
 in its place, with root's console login locked (root stays reachable over
 SSH with a key). `aos-install --demo` keeps it, for a test machine; the
 boot tests use that.
+
+**Displays.** Every connected display is used. They extend the desktop,
+side by side with the built-in panel first, and a bar and the wallpaper
+on each; the Settings application's Display page can mirror them
+instead, a smaller mirror scaled so the whole picture fits. Plugging a
+display in or out takes effect at once.
 
 **Graphics.** libdrm, Mesa (GBM, EGL, OpenGL ES, Vulkan) and libglvnd.
 Gallium drivers: iris, crocus, radeonsi, r600, nouveau, llvmpipe, zink.

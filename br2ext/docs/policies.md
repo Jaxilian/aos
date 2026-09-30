@@ -37,6 +37,16 @@ Third-party software does what it does; Firefox, Discord, Steam and Visual
 Studio Code have their own telemetry and their own settings for it. That is
 part of what "third-party" means on AOS.
 
+## Network: closed by default
+
+An AOS machine answers nothing it was not asked. The firewall
+(`/etc/nftables.conf`, loaded before the network) drops every inbound
+packet that is not a reply, ICMP, a DHCP answer or SSH; sshd itself is
+enabled only in an image built with an SSH key; systemd-resolved's LLMNR
+and mDNS responders are off. There is no LSM policy (AppArmor, SELinux,
+Landlock) yet, and no automatic update timer: `apm upgrade` is run by a
+person or by the Settings application. Both are known gaps, not decisions.
+
 ## Secure Boot: unsupported
 
 Nothing AOS ships is signed for UEFI Secure Boot: not GRUB, not the kernel,

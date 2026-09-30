@@ -9,6 +9,9 @@ actually exercised — QEMU cannot test any of them.
 
 **AOS accepts no SSH login until you do this.** Root has no password, and
 sshd refuses password authentication anyway, so a key is the only way in.
+An image built without a key has sshd installed but *disabled*: a desktop
+nobody can log into remotely should not listen on port 22. With a key,
+`post-build.sh` enables it.
 
 ```sh
 cp ~/.ssh/id_ed25519.pub br2ext/board/aos/authorized_keys
@@ -23,9 +26,13 @@ machine that installs it. If you have no key yet, `ssh-keygen -t ed25519`.
 `post-build.sh` says which it did at the end of every build:
 
 ```
-post-build.sh: installed 1 SSH key(s) for root
-post-build.sh: no board/aos/authorized_keys -- SSH will accept no logins
+post-build.sh: installed 1 SSH key(s) for root; sshd enabled
+post-build.sh: no board/aos/authorized_keys -- sshd disabled
 ```
+
+On a machine installed from a keyless image, add a key to
+`/root/.ssh/authorized_keys` and `systemctl enable --now sshd`. The
+firewall (`/etc/nftables.conf`) already lets port 22 through.
 
 ## Getting AOS onto a machine to SSH into
 
@@ -122,7 +129,9 @@ against someone impersonating the machine.
 becomes a logind session with a seat and an `XDG_RUNTIME_DIR`, exactly like a
 console login — which is what a compositor started over SSH needs.
 
-`sshd` waits for `network-online.target` and restarts on failure.
+`sshd` restarts on failure. It does not wait for `network-online.target`:
+it listens on the wildcard address, and that wait cost every boot a minute
+and a half on a laptop with no Wi-Fi configured.
 
 ## Copying files in
 

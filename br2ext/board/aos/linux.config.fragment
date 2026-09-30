@@ -137,6 +137,17 @@ CONFIG_NTFS3_FS=m
 CONFIG_FUSE_FS=m
 CONFIG_NFS_FS=m
 
+# --- Firewall ----------------------------------------------------------------
+# nftables, for the default-deny input chain in /etc/nftables.conf. The
+# mainline defconfig has conntrack and the xtables matches but no nf_tables
+# at all; Buildroot's nftables package forces the first three on as well.
+CONFIG_NETFILTER=y
+CONFIG_NF_TABLES=y
+CONFIG_NF_TABLES_INET=y
+CONFIG_NF_CONNTRACK=y
+CONFIG_NFT_CT=m
+CONFIG_NFT_REJECT=m
+
 # --- Wired network ---------------------------------------------------------
 CONFIG_E1000=m
 CONFIG_E1000E=m

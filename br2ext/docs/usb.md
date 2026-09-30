@@ -61,10 +61,10 @@ the fix is not there. `post-build.sh` prints one line at the end you should
 read every time:
 
 ```
-post-build.sh: installed 1 SSH key(s) for root
+post-build.sh: installed 1 SSH key(s) for root; sshd enabled
 ```
 
-If it says `no board/aos/authorized_keys -- SSH will accept no logins`,
+If it says `no board/aos/authorized_keys -- sshd disabled`,
 you will boot a machine you cannot log into remotely. Fix that before writing
 the stick, not after. See [ssh.md](ssh.md).
 

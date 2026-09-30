@@ -158,6 +158,21 @@ define BUBBLEWRAP_PERMISSIONS
 endef
 endif
 
+# unix_chkpwd setuid root, as every distribution ships it. pam_unix calls
+# it when the process asking is not root, to check the caller's own
+# password against /etc/shadow, which only root can read. Buildroot's
+# linux-pam installs it 0755, so the lock screen (ade-lock, running as the
+# session's user) refused every password, the right one included, and a
+# locked session could only be left from another tty. It answers only
+# for the account that runs it.
+#
+# Appended to the table itself: pkg-generic only adds a package's
+# _PERMISSIONS when the package defined one before this file is read, and
+# linux-pam defines none, so a LINUX_PAM_PERMISSIONS here is never seen.
+ifeq ($(BR2_PACKAGE_LINUX_PAM),y)
+PACKAGES_PERMISSIONS_TABLE += /usr/bin/unix_chkpwd f 4755 0 0 - - - - -$(sep)
+endif
+
 # libinput without Lua plugins. Buildroot turns them on whenever lua is in
 # the image, and liblua is built without libm in its NEEDED: ld.so then
 # refuses ade-comp at start ("Relink liblua with libm for IFUNC symbol

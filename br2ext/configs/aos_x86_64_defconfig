@@ -273,6 +273,10 @@ BR2_PACKAGE_OPENSSH_CLIENT=y
 # ssh-keygen, which sshd's own start-up needs to make its host keys.
 BR2_PACKAGE_OPENSSH_KEY_UTILS=y
 BR2_PACKAGE_OPENSSH_SANDBOX=y
+# The firewall: /etc/nftables.conf in the overlay drops everything inbound
+# that is not a reply, ICMP, DHCP or SSH, loaded by nftables.service before
+# any interface comes up. The kernel side is in linux.config.fragment.
+BR2_PACKAGE_NFTABLES=y
 # git: the apps' Cargo.toml pull aos-sdk over git, so building them on the
 # machine itself needs it; VS Code's source control view too.
 BR2_PACKAGE_GIT=y

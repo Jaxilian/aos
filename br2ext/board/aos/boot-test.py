@@ -108,6 +108,10 @@ CHECKS = [
     "cc --version | head -1; rustc --version; uname -r",
 ]
 
+PAM_CHECK = (r"""su admin -s /bin/sh -c 'printf "%s\0" 123321 | unix_chkpwd admin nullok; r=$?; """
+             r"""printf "%s\0" nope | unix_chkpwd admin nullok && w=accepted || w=refused; """
+             r"""echo right=$r wrong=$w'""")
+
 INSTALL = [
     "lsblk -o NAME,SIZE,TYPE /dev/vda",
     "printf 'YES\\n' | aos-install --demo /dev/vda 2>&1 | tail -20",
@@ -1143,6 +1147,15 @@ def main():
                 ser.read_until(b"# ", 10)
                 for c in CHECKS + EXTRA:
                     print("\n$ %s\n%s" % (c, ser.run(c)))
+                # The lock screen's password check: pam_unix, running as the
+                # session's user, asks unix_chkpwd, which must be setuid root
+                # to read /etc/shadow. Without the bit every password was
+                # wrong and a locked session could not be unlocked.
+                out = ser.run(PAM_CHECK)
+                print("\n$ %s\n%s" % (PAM_CHECK, out))
+                if "right=0 wrong=refused" not in out:
+                    print("!! the demo account's own password is not accepted as that account")
+                    ok = False
                 if MODE in ("live", "usb"):
                     print("\n$ (from the host) ssh -p %d root@127.0.0.1\n%s"
                           % (SSH_PORT, ssh_check()))
