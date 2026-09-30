@@ -1,0 +1,12 @@
+# Runtime power management for the NVIDIA GPU and the functions on its
+# PCI device (its HDMI audio, the USB-C controller and UCSI on a card
+# that has them): the kernel may power them off when idle. With
+# NVreg_DynamicPowerManagement in nvidia.conf that is what happens while
+# the desktop runs on the integrated GPU. NVIDIA's own rule, as its
+# documentation gives it; the audio function is powered on again when the
+# GPU is, so the HDMI port keeps its sound.
+ACTION=="bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", DRIVER=="nvidia", TEST=="power/control", ATTR{power/control}="auto"
+ACTION=="unbind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x040300", TEST=="power/control", ATTR{power/control}="auto"
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x0c0330", TEST=="power/control", ATTR{power/control}="auto"
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x0c8000", TEST=="power/control", ATTR{power/control}="auto"

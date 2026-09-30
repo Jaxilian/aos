@@ -109,6 +109,9 @@ There is no X server. The Wayland compositor is ade, below.
 | wireplumber | 0.5 | PipeWire's session manager; lua 5.4 is its scripting language |
 | alsa-lib | 1.2 | and the ALSA plugin that routes ALSA programs into PipeWire |
 | acl | 2.3 | what lets systemd install `70-uaccess.rules`, so the seat's user can open the card |
+| bluez5_utils | 5.8x | bluetoothd (started by udev's `bluetooth.target` when an adapter appears, the adapter powered on by `/etc/bluetooth/main.conf`), bluetoothctl for Settings, the audio and HID plugins |
+| sbc, opus | | the Bluetooth audio codecs; sbc is what makes PipeWire build its BlueZ backend |
+| upower | 1.9x | battery, lid and power source over D-Bus for the programs that ask (Firefox, Electron, GTK); D-Bus activated |
 
 Versions are the ones Buildroot 2026.08 pins; check `output/build`.
 

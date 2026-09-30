@@ -192,8 +192,10 @@ mounted and a modular codec cannot bind then. The session's user reaches
 the card through the ACL logind sets for the active seat
 (`70-uaccess.rules`, which is why systemd is built with ACL support), and
 gets real-time priority through the `pipewire` group's `limits.d` entry
-rather than RTKit, which the image does not have. Not yet: Intel SOF and
-AMD ACP (the DSPs on laptops from 2019 on), and Bluetooth audio.
+rather than RTKit, which the image does not have. Intel SOF and AMD ACP
+(the DSPs on laptops from 2019 on) are in the kernel with their firmware;
+Bluetooth audio goes through PipeWire's BlueZ backend, with `bluetoothd`
+on the image and pairing on Settings' Bluetooth page.
 
 **The sandbox.** `aos-sandbox` runs a program in its own mount and pid
 namespace, unprivileged, on bubblewrap: the OS read-only, the apm

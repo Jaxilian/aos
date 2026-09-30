@@ -339,6 +339,14 @@ BR2_PACKAGE_LINUX_FIRMWARE_MEDIATEK_MT7921=y
 BR2_PACKAGE_LINUX_FIRMWARE_MEDIATEK_MT7922=y
 BR2_PACKAGE_LINUX_FIRMWARE_MEDIATEK_MT7925=y
 BR2_PACKAGE_LINUX_FIRMWARE_BRCM_BCM43XXX=y
+# Bluetooth controllers, on the same cards as the Wi-Fi above. Intel's
+# is every ibt-* file (30 MB: the kernel asks for one by hardware
+# variant, and the CNVi in each generation has its own).
+BR2_PACKAGE_LINUX_FIRMWARE_IBT=y
+BR2_PACKAGE_LINUX_FIRMWARE_MEDIATEK_MT7921_BT=y
+BR2_PACKAGE_LINUX_FIRMWARE_MEDIATEK_MT7922_BT=y
+BR2_PACKAGE_LINUX_FIRMWARE_MEDIATEK_MT7925_BT=y
+BR2_PACKAGE_LINUX_FIRMWARE_RTL_88XX_BT=y
 
 ################################################################################
 # M3 -- graphics.
@@ -452,6 +460,24 @@ BR2_PACKAGE_LUA=y
 BR2_PACKAGE_LUA_5_4=y
 BR2_PACKAGE_PIPEWIRE=y
 BR2_PACKAGE_WIREPLUMBER=y
+# Bluetooth: BlueZ's daemon (bluetooth.service, started by udev's
+# bluetooth.target when an adapter appears; rootfs-overlay enables it
+# and powers the adapter on), bluetoothctl for the Settings application
+# to scan, pair and connect with, the audio plugin PipeWire's BlueZ
+# backend needs, HID for keyboards and mice. sbc is the codec every
+# headset speaks and what makes PipeWire build that backend; opus is
+# the better one for the headsets that have it.
+BR2_PACKAGE_BLUEZ5_UTILS=y
+BR2_PACKAGE_BLUEZ5_UTILS_CLIENT=y
+BR2_PACKAGE_BLUEZ5_UTILS_PLUGINS_AUDIO=y
+BR2_PACKAGE_BLUEZ5_UTILS_PLUGINS_HID=y
+BR2_PACKAGE_SBC=y
+BR2_PACKAGE_OPUS=y
+# UPower: the battery, the lid and the power source over D-Bus, which
+# is how Firefox, Electron and GTK ask about them (the shell and
+# Settings read /sys/class/power_supply themselves). D-Bus activated,
+# so it runs only once something asks.
+BR2_PACKAGE_UPOWER=y
 
 # What third-party desktop programs assume a system has. fontconfig for
 # fc-list/fc-cache and /etc/fonts, naming /usr/share/fonts (the fonts

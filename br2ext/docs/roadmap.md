@@ -290,7 +290,12 @@ In the order a new user meets them.
    `sof-firmware` package (sof-bin, since linux-firmware no longer
    carries it; AMD's SOF firmware is in neither, so AMD runs the legacy
    ACP path). QEMU cannot test any of it; the G14 (Panther Lake) is the
-   first check. Outstanding for sound: Bluetooth audio.
+   first check. *Bluetooth 2026-09-30*: the kernel stack and btusb,
+   BlueZ with its audio and HID plugins started by udev's
+   `bluetooth.target`, PipeWire's BlueZ backend (sbc, opus), a
+   Bluetooth page in Settings (settings v0.1.13); UPower beside it for
+   the programs that ask D-Bus about the battery. Also untestable in
+   QEMU; the G14 checks it.
    *Lock screen done 2026-09-25 (ade v0.1.11)*: `ade-lock` on
    `ext-session-lock-v1`, the password through PAM (`/etc/pam.d/ade-lock`),
    Super+L and the Settings Power page start it, and the compositor
