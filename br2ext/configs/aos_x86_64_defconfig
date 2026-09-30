@@ -42,7 +42,10 @@ BR2_TARGET_GENERIC_GETTY_PORT="tty1"
 # charset. /etc/locale.conf in the rootfs overlay is what actually selects
 # this one; systemd reads it and puts LANG into the environment of every
 # service, ade.service included.
-BR2_GENERATE_LOCALE="en_US.UTF-8"
+# sv_SE too: the first machines AOS ran on have a Swedish keyboard, and
+# Steam's container (pressure-vessel) refuses to start with a LANG the host
+# has not compiled -- "Cannot find locale".
+BR2_GENERATE_LOCALE="en_US.UTF-8 sv_SE.UTF-8"
 # The live ISO is read-only, so do not try to remount / read-write. An
 # installed system is mounted read-only by the kernel too ("ro" on its
 # command line), checked by systemd-fsck-root, and then made writable by
@@ -289,6 +292,10 @@ BR2_PACKAGE_GIT=y
 # fifteen years or so.
 ################################################################################
 BR2_PACKAGE_SOF_FIRMWARE=y
+# The Cirrus Logic codec and amplifier blobs (cs42l43.bin, cirrus/) are
+# added in external.mk: Buildroot has no option for them, and without them
+# the SoundWire codec in a 2024+ laptop never probes -- the DSP firmware
+# loads, sof_sdw stays in deferred probe, and there is no sound card at all.
 BR2_PACKAGE_LINUX_FIRMWARE=y
 # CPU microcode. Errata are a leading cause of the unreproducible hangs a
 # foundation exists to rule out, and new silicon has the most of them.
@@ -445,6 +452,19 @@ BR2_PACKAGE_LUA=y
 BR2_PACKAGE_LUA_5_4=y
 BR2_PACKAGE_PIPEWIRE=y
 BR2_PACKAGE_WIREPLUMBER=y
+
+# What third-party desktop programs assume a system has. fontconfig for
+# fc-list/fc-cache and /etc/fonts, naming /usr/share/fonts (the fonts
+# package's directory; the terminal and the official apps need none of
+# it). update-mime-database and update-desktop-database: Firefox runs
+# both when it is made the default browser or a file type is associated,
+# and reports each as an error when it is not there. Buildroot installs
+# only shared-mime-info's cache and builds desktop-file-utils for the
+# host alone, so external.mk adds the one tool and br2ext/package the
+# other.
+BR2_PACKAGE_FONTCONFIG=y
+BR2_PACKAGE_SHARED_MIME_INFO=y
+BR2_PACKAGE_AOS_DESKTOP_FILE_UTILS=y
 
 # The file explorer, and with it the file dialogs: awin runs "files --pick"
 # for Open and Save As, so this is what makes notepad able to open anything

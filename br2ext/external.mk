@@ -147,6 +147,29 @@ LINUX_FIRMWARE_FILES += \
 	intel/iwlwifi/iwlwifi-bz-* \
 	intel/iwlwifi/iwlwifi-sc-*
 
+# Cirrus Logic audio, which Buildroot has no option for either. Laptops
+# since about 2022 put the codec and the speaker amplifiers on Cirrus
+# parts (the ASUS G14: cs35l41 amps; Panther Lake machines: a cs42l43
+# codec with cs35l56 amps over SoundWire), and each driver loads a blob
+# per machine: the codec its firmware, the amps their tuning by subsystem
+# id. Without them the codec's probe fails, the SOF machine driver stays
+# in deferred probe, and the machine has no sound card -- the DSP
+# firmware from sof-firmware loading fine all the while. 7 MB for the
+# whole directory, so all of it ships rather than a guess at the ids.
+LINUX_FIRMWARE_FILES += cs42l43.bin
+LINUX_FIRMWARE_DIRS += cirrus
+LINUX_FIRMWARE_ALL_LICENSE_FILES += LICENSES/LICENSE.cirrus
+
+# update-mime-database on the machine. Buildroot builds shared-mime-info
+# for the target but installs only the cache it made with the host's
+# tool; the tool itself is what a program needs when it registers a
+# type of its own under ~/.local/share/mime (Firefox does, and reports
+# an error without it). The target build compiles it all the same.
+define AOS_SHARED_MIME_INFO_TOOL
+	$(INSTALL) -D -m 0755 $(@D)/update-mime-database $(TARGET_DIR)/usr/bin/update-mime-database
+endef
+SHARED_MIME_INFO_POST_INSTALL_TARGET_HOOKS += AOS_SHARED_MIME_INFO_TOOL
+
 # bwrap without the setuid bit. Buildroot sets it "in case the kernel has
 # user namespaces disabled for non-root users"; AOS has them on, and a
 # setuid sandbox helper is a larger trust boundary than an unprivileged

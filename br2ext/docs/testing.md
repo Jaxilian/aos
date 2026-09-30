@@ -90,6 +90,14 @@ black.
 
 It writes `<mode>.serial.txt` and `<mode>.screen.png` next to the images.
 
+Two more scripts drive the session itself through QEMU's monitor and QMP
+(clicks, keys, box-diffed screendumps): `ade-test.py` on the live ISO
+(popup grabs, the live keyboard layout, a second display), and
+`disk-test.py` on the installed disk, where it copies the working-tree
+`ade-comp`, `ade-shell`, `settings` and `sysmon` from `output/target` in
+over ssh first -- a compositor change tested without an ISO -- and
+installs Firefox and Xwayland from the repositories the disk knows.
+
 For a one-off look inside a booted guest without editing the check lists,
 put commands in `BOOT_TEST_EXTRA`, separated by ` ;; `; every mode runs
 them after the standing checks:

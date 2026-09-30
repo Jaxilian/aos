@@ -35,6 +35,7 @@ Installed size is **2.6 GB**. The ISO is 956 MB because it is compressed.
 | grub2 | 2.14 (BIOS and UEFI) |
 | linux-firmware | 20260810 |
 | sof-firmware | 2026.09.1 (sof-bin: the Intel audio DSP firmware and topologies, 57 MB; a custom package) |
+| linux-firmware, Cirrus | `cs42l43.bin` and `cirrus/` (codec firmware, amplifier tunings by machine; 7 MB), added by `external.mk` since Buildroot has no option: without them a SoundWire codec never probes and the machine has no sound card |
 
 ## Toolchain — the self-hosting part
 
@@ -112,14 +113,20 @@ There is no X server. The Wayland compositor is ade, below.
 Versions are the ones Buildroot 2026.08 pins; check `output/build`.
 
 `ade.service` takes tty1 as the `ade` user, so `getty@tty1` does not run
-there. A UTF-8 locale is generated (`BR2_GENERATE_LOCALE`) and selected in
-`/etc/locale.conf`: the terminal decodes UTF-8 itself, but everything
-running inside it goes through the C library's idea of the charset.
+there. Two UTF-8 locales are generated (`BR2_GENERATE_LOCALE`: en_US and
+sv_SE) and the first selected in `/etc/locale.conf`: the terminal decodes
+UTF-8 itself, but everything running inside it goes through the C
+library's idea of the charset, and Steam's container refuses a LANG the
+host has not compiled.
 
-There are no fonts and no fontconfig on the image. Every program that draws
-text here is an awin + tgn one and compiles in the face it needs — tgn its
-own, the terminal Liberation Mono, because a grid cannot use a proportional
-face.
+No official program needs a font file or fontconfig: every one that draws
+text is an awin + tgn one and compiles in the face it needs — tgn its own,
+the terminal Liberation Mono, because a grid cannot use a proportional
+face. fontconfig is on the image all the same (`fc-list`, `/etc/fonts`,
+naming `/usr/share/fonts`, where the fonts package puts DejaVu and
+Liberation), with shared-mime-info and desktop-file-utils: third-party
+programs assume all three exist, and Firefox reports an error for each
+`update-*-database` it cannot run.
 
 ## Networking and storage
 
