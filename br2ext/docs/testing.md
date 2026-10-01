@@ -116,7 +116,11 @@ the graphical installer end to end: the live ISO with a blank disk,
 line and `--go`, screendumps while it installs, then the disk booted and
 the account, the session's user, the keyboard layout and the time zone
 checked. It leaves the disk installed for `jax`; `boot-test.py install`
-gives the other tests their demo disk back.
+gives the other tests their demo disk back. `crash-test.py` kills the
+shell (it comes back, the pause doubles), the compositor while the
+session is locked (it comes back locked, the toast says so) and the
+compositor five times in a row (the unit stops, tty1 gets a login
+prompt under an explanation, `systemctl restart ade` recovers).
 
 For a one-off look inside a booted guest without editing the check lists,
 put commands in `BOOT_TEST_EXTRA`, separated by ` ;; `; every mode runs

@@ -221,6 +221,15 @@ Bluetooth audio goes through PipeWire's BlueZ backend, with `bluetoothd`
 on the image and pairing on Settings' Bluetooth page; the controller is
 `btusb` on most machines and `btintel_pcie` on Intel's newest (BE201).
 
+**When the desktop dies.** The compositor starts the shell again when it
+exits, pausing a second, then two, up to thirty between tries. systemd
+restarts the compositor two seconds after a crash, at most four times in
+two minutes; a session that was locked comes back locked; the shell's
+first toast says the previous session crashed and where the report is.
+Past four crashes `ade-failed.service` puts a login prompt on tty1 with
+the commands to run, so the screen is never simply black. A desktop that
+restarted this boot does not confirm a base-OS update's trial slot.
+
 **Brightness.** The panel's backlight is the one in `/sys/class/backlight`
 whose device is the eDP connector; a discrete GPU brings one of its own
 that drives nothing. The shell's keys and the quick panel's slider write

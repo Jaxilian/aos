@@ -399,9 +399,18 @@ In the order a new user meets them.
    errors, failed units, the compositor's log, the hardware, what apm has
    installed. The Settings application's About page has a Save Report
    button that runs it (2026-09-25).
-6. **Fault isolation.** A shell crash must not end the session (ade's
-   design already separates them). A compositor crash must restart the
-   session with an explanation, never leave a black screen.
+6. **Fault isolation.** *Done 2026-10-01 (ade v0.1.25)*: a shell that
+   dies is started again by the compositor, after a pause that doubles
+   from a second to thirty; a compositor crash is restarted by its unit
+   within two seconds, the session comes back locked if it was locked,
+   and the next shell shows a toast saying what happened (the unit
+   writes `/run/ade/crash`, the compositor passes it on); four crashes
+   in two minutes stop the unit and `ade-failed.service` puts a login
+   prompt on tty1 under an explanation of what to run. A desktop that
+   restarted this boot does not confirm a trial slot. Panics print a
+   backtrace to the journal, and `aos-report` carries `coredumpctl`.
+   `crash-test.py` kills the shell, the locked compositor and the
+   compositor five times, in QEMU.
 
 ## Phase 4 — Hardware and the evaluation
 

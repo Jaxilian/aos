@@ -34,6 +34,9 @@ run failed-units        systemctl --failed --no-pager
 run analyze             systemd-analyze
 run ade-comp            journalctl -b _COMM=ade-comp --no-pager
 run ade-shell           journalctl -b _COMM=ade-shell --no-pager
+run ade-crashes         sh -c 'cat /run/ade/crash 2>/dev/null; systemctl show -p NRestarts -p Result ade.service'
+run coredumps           coredumpctl list --no-pager
+run coredump-ade        coredumpctl info ade-comp --no-pager
 run dmesg               dmesg
 run lspci               lspci -nnk
 run lsusb               lsusb

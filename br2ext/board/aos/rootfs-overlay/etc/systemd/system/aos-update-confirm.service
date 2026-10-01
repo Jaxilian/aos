@@ -10,9 +10,11 @@ ConditionPathExists=/boot/efi/grub/grubenv
 
 [Service]
 # Not oneshot: that would hold multi-user.target for the wait. Let the
-# compositor live a moment before calling the boot good.
+# compositor live a moment before calling the boot good -- and a desktop
+# that has already been restarted this boot is not good: the trial slot
+# stays a trial, and the next reset goes back.
 Type=exec
-ExecStart=/bin/sh -c 'sleep 20; exec /usr/bin/aos-update --confirm'
+ExecStart=/bin/sh -c 'sleep 20; [ "$(systemctl show -p NRestarts --value ade.service)" = 0 ] && exec /usr/bin/aos-update --confirm; echo "aos-update: the desktop restarted; the slot is not confirmed"'
 
 [Install]
 WantedBy=multi-user.target

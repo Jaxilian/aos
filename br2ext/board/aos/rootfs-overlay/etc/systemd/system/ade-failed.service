@@ -1,0 +1,15 @@
+# The desktop crashed too often to keep restarting: say so on tty1 and
+# give it a login prompt. agetty prints /run/issue.d/*.issue above the
+# prompt. OnFailure= fires on every bad end, including the ones
+# Restart= is about to handle, so this waits a moment and does nothing
+# unless the unit is still failed -- a restarting one is activating by
+# then (the result stays the last run's, "signal", even past the limit).
+# A getty started any earlier would, through ade.service's Conflicts
+# with it, cancel the restart. From the prompt, reset-failed clears the
+# limit and restart stops the getty again through the same Conflicts.
+[Unit]
+Description=The desktop failed; a login prompt with the reason
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'sleep 4; [ "$(systemctl show -p ActiveState --value ade.service)" = failed ] || exit 0; mkdir -p /run/issue.d; printf "\\nThe AOS desktop crashed %%s times in a row and was stopped.\\n  journalctl -b _COMM=ade-comp    what it said\\n  coredumpctl list                 the crashes\\n  sudo aos-report                  everything, for a bug report\\n  sudo systemctl reset-failed ade; sudo systemctl restart ade   try again\\n\\n" "$(wc -l < /run/ade/crash 2>/dev/null || echo several)" > /run/issue.d/ade.issue; systemctl start getty@tty1.service'
