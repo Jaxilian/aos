@@ -15,12 +15,14 @@ case "$1" in
 add)
 	# The stick the OS itself was installed on is USB too, and every
 	# partition on it arrives here at boot: the root, mounted already,
-	# and the ESP, which is systemd's. Neither is media. lsblk names the
-	# whole disk and its partitions by MAJ:MIN, which is how / is known
-	# whatever the kernel calls its device.
-	disk="/dev/$(lsblk -no PKNAME "$dev")"
-	[ -b "$disk" ] || disk="$dev"
-	if lsblk -no MAJ:MIN "$disk" | tr -d " " | grep -qx "$(findmnt -n -o MAJ:MIN /)"; then
+	# the other root slot, the data partition and the ESP. None is media.
+	# udev names the partition's disk by MAJ:MIN (ID_PART_ENTRY_DISK), and
+	# sysfs names the root's the same way, whatever the kernel calls the
+	# devices. (lsblk -o MAJ:MIN printed nothing on the image, and every
+	# partition of the G14's stick was mounted twice, 2026-10-01.)
+	rootdisk=$(cat "/sys/dev/block/$(findmnt -n -o MAJ:MIN / | tr -d " ")/../dev" 2>/dev/null)
+	disk=${ID_PART_ENTRY_DISK:-$(cat "/sys/class/block/$(basename "$dev")/dev" 2>/dev/null)}
+	if [ -n "$rootdisk" ] && [ "$disk" = "$rootdisk" ]; then
 		exit 0
 	fi
 	opts=""

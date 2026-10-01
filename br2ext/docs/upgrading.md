@@ -62,10 +62,17 @@ An installed disk has two root slots ([../PLATFORM.md](../PLATFORM.md)
 describes the layout). `aos-update` moves a machine to a newer release:
 
 ```sh
+sudo apm upgrade       # every package, then the OS itself: what Settings' "Install every update" runs
 aos-update --check     # "AOS 0.3.0 is available (this is 0.2.0)", or that it is the newest
 aos-update             # fetch, verify, write the idle slot; boots at the next restart
 aos-update --rollback  # the other slot -- what ran before -- boots at the next restart
 ```
+
+`apm upgrade` with no package named runs `aos-update` after the packages
+(`--dry-run` runs `--check`), so one command, or one button, moves the
+whole machine, the way a distribution's upgrade does; the OS part is
+skipped where there is no `aos-update` (a developer's machine, the live
+ISO).
 
 It fetches `SHA256SUMS` and `SHA256SUMS.minisig` from the URL in
 `/usr/lib/aos/update.conf` (the apm package index's release in apm-recipes,

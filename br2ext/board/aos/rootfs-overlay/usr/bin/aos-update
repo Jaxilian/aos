@@ -107,6 +107,13 @@ curl -fsSL -o "$WORK/$TAR" "$URL/$TAR"
 echo ">>> Writing slot $OTHER ($DEV)"
 M=/run/aos-update
 mkdir -p "$M"
+# An idle slot is nobody's to mount, but a stick's partitions are USB
+# media to udev, and the removable-media rule has mounted one under
+# /run/media before (the G14, 2026-10-01); mkfs refuses a mounted device.
+while m=$(findmnt -n -o TARGET --first-only "$DEV"); do
+	echo "    unmounting $m first"
+	umount "$m"
+done
 mkfs.ext4 -q -F -L "aos-$OTHER" "$DEV"
 mount "$DEV" "$M"
 # /home and /opt/apm are mount points for the data partition; what the
