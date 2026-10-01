@@ -1,0 +1,12 @@
+# The system theme; ~/.config/aos/theme overrides it line by line, and the
+# Settings application's Display page writes that one. Read by the
+# compositor (effects, within seconds) and by every application on the
+# SDK (all of it, when it starts).
+#
+#   primary=#rrggbb     the accent
+#   secondary=#rrggbb   the selected row
+#   effects=full        glass: translucent windows over the blurred desktop
+#   effects=light       opaque, no blur: for a slow GPU
+primary=#5865f2
+secondary=#264f78
+effects=full

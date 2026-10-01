@@ -172,6 +172,13 @@ In the order a new user meets them.
    carry them: icons, long descriptions, per-package signers (both
    repositories sign with one key today, so "who signed it" is the
    repository's key); an index format 2 is where they go.
+   *Icons, 2026-10-01 (apm v0.1.4, aos-store v0.1.1)*: the signed index
+   zip carries a `meta.tsv` beside `index.tsv` -- display name,
+   categories, description, and an icon published next to the packages
+   with its sha256 -- which older apm never opens, so machines in the
+   field keep working. The store shows applications as an icon grid and
+   libraries and tools as their own list; hello and hello-c left the
+   official repository. Per-package signers are still to come.
 5. **Updates in one place.** Base OS (Phase 1, item 5) and applications on
    one screen, with a restart prompt.
 6. **XWayland.** *Done 2026-09-23*: `runtime/xwayland` in apm-thirdparty,

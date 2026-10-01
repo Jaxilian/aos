@@ -221,6 +221,19 @@ Bluetooth audio goes through PipeWire's BlueZ backend, with `bluetoothd`
 on the image and pairing on Settings' Bluetooth page; the controller is
 `btusb` on most machines and `btintel_pcie` on Intel's newest (BE201).
 
+**Theme.** `/etc/aos/theme`, overridden line by line by
+`~/.config/aos/theme` (Settings' Display page writes that one):
+`primary=` and `secondary=` (#rrggbb), and `effects=full` or `light`.
+awin and tgn read it when a program starts -- the accent, the selection,
+and under `full` translucent window and panel backgrounds on a
+premultiplied swapchain. The compositor rereads it within seconds and,
+under `full`, draws glass: the wallpaper rendered at a quarter of the
+output's size and blurred (a separable gaussian, two rounds) once each
+time it changes, then one rounded quad of it behind every window and
+top or overlay panel per frame. Only the desktop shows through, never
+other windows -- the cheap kind of blur, so it runs on an integrated GPU;
+`light` turns it off and keeps everything opaque.
+
 **When the desktop dies.** The compositor starts the shell again when it
 exits, pausing a second, then two, up to thirty between tries. systemd
 restarts the compositor two seconds after a crash, at most four times in

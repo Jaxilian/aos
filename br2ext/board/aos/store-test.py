@@ -43,13 +43,16 @@ def main():
             if s and s[0] >= 0.005:
                 break
             time.sleep(2)
-        print("$ apm update\n%s" % ser.run("for i in $(seq 20); do curl -fsI https://github.com >/dev/null 2>&1 && break; sleep 3; done; apm update 2>&1 | tail -3", timeout=300))
+        print("$ apm update\n%s" % ser.run("for i in $(seq 20); do curl -fsI https://github.com >/dev/null 2>&1 && break; sleep 3; done; apm repo add thirdparty >/dev/null 2>&1; apm update 2>&1 | tail -3; ls /opt/apm/cache/index/*/icons/", timeout=300))
         print("$ apm find .\n%s" % ser.run("apm find a 2>&1 | head -5"))
         if not bt.window_shot(ser, "store-official", "aos-store", "aos-store official"):
             print("!! no window for aos-store")
             ok = False
         if not bt.window_shot(ser, "store-third", "aos-store", "aos-store third-party"):
             print("!! no window for the third-party page")
+            ok = False
+        if not bt.window_shot(ser, "store-libs", "aos-store", "aos-store libraries"):
+            print("!! no window for the libraries page")
             ok = False
         if not bt.window_shot(ser, "store-updates", "aos-store", "aos-store updates"):
             print("!! no window for the updates page")

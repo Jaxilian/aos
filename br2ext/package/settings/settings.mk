@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-# A commit, not a tag -- see ade.mk. This one is v0.1.15.
-SETTINGS_VERSION = 970effdfe36582b94ce0227635ef239dd4617784
+# A commit, not a tag -- see ade.mk. This one is v0.1.16.
+SETTINGS_VERSION = 10175dd1e5bae1335c89ae248f311f33bf48ab71
 SETTINGS_SITE = ssh://git@github.com/Jaxilian/settings
 SETTINGS_SITE_METHOD = git
 SETTINGS_LICENSE = MIT

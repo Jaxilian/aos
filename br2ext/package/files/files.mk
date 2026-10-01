@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-# A commit, not a tag -- see ade.mk. This one is v0.1.6.
-FILES_VERSION = 9a14474caf7acaefb3650bbdf4f91d2aa19b2354
+# A commit, not a tag -- see ade.mk. This one is v0.1.7.
+FILES_VERSION = cd8f819afc3284b72aebf437a5bce1749f1f0973
 FILES_SITE = ssh://git@github.com/Jaxilian/files
 FILES_SITE_METHOD = git
 FILES_LICENSE = MIT

@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-# A commit, not a tag -- see ade.mk. This one is v0.1.4.
-NOTEPAD_VERSION = 58e93a4587046ec15df04a705f3c310f7c67c6dd
+# A commit, not a tag -- see ade.mk. This one is v0.1.5.
+NOTEPAD_VERSION = c3daada2992a50788c67b302c666e50803c26e50
 NOTEPAD_SITE = ssh://git@github.com/Jaxilian/notepad
 NOTEPAD_SITE_METHOD = git
 NOTEPAD_LICENSE = MIT
