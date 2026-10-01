@@ -20,7 +20,10 @@ release in apm-recipes (tag `index`), which is the URL in the image's
 `/usr/lib/aos/update.conf`; the previous release's tarball is removed. The
 ISO is handed out by hand. The version is the tag's (`v0.2.0` ->
 `VERSION_ID=0.2.0`), written into `os-release` by `post-build.sh`;
-`release.sh` refuses a `-dirty` build.
+`release.sh` refuses a `-dirty` build. The CVE report is Buildroot's
+`pkg-stats`, whose `cve.py` wants two Python modules the host may lack
+(`python3 -m pip install --user aiohttp setuptools` -- the second for
+`distutils`, gone from Python 3.12); it fetches the NVD feed, minutes.
 
 **The live ISO carries the demo account.** `admin` with password
 `123321`, and a passwordless root on the live system. Say so when you
