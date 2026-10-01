@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Install AOS
+GenericName=Installer
+Comment=Install AOS onto a disk
+Exec=aos-setup
+Icon=org.aos.Setup
+Categories=System;
+Keywords=install;installer;setup;disk;
+StartupWMClass=org.aos.Setup

@@ -10,7 +10,8 @@ set -e
 
 usage() {
 	cat <<USAGE
-Usage: aos-install [--demo | --user NAME [--hash HASH]] <disk>
+Usage: aos-install [--demo | --user NAME [--hash HASH | --password-file FILE]]
+                   [--keymap CODE] [--zone AREA/CITY] <disk>
 
   <disk>  the whole disk to install onto, e.g. /dev/sda or /dev/nvme0n1
 
@@ -23,6 +24,11 @@ Usage: aos-install [--demo | --user NAME [--hash HASH]] <disk>
   --user NAME --hash HASH   the same, unattended: NAME with HASH as its
                             crypt(3) password. (--release is accepted and
                             means nothing: it is the default now.)
+  --password-file FILE      instead of --hash: the password, one line, in a
+                            file (what the graphical installer writes).
+  --keymap CODE             the keyboard layout (an XKB code, "se"), for the
+                            desktop and the console of the installed system
+  --zone AREA/CITY          its time zone ("Europe/Stockholm")
   --demo                    keep the demo account. For a test machine.
 
 This ERASES the target disk completely.
@@ -34,16 +40,28 @@ DEMO=no
 NEWUSER=""
 NEWHASH=""
 NEWPASS=""
+KEYMAP=""
+ZONE=""
 while [ $# -gt 1 ]; do
 	case "$1" in
 		--release) ;;
 		--demo)    DEMO=yes ;;
 		--user)    NEWUSER="$2"; shift ;;
 		--hash)    NEWHASH="$2"; shift ;;
+		--password-file) NEWPASS=$(head -n 1 "$2") || exit 1; shift ;;
+		--keymap)  KEYMAP="$2"; shift ;;
+		--zone)    ZONE="$2"; shift ;;
 		*)         usage ;;
 	esac
 	shift
 done
+if [ -n "$KEYMAP" ]; then
+	echo "$KEYMAP" | grep -qE '^[a-z]{2,8}$' || { echo "aos-install: '$KEYMAP' is not a keyboard layout code" >&2; exit 1; }
+fi
+if [ -n "$ZONE" ]; then
+	case "$ZONE" in *..*) usage ;; esac
+	[ -f "/usr/share/zoneinfo/$ZONE" ] || { echo "aos-install: no time zone '$ZONE'" >&2; exit 1; }
+fi
 [ $# -eq 1 ] || usage
 DISK="$1"
 [ -b "$DISK" ] || { echo "aos-install: $DISK is not a block device" >&2; exit 1; }
@@ -258,6 +276,35 @@ if [ "$DEMO" = no ]; then
 [Service]
 User=$NEWUSER
 USERCONF
+fi
+
+# The keyboard layout and the time zone, through the overlay so they
+# belong to both slots. The desktop reads its layout from
+# /etc/ade/environment, the console from vconsole.conf (the same table the
+# Settings application uses for the console name; a layout without a
+# console map of its own keeps the default), the zone from /etc/localtime.
+if [ -n "$KEYMAP" ]; then
+	echo ">>> Keyboard: $KEYMAP"
+	env="$TARGET/etc/ade/environment"
+	grep -v '^XKB_DEFAULT_LAYOUT=' "$env" > "$env.new" 2>/dev/null || true
+	echo "XKB_DEFAULT_LAYOUT=$KEYMAP" >> "$env.new"
+	mv "$env.new" "$env"
+	console=$KEYMAP
+	case "$KEYMAP" in
+		se) console=sv-latin1 ;; de) console=de-latin1 ;; fr) console=fr-latin1 ;;
+		es) console=es ;; it) console=it ;; no) console=no-latin1 ;; dk) console=dk-latin1 ;;
+		fi) console=fi ;; gb) console=uk ;; us) console=us ;; pl) console=pl ;; ru) console=ru ;;
+		ch) console=de_CH-latin1 ;; pt) console=pt-latin1 ;; nl) console=nl ;; cz) console=cz-lat2 ;;
+	esac
+	if ls /usr/share/keymaps/i386/*/"$console".map.gz >/dev/null 2>&1; then
+		grep -v '^KEYMAP=' "$TARGET/etc/vconsole.conf" > "$TARGET/etc/vconsole.conf.new" 2>/dev/null || true
+		echo "KEYMAP=$console" >> "$TARGET/etc/vconsole.conf.new"
+		mv "$TARGET/etc/vconsole.conf.new" "$TARGET/etc/vconsole.conf"
+	fi
+fi
+if [ -n "$ZONE" ]; then
+	echo ">>> Time zone: $ZONE"
+	ln -sfn "../usr/share/zoneinfo/$ZONE" "$TARGET/etc/localtime"
 fi
 
 echo ">>> Installing bootloader"

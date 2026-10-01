@@ -1,0 +1,20 @@
+config BR2_PACKAGE_AOS_SETUP
+	bool "aos-setup (the graphical installer)"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_HOST_RUSTC
+	select BR2_PACKAGE_LIBXKBCOMMON
+	select BR2_PACKAGE_VULKAN_LOADER
+	select BR2_PACKAGE_WAYLAND
+	help
+	  "Install AOS": keyboard layout, time zone, the machine's account,
+	  the disk, then aos-install run through sudo with its stages on a
+	  progress bar and a Restart button at the end. Built on awin and
+	  tgn like the Settings application, whose window it shares the
+	  shape of. On the live ISO it unlocks sudo with the demo account's
+	  password itself; an installed system asks.
+
+comment "aos-setup needs a toolchain w/ threads and dynamic libs"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS

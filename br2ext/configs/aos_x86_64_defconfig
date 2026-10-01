@@ -515,6 +515,8 @@ BR2_PACKAGE_IMAGES=y
 # power, users, time, updates and the compatibility switches, on the same
 # awin + tgn stack; every change goes through sudo and the tools above.
 BR2_PACKAGE_SETTINGS=y
+# The graphical installer, on the live ISO: Install AOS in the overview.
+BR2_PACKAGE_AOS_SETUP=y
 
 ################################################################################
 # M4 -- self-hosting.

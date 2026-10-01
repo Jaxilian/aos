@@ -130,13 +130,21 @@ What an evaluator checks before anything else.
 
 In the order a new user meets them.
 
-1. **A graphical installer.** Today [aos-install](../board/aos/rootfs-overlay/usr/bin/aos-install)
-   is a shell prompt. Done: disk, keyboard, time zone, account and password,
-   progress — on the awin/tgn stack, with `aos-install` kept as the engine
-   it drives.
-2. **First-boot setup.** Account, Wi-Fi, time zone, and the choice to enable
-   the third-party repository. This is what lets the released image carry
-   no account at all.
+1. **A graphical installer.** *Done 2026-10-01 (aos-setup v0.1.0)*:
+   "Install AOS" in the live ISO's overview -- keyboard layout, time
+   zone, account and password, the disk (the live medium is never
+   offered, too-small disks are marked), then `aos-install` run through
+   sudo with its stages on a progress bar and a Restart button. The
+   engine gained `--password-file`, `--keymap` and `--zone`. On the
+   live ISO the app unlocks sudo with the demo account's password
+   itself. Tested in QEMU as every other app; the first hardware run is
+   the G14's next stick.
+2. **First-boot setup.** *Dropped 2026-10-01.* It existed to let the ISO
+   ship without an account; but the installer asks for the account and
+   installs it, so no installed machine ever has the demo one, and the
+   live session's documented `admin` is what every live ISO has. A
+   second code path for the same questions, a `setup` system user and a
+   session restart were not worth that.
 3. **A Settings application.** *Done 2026-09-25 (settings v0.1.0)*:
    network and Wi-Fi, sound, display, keyboard layout, power and the lid,
    users, date and time, apm updates, the XWayland switch, the
@@ -404,7 +412,13 @@ In the order a new user meets them.
    touchpad.
 2. **Reference hardware.** One machine that is *the* AOS machine, where
    everything is made perfect first. That is the hardware story, and the
-   machine an evaluator is handed.
+   machine an evaluator is handed. A preinstalled machine has no owner
+   yet, so this is where first-boot setup belongs (dropped from Phase 2
+   on 2026-10-01): `aos-install --oobe` leaves the machine owned by a
+   locked `setup` system user whose session runs aos-setup in a second
+   mode -- keyboard, time zone, account, Wi-Fi -- through a root helper
+   that refuses once an owner exists, then restarts the desktop as the
+   owner. Never a placeholder account with a known password.
 3. **One use case the evaluation wins at.** "Runs anything" is the vision;
    the evaluation needs a single thing AOS does better. With what works
    today, that is a developer workstation — Visual Studio Code, gcc and Rust,

@@ -34,6 +34,9 @@ aos-install /dev/vda      # type YES when asked; takes a few minutes
 poweroff
 ```
 
+or, on the desktop, Super and "Install AOS": the graphical installer
+(aos-setup), which runs the same `aos-install`.
+
 And from the host, `run-qemu.sh disk` to boot the result.
 
 ## Checking it actually works
@@ -107,7 +110,13 @@ where udev once mounted the idle slot as media and stopped the update
 at mkfs. Transcripts: `update-N.serial.txt`. `kernel-test.py
 <file.apkg>` installs a kernel package made by `kernel-apkg.sh` on the
 same disk and boots it: `/boot/bzImage.apm` must be a copy, not a link,
-since GRUB cannot follow a link out of the root slot.
+since GRUB cannot follow a link out of the root slot. `setup-test.py` is
+the graphical installer end to end: the live ISO with a blank disk,
+`aos-setup` started in the session with every answer on its command
+line and `--go`, screendumps while it installs, then the disk booted and
+the account, the session's user, the keyboard layout and the time zone
+checked. It leaves the disk installed for `jax`; `boot-test.py install`
+gives the other tests their demo disk back.
 
 For a one-off look inside a booted guest without editing the check lists,
 put commands in `BOOT_TEST_EXTRA`, separated by ` ;; `; every mode runs
