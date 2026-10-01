@@ -111,12 +111,15 @@ What an evaluator checks before anything else.
    off, first line of the known limitations ([policies.md](policies.md)).
    Shim plus a MOK-enrolled kernel and signed modules (NVIDIA's too) is
    known engineering and ongoing maintenance; it waits for a reason.
-5. **Base OS updates.** Today an installed machine is updated by
-   reinstalling. Done: a signed, versioned root image in A/B slots and a
-   "previous version" entry in the boot menu next to the existing
-   safe-graphics one. `systemd-sysupdate` is already in the image and fits
-   the no-initramfs, `root=PARTUUID=` layout. Until it lands, a documented
-   reinstall that preserves `/home`.
+5. **Base OS updates.** *Done 2026-10-01*: two root slots and a data
+   partition on every installed disk, `aos-update` writing a release's
+   signed root tarball into the idle slot, GRUB booting it once and the
+   desktop confirming it, "AOS (previous version)" in the menu
+   ([upgrading.md](upgrading.md)). Not `systemd-sysupdate`: it was never in
+   the image, verifies with gpg, and is built around systemd-boot; what it
+   would have saved was the slot switch, which GRUB has to do by hand
+   anyway. The release is published next to the apm index
+   (`release.sh --publish`). Disks installed before this are reinstalled.
 6. **Disk encryption: decide.** *Decided 2026-09-28*: `/home` on LUKS,
    unlocked at login, when it comes; the root stays in the clear and there
    is no initramfs ([policies.md](policies.md)). Not built yet.

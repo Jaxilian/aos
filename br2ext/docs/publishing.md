@@ -2,24 +2,25 @@
 
 ## What to hand out
 
-One file, renamed, with a signed checksum and a licence manifest beside it:
-
 ```sh
-cp output/images/rootfs.iso9660 aos-0.1.0-x86_64.iso
-sha256sum aos-0.1.0-x86_64.iso > SHA256SUMS
-minisign -Sm SHA256SUMS -s ~/.apm/etc/keys/apm.key
-make legal-info && tar -C output -czf aos-0.1.0-legal-info.tar.gz legal-info
+./br2ext/board/aos/release.sh            # -> output/release/
+./br2ext/board/aos/release.sh --publish  # the same, then uploaded for aos-update
 ```
 
-Sign with the same key that signs the apm repositories -- the one
-`apm key new` made, in minisign format, whose public half is `keys/apm.pub`
-in [apm-recipes](https://github.com/Jaxilian/apm-recipes). One key, already
-trusted by every AOS machine, and the stock `minisign` tool verifies it.
-Publish the public key next to the download, not only in the repository.
-
-The version string lives in
-`br2ext/board/aos/rootfs-overlay/usr/lib/os-release`. Bump it there before a
-release so the running system reports the same version as the file.
+`release.sh` takes a tagged, clean build and writes `output/release/`: the
+ISO renamed `aos-<version>-x86_64.iso`, the root tarball
+`aos-<version>-x86_64-root.tar.xz` (what `aos-update` writes into a root
+slot), the legal-info manifest, the CVE report from `make pkg-stats`, and
+`SHA256SUMS` over all of them signed with `apm sign` -- the same key that
+signs the apm repositories, the one `apm key new` made, whose public half
+is `keys/apm.pub` in [apm-recipes](https://github.com/Jaxilian/apm-recipes)
+and is trusted by every AOS machine. `--publish` uploads the tarball,
+`SHA256SUMS` and `SHA256SUMS.minisig` as assets of the apm package index's
+release in apm-recipes (tag `index`), which is the URL in the image's
+`/usr/lib/aos/update.conf`; the previous release's tarball is removed. The
+ISO is handed out by hand. The version is the tag's (`v0.2.0` ->
+`VERSION_ID=0.2.0`), written into `os-release` by `post-build.sh`;
+`release.sh` refuses a `-dirty` build.
 
 **The live ISO carries the demo account.** `admin` with password
 `123321`, and a passwordless root on the live system. Say so when you

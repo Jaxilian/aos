@@ -14,7 +14,7 @@ when it has no driver — that every QEMU run had passed over.
 ```sh
 ./br2ext/board/aos/run-qemu.sh            # live ISO, UEFI, in a window
 ./br2ext/board/aos/run-qemu.sh bios       # live ISO, legacy BIOS
-./br2ext/board/aos/run-qemu.sh install    # live ISO + a fresh blank 8 GB disk
+./br2ext/board/aos/run-qemu.sh install    # live ISO + a fresh blank 32 GB disk
 ./br2ext/board/aos/run-qemu.sh disk       # boot what you installed
 ```
 
@@ -64,7 +64,7 @@ systemctl --failed                   # expect "0 loaded units listed"
 journalctl -b -p err                 # errors from this boot, kernel included
 loginctl                             # your login shows as a session with a seat
 networkctl                           # the NIC should be "routable"
-swapon --show                        # zram0 everywhere; /swapfile too once installed
+swapon --show                        # zram0 everywhere; /var/swapfile too once installed
 journalctl -k | grep -i microcode    # the early initrd was found and applied
 systemctl status systemd-fsck-root   # ran, on an installed disk
 systemctl show -p RuntimeWatchdogUSec  # 30s where a watchdog device exists
@@ -97,6 +97,12 @@ Two more scripts drive the session itself through QEMU's monitor and QMP
 `ade-comp`, `ade-shell`, `settings` and `sysmon` from `output/target` in
 over ssh first -- a compositor change tested without an ISO -- and
 installs Firefox and Xwayland from the repositories the disk knows.
+`update-test.py`, also on the installed disk, is a base-OS update
+([upgrading.md](upgrading.md)): the build's own root tarball served from
+the host as a fake release 9.9.9, signed with the local apm key, then four
+boots -- the update into slot b, its confirmation, a rollback armed, the
+trial of slot a forgotten -- with the mounts, the account and failed units
+checked on each. Transcripts: `update-N.serial.txt`.
 
 For a one-off look inside a booted guest without editing the check lists,
 put commands in `BOOT_TEST_EXTRA`, separated by ` ;; `; every mode runs

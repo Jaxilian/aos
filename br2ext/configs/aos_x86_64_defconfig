@@ -139,6 +139,9 @@ BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
 BR2_TARGET_ROOTFS_EXT2=y
 BR2_TARGET_ROOTFS_EXT2_4=y
 BR2_TARGET_ROOTFS_EXT2_SIZE="4G"
+# rootfs.tar.xz is what a release ships for aos-update: a root slot is
+# written from it (release.sh, docs/upgrading.md).
+BR2_TARGET_ROOTFS_TAR_XZ=y
 
 ################################################################################
 # M1 -- GNU userland.

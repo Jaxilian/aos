@@ -1,0 +1,18 @@
+# A root slot booted on trial (grubenv next=) becomes the default once the
+# desktop is up. Only ever does something after aos-update; on the live ISO
+# and on a disk without a grubenv the condition keeps it inert.
+[Unit]
+Description=Confirm the booted AOS root slot
+After=ade.service
+Requires=ade.service
+RequiresMountsFor=/boot/efi
+ConditionPathExists=/boot/efi/grub/grubenv
+
+[Service]
+# Not oneshot: that would hold multi-user.target for the wait. Let the
+# compositor live a moment before calling the boot good.
+Type=exec
+ExecStart=/bin/sh -c 'sleep 20; exec /usr/bin/aos-update --confirm'
+
+[Install]
+WantedBy=multi-user.target

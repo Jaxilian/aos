@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# init -- what an installed system's kernel runs as PID 1, ahead of systemd.
+#
+# Mounts the data partition on /var and the overlay on /etc, then hands over
+# to systemd. Both have to exist before it starts: PID 1 reads
+# /etc/machine-id, /etc/hostname and every unit drop-in under
+# /etc/systemd/system -- the desktop session's User= among them -- before it
+# mounts anything from /etc/fstab, and a reload later does not read them
+# again. The fstab (the slot's own, under the overlay) names the data
+# partition; systemd finds both mounts already made and adopts them.
+#
+# Never fails: whatever happened, systemd starts. A mount that did not
+# happen shows as a failed fstab unit and an emergency shell, which is
+# where a person can see what went wrong; a PID 1 that exits is a panic.
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+
+data=$(awk '$2 == "/var" { print $1; exit }' /etc/fstab)
+if [ -n "$data" ]; then
+	# A dirty filesystem is repaired here, where it is still unmounted;
+	# systemd would skip the check on a mount it found already made.
+	fsck.ext4 -p "$data" > /dev/null 2>&1
+	mount -t ext4 "$data" /var
+	mkdir -p /var/etc/upper /var/etc/work
+	mount -t overlay overlay -o lowerdir=/etc,upperdir=/var/etc/upper,workdir=/var/etc/work /etc
+fi
+
+exec /sbin/init "$@"

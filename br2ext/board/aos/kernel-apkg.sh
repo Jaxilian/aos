@@ -81,9 +81,12 @@ requires_scope = "system"
 run = []
 
 [hooks]
-# Symlinks only, and only where the loader and GRUB look. A real
-# /usr/lib/modules/<ver> is the image's own copy of this same version and
-# is left alone; ln would otherwise link inside it.
+# Module links only where the loader looks; a real /usr/lib/modules/<ver>
+# is the image's own copy of this same version and is left alone, ln would
+# otherwise link inside it. The kernel is a copy, not a link: on an
+# installed disk the store is on the data partition and GRUB cannot follow
+# a symlink out of the root slot. The copy stays with the slot -- an OS
+# update boots the release's kernel until the package is installed again.
 post_install = '''
 for m in "\$APM_PREFIX"/lib/modules/*; do
 	link=/usr/lib/modules/\$(basename "\$m")
@@ -93,10 +96,10 @@ for m in "\$APM_PREFIX"/lib/modules/*; do
 		ln -sfn "\$m" "\$link"
 	fi
 done
-if [ -L /boot/bzImage.apm ] && [ "\$(readlink /boot/bzImage.apm)" != "\$APM_PREFIX/boot/bzImage" ]; then
-	ln -sfn "\$(readlink /boot/bzImage.apm)" /boot/bzImage.prev
+if [ -f /boot/bzImage.apm ] && ! cmp -s /boot/bzImage.apm "\$APM_PREFIX/boot/bzImage"; then
+	mv -f /boot/bzImage.apm /boot/bzImage.prev
 fi
-ln -sfn "\$APM_PREFIX/boot/bzImage" /boot/bzImage.apm
+cp -f "\$APM_PREFIX/boot/bzImage" /boot/bzImage.apm
 echo "kernel $VER boots at the next reboot; the previous kernel stays in the GRUB menu"
 '''
 pre_remove = '''
@@ -107,7 +110,7 @@ for m in "\$APM_PREFIX"/lib/modules/*; do
 	fi
 done
 for b in /boot/bzImage.apm /boot/bzImage.prev; do
-	if [ "\$(readlink "\$b")" = "\$APM_PREFIX/boot/bzImage" ]; then
+	if cmp -s "\$b" "\$APM_PREFIX/boot/bzImage"; then
 		rm -f "\$b"
 	fi
 done

@@ -98,7 +98,7 @@ CHECKS = [
     "systemctl --failed --no-pager",
     "journalctl -b -p err --no-pager | tail -30",
     "systemd-analyze",
-    'for m in / /var /tmp /boot/efi; do findmnt -n -o TARGET,SOURCE,FSTYPE,OPTIONS $m || echo "$m: not mounted"; done',
+    'for m in / /var /etc /home /opt/apm /tmp /boot/efi; do findmnt -n -o TARGET,SOURCE,FSTYPE,OPTIONS $m || echo "$m: not mounted"; done',
     "swapon --show; zramctl",
     "journalctl -k --no-pager | grep -i -E 'microcode|initramfs' | head -4",
     "systemctl status systemd-fsck-root --no-pager 2>&1 | grep -E 'Active|fsck'",

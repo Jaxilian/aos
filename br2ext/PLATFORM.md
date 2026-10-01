@@ -56,26 +56,45 @@ the staging sysroot by `board/aos/post-build.sh`.
 
 `/etc/os-release` identifies the system as `ID=aos`.
 
+**An installed disk** has five partitions: a BIOS boot partition, the EFI
+system partition, two root slots (`aos-a`, partition 3, and `aos-b`,
+partition 4, 6 GiB each) and the data partition (`aos-data`, the rest).
+A base-OS update writes a release's root tarball into the idle slot and
+GRUB boots it once; a boot that reaches the desktop confirms the slot, one
+that does not falls back at the next reset ([docs/upgrading.md](docs/upgrading.md)).
+The data partition is mounted at `/var` and holds everything that must
+outlive a slot: `/home` and the apm store `/opt/apm` are bind mounts out of
+it, the swap file is `/var/swapfile`, and `/etc` is an overlayfs whose
+lower half is the slot's own `/etc` and whose upper half is
+`/var/etc/upper`, so accounts, hostname, the session's user and every
+setting written on the machine belong to both slots while a new release's
+`/etc` shows through wherever nothing was changed. The kernel runs
+`/usr/lib/aos/init` as PID 1, which mounts `/var` and the overlay and then
+starts systemd -- PID 1 reads `/etc` before it mounts anything from
+`/etc/fstab`. GRUB's menu and its `grubenv` (`slot`, the confirmed slot;
+`next`, a slot to try once) are on the ESP under `/boot/efi/grub`, since
+they belong to neither slot. `/usr/lib/aos/slot.sh` is the layout in code.
+
 On an installed system the kernel mounts the root **read-only** from
-`root=PARTUUID=` in `/boot/grub/grub.cfg`, `systemd-fsck-root` checks it, and
-`systemd-remount-fs` makes it writable from its `/etc/fstab` line. That is
-how the root gets an fsck without an initramfs; do not change the `ro` on
-the kernel command line. `/boot/efi` is listed by `UUID=` with `nofail`;
-systemd waits for udev to create the `/dev/disk/by-uuid` link before mounting
-it, and entries you add by UUID work the same way.
+`root=PARTUUID=`, `systemd-fsck-root` checks it, and `systemd-remount-fs`
+makes it writable from its `/etc/fstab` line. That is how the root gets an
+fsck without an initramfs; do not change the `ro` on the kernel command
+line. `/boot/efi` is listed by `UUID=` with `nofail`; systemd waits for
+udev to create the `/dev/disk/by-uuid` link before mounting it, and entries
+you add by UUID work the same way.
 
 There is no initramfs. The `initrd` GRUB passes is `/boot/microcode.img`,
 CPU microcode only; the kernel applies it and, finding no `/init`, mounts
 the root itself. That is also why the root cannot live on LVM, RAID or LUKS.
 
 On the live ISO the root is read-only and `/var` is a tmpfs, seeded at boot
-from `/usr/share/factory/var`. An installed system has a real `/var`; the
-drop-in in `/etc/systemd/system/var.mount.d/` keeps the tmpfs off there.
+from `/usr/share/factory/var`. An installed system's `/etc/fstab` names the
+data partition for `/var`, and that unit shadows the tmpfs one.
 
 **Swap** is two layers. `/dev/zram0` — zstd-compressed swap in RAM, half of
 memory up to 8 GB — is active on every system including the live ISO, at
-priority 100. An installed system also has `/swapfile` (RAM-sized, up to
-8 GB, created by `aos-install`) at priority 10, which is what gives a large
+priority 100. An installed system also has `/var/swapfile` (RAM-sized, up
+to 8 GB, created by `aos-install`) at priority 10, which is what gives a large
 build real headroom. `systemd-oomd` is configured the way Fedora ships it:
 it kills on sustained memory pressure in a user session and when swap is
 nearly full, before the kernel's own OOM killer has to.
@@ -291,8 +310,8 @@ The step-by-step procedure, with the mistakes it prevents, is
 *Install AOS onto the stick* with `board/aos/write-usb.sh /dev/sdX
 --install`. It boots the live ISO in QEMU with the physical stick attached
 as a disk and runs `aos-install` on it, so the stick ends up an ordinary
-installed system: GPT, a FAT32 EFI system partition at the front, an ext4
-root, GRUB for UEFI and BIOS. That is the same shape as any installed OS,
+installed system: GPT, a FAT32 EFI system partition at the front, two ext4
+root slots and a data partition, GRUB for UEFI and BIOS. That is the same shape as any installed OS,
 which is why every firmware boots it, and it is persistent and writable —
 what a machine you SSH into to build on needs.
 

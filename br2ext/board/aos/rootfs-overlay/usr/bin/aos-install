@@ -73,14 +73,25 @@ if [ "$DEMO" = no ]; then
 	[ "$NEWUSER" != admin ] || { echo "aos-install: admin is the demo account's name; pick another" >&2; exit 1; }
 fi
 
+. /usr/lib/aos/slot.sh
+
 # Partition naming differs between /dev/sda2 and /dev/nvme0n1p2.
-case "$DISK" in
-	*[0-9]) PART_PREFIX="${DISK}p" ;;
-	*)      PART_PREFIX="$DISK" ;;
-esac
-BIOSBOOT="${PART_PREFIX}1"
-ESP="${PART_PREFIX}2"
-ROOT="${PART_PREFIX}3"
+BIOSBOOT=$(slot_part "$DISK" 1)
+ESP=$(slot_part "$DISK" 2)
+SLOT_A=$(slot_part "$DISK" 3)
+SLOT_B=$(slot_part "$DISK" 4)
+DATA=$(slot_part "$DISK" 5)
+
+# Two root slots of this many MiB each; an update writes the idle one. The
+# image is about 3 GB and nothing else lands on a slot: programs, accounts
+# and settings live on the data partition, which gets the rest of the disk.
+SLOT_MIB=6144
+# bios_grub + ESP + two slots + at least this much data.
+MIN_DATA_MIB=2048
+disk_mib=$(( $(blockdev --getsize64 "$DISK") / 1048576 ))
+need_mib=$(( 514 + 2 * SLOT_MIB + MIN_DATA_MIB ))
+[ "$disk_mib" -ge "$need_mib" ] || {
+	echo "aos-install: $DISK is ${disk_mib} MiB; AOS needs at least ${need_mib} MiB" >&2; exit 1; }
 
 # Booting both ways from one disk needs a GPT with a BIOS boot partition for
 # GRUB's core image (there is no MBR gap to embed it in) alongside the ESP.
@@ -107,20 +118,27 @@ dd if=/dev/zero of="$DISK" bs=512 count=4096 seek=$(( DISK_SECTORS - 4096 )) sta
 sync
 
 echo ">>> Partitioning $DISK"
-# Three partitions, because booting the same disk on both firmwares needs
-# two different things from it:
+# Five partitions (/usr/lib/aos/slot.sh describes the layout):
 #
 #   1. a BIOS boot partition -- on GPT there is no post-MBR gap to embed
 #      GRUB's core image in, and without somewhere to put it grub-install
 #      refuses with "will not proceed with blocklists";
-#   2. an EFI system partition for the UEFI bootloader;
-#   3. the root filesystem.
+#   2. an EFI system partition for the UEFI bootloader, GRUB's menu and
+#      its grubenv, which choose between the slots;
+#   3. root slot a, which this install fills;
+#   4. root slot b, empty until the first update;
+#   5. the data partition: /var, and through it /home, the apm store, the
+#      user's half of /etc and the swap file.
+a_end=$(( 514 + SLOT_MIB ))
+b_end=$(( a_end + SLOT_MIB ))
 parted -s "$DISK" mklabel gpt
 parted -s "$DISK" mkpart bios_grub 1MiB 2MiB
 parted -s "$DISK" set 1 bios_grub on
 parted -s "$DISK" mkpart ESP fat32 2MiB 514MiB
 parted -s "$DISK" set 2 esp on
-parted -s "$DISK" mkpart root ext4 514MiB 100%
+parted -s "$DISK" mkpart aos-a ext4 514MiB ${a_end}MiB
+parted -s "$DISK" mkpart aos-b ext4 ${a_end}MiB ${b_end}MiB
+parted -s "$DISK" mkpart aos-data ext4 ${b_end}MiB 100%
 
 # Give the kernel a moment to notice the new partition table.
 partprobe "$DISK" 2>/dev/null || true
@@ -128,16 +146,19 @@ udevadm settle 2>/dev/null || true
 
 echo ">>> Creating filesystems"
 mkfs.fat -F32 -n AOS_ESP "$ESP"
-mkfs.ext4 -F -L aos "$ROOT"
+mkfs.ext4 -q -F -L aos-a "$SLOT_A"
+mkfs.ext4 -q -F -L aos-b "$SLOT_B"
+mkfs.ext4 -q -F -L aos-data "$DATA"
 
 echo ">>> Mounting"
 # Under /run, not /mnt: on the live ISO the root filesystem is read-only and
 # a mount point cannot be created anywhere on it.
 TARGET=/run/aos-install
 mkdir -p "$TARGET"
-mount "$ROOT" "$TARGET"
-mkdir -p "$TARGET/boot/efi"
+mount "$SLOT_A" "$TARGET"
+mkdir -p "$TARGET/boot/efi" "$TARGET/var"
 mount "$ESP" "$TARGET/boot/efi"
+mount "$DATA" "$TARGET/var"
 
 echo ">>> Copying system (this takes a while)"
 # Copy through a bind mount of / rather than from / directly.
@@ -156,17 +177,21 @@ rmdir "$SRC"
 # Mount points, which are empty directories in the source tree.
 mkdir -p "$TARGET/proc" "$TARGET/sys" "$TARGET/dev" "$TARGET/run" "$TARGET/tmp"
 chmod 1777 "$TARGET/tmp"
+# GRUB's files go on the ESP; the image's /boot/grub is Buildroot's stub.
+rm -rf "$TARGET/boot/grub"
 
-# /var. On the live ISO it is a tmpfs seeded from /usr/share/factory/var
-# (Buildroot's arrangement for a read-only root), and the /var underneath --
-# the one the bind-mount copy just installed -- is an empty directory. Fill
-# it from the factory so the installed system starts with a real /var. The
-# var.mount drop-in in /etc/systemd/system keeps the tmpfs off once the root
-# is writable.
+# The data partition. The copy wrote the image's /var -- an empty directory
+# on the live ISO, where /var is a tmpfs seeded from /usr/share/factory/var
+# -- straight onto it, since it was mounted there; fill it from the factory
+# so the installed system starts with a real /var. journald keeps logs
+# across reboots only if its directory exists. Then what the image carries
+# in /home and /opt/apm moves here, under the bind mounts they become.
 cp -a /usr/share/factory/var/. "$TARGET/var/"
-# journald keeps logs across reboots only if this directory exists. On the
-# ISO the journal is volatile because /var is.
-mkdir -p "$TARGET/var/log/journal"
+slot_data_dirs "$TARGET/var"
+cp -a "$TARGET/home/." "$TARGET/var/home/"
+cp -a "$TARGET/opt/apm/." "$TARGET/var/apm/"
+rm -rf "$TARGET/home" "$TARGET/opt/apm"
+mkdir -p "$TARGET/home" "$TARGET/opt/apm"
 
 echo ">>> Creating swap file"
 # zram (set up by zram-setup.service) is the first swap device everywhere;
@@ -174,62 +199,42 @@ echo ">>> Creating swap file"
 # installed machine real headroom when a big build outgrows RAM.
 #
 # Size: the machine's RAM, at most 8 GiB, and never so much that less than
-# 4 GiB of the root filesystem is left free. There is no hibernation to size
+# 4 GiB of the data partition is left free. There is no hibernation to size
 # for. Written with dd, NOT fallocate: fallocate leaves unwritten extents
 # and swapon then refuses the file with "it appears to have holes".
 mem_mb=$(( $(awk '/^MemTotal:/ { print $2 }' /proc/meminfo) / 1024 ))
 swap_mb=$mem_mb
 [ "$swap_mb" -gt 8192 ] && swap_mb=8192
-avail_mb=$(df -m --output=avail "$TARGET" | tail -1)
+avail_mb=$(df -m --output=avail "$TARGET/var" | tail -1)
 max_by_disk=$(( avail_mb - 4096 ))
 [ "$swap_mb" -gt "$max_by_disk" ] && swap_mb=$max_by_disk
 if [ "$swap_mb" -ge 512 ]; then
-	dd if=/dev/zero of="$TARGET/swapfile" bs=1M count="$swap_mb" status=none
-	chmod 600 "$TARGET/swapfile"
-	mkswap -q "$TARGET/swapfile"
-	SWAP_LINE="/swapfile			none		swap	defaults,pri=10		0	0"
-	echo "    ${swap_mb} MiB at /swapfile"
+	dd if=/dev/zero of="$TARGET/var/swapfile" bs=1M count="$swap_mb" status=none
+	chmod 600 "$TARGET/var/swapfile"
+	mkswap -q "$TARGET/var/swapfile"
+	SWAP_LINE="/var/swapfile			none		swap		defaults,pri=10			0	0"
+	echo "    ${swap_mb} MiB at /var/swapfile"
 else
-	SWAP_LINE="# no swap file: the root filesystem is too small for one (see aos-install)"
-	echo "    skipped: not enough space on the root filesystem"
+	SWAP_LINE="# no swap file: the data partition is too small for one (see aos-install)"
+	echo "    skipped: not enough space on the data partition"
 fi
 
 echo ">>> Writing /etc/fstab"
-ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
-ESP_UUID=$(blkid -s UUID -o value "$ESP")
-# The kernel command line needs the *partition* UUID, not the filesystem one.
-# AOS boots without an initramfs, and resolving root=UUID= means reading
-# filesystem superblocks -- which is userspace's job, normally done inside an
-# initrd. PARTUUID comes from the GPT itself, so the kernel can resolve it on
-# its own. Using UUID= here panics with "Unable to mount root fs".
-ROOT_PARTUUID=$(blkid -s PARTUUID -o value "$ROOT")
-# Why this fstab looks the way it does.
-#
-#  - "/" is listed, with fsck pass 1. The kernel mounts the root read-only
-#    from root=PARTUUID= (it cannot resolve UUID= without an initramfs);
-#    systemd-fsck-root then checks it -- which is only possible while it is
-#    still read-only -- and systemd-remount-fs makes it writable using this
-#    line. Without the line the root would never be checked, and after an
-#    unclean shutdown errors would accumulate silently behind journal replay.
-#  - /boot/efi is by UUID. systemd turns the line into a mount unit that
-#    waits for udev to create /dev/disk/by-uuid/... before mounting, so
-#    there is no "mount before udev" problem to work around. nofail makes a
-#    missing or damaged ESP degrade the boot rather than stop it.
-#  - /proc, /sys, /dev and /run are mounted by systemd itself; listing them
-#    here would only duplicate that.
-#  - The swap file is pri=10, behind zram at pri=100.
-cat > "$TARGET/etc/fstab" <<FSTAB
-# <device>			<mount>		<type>	<options>			<dump>	<pass>
-# The kernel mounts / read-only from root=PARTUUID= in /boot/grub/grub.cfg;
-# this line is what gets it checked and then remounted read-write.
-UUID=$ROOT_UUID		/		ext4	defaults		0	1
-UUID=$ESP_UUID		/boot/efi	vfat	defaults,noatime,nofail		0	2
-tmpfs				/tmp		tmpfs	defaults		0	0
-$SWAP_LINE
-FSTAB
+# Into the slot's own /etc, before the overlay goes over it: this is the
+# one file read from there, by /usr/lib/aos/init, to find the data
+# partition.
+slot_write_fstab "$TARGET/etc" \
+	"UUID=$(blkid -s UUID -o value "$SLOT_A")" \
+	"UUID=$(blkid -s UUID -o value "$DATA")" \
+	"UUID=$(blkid -s UUID -o value "$ESP")" \
+	"$SWAP_LINE"
 
-echo ">>> Installing bootloader"
+# From here on the target looks the way it will run: /etc is the overlay,
+# so the account, the machine id and the session drop-in land on the data
+# partition and belong to both slots.
+slot_mount_tree "$TARGET"
 for d in proc sys dev; do mount --bind "/$d" "$TARGET/$d"; done
+systemd-machine-id-setup --root="$TARGET" >/dev/null 2>&1
 
 # Accounts, inside the installed tree so its own passwd, shadow and home
 # are what change -- the live system running this stays as it was.
@@ -237,7 +242,7 @@ if [ "$DEMO" = no ]; then
 	echo ">>> Account: $NEWUSER replaces the demo account; root's console login is locked"
 	chroot "$TARGET" userdel -r admin 2>/dev/null || true
 	# wheel for sudo and polkit; pipewire for real-time audio (its limits.d
-# entry, through pam_limits), the same two the demo account has.
+	# entry, through pam_limits), the same two the demo account has.
 	chroot "$TARGET" useradd -m -G wheel,pipewire -s /bin/bash "$NEWUSER"
 	if [ -n "$NEWHASH" ]; then
 		chroot "$TARGET" usermod -p "$NEWHASH" "$NEWUSER"
@@ -254,16 +259,21 @@ User=$NEWUSER
 USERCONF
 fi
 
+echo ">>> Installing bootloader"
+# GRUB's directory (modules, grub.cfg, grubenv) is on the ESP for both
+# firmwares -- --boot-directory -- since it has to outlive either slot.
+#
 # UEFI. --removable writes EFI/BOOT/BOOTX64.EFI, which firmware will boot
 # without needing an NVRAM entry -- important for a disk that may be moved
 # between machines, and for firmware that forgets its boot entries.
 chroot "$TARGET" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-	--bootloader-id=AOS --removable --recheck || \
+	--boot-directory=/boot/efi --bootloader-id=AOS --removable --recheck || \
 	echo "!! UEFI bootloader install failed (not an EFI system?)"
 
 # BIOS. Harmless on a UEFI-only machine, and makes the same disk boot on
 # older hardware.
-chroot "$TARGET" grub-install --target=i386-pc --recheck "$DISK" || \
+chroot "$TARGET" grub-install --target=i386-pc --boot-directory=/boot/efi \
+	--recheck "$DISK" || \
 	echo "!! BIOS bootloader install failed (no i386-pc GRUB target?)"
 
 # Write grub.cfg directly rather than running grub-mkconfig.
@@ -272,72 +282,18 @@ chroot "$TARGET" grub-install --target=i386-pc --recheck "$DISK" || \
 # vmlinuz-* or kernel-*. AOS installs its kernel as /boot/bzImage, so
 # grub-mkconfig finds nothing, emits a menu with no Linux entry at all, and
 # still exits successfully -- the machine then boots to firmware settings.
-# A foundation image has exactly one kernel and no /etc/default/grub
-# machinery, so writing the file out is both simpler and predictable.
+# The menu knows both slots; grubenv says which one boots.
 echo ">>> Writing grub.cfg"
-mkdir -p "$TARGET/boot/grub"
-cat > "$TARGET/boot/grub/grub.cfg" <<GRUBCFG
-serial --unit=0 --speed=115200
-terminal_input console serial
-terminal_output console serial
-
-set default="0"
-set timeout="5"
-
-# The kernel apm installed, when there is one: the aos/kernel package's
-# hooks point /boot/bzImage.apm into the store and /boot/bzImage.prev at the
-# kernel before it; GRUB follows ext4 symlinks, and a dangling one fails the
-# test. The image's own /boot/bzImage is never replaced: it is the last
-# resort, and what a fresh install boots.
-set kernel=/boot/bzImage
-if [ -f /boot/bzImage.apm ]; then set kernel=/boot/bzImage.apm; fi
-set prev=/boot/bzImage
-if [ -f /boot/bzImage.prev ]; then set prev=/boot/bzImage.prev; fi
-
-# "ro": the root is checked by systemd-fsck-root before systemd-remount-fs
-# makes it writable from /etc/fstab. The initrd is CPU microcode only.
-# rootwait: harmless on an internal disk, and required when the system was
-# installed onto a USB stick, whose enumeration finishes long after the
-# kernel first looks for the root device.
-#
-# loglevel=4 on the entries that own the screen: kernel messages of warning
-# severity and below go to the journal only, errors and worse still reach
-# the screen. Without it every correctable PCIe error and driver notice
-# scrolls over the console. The serial entry keeps the default 7 -- serial
-# is the channel you watch a boot on.
-menuentry "AOS" {
-	linux \$kernel root=PARTUUID=$ROOT_PARTUUID ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
-	initrd /boot/microcode.img
-}
-
-menuentry "AOS (previous kernel)" {
-	linux \$prev root=PARTUUID=$ROOT_PARTUUID ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
-	initrd /boot/microcode.img
-}
-
-menuentry "AOS (serial console)" {
-	linux \$kernel root=PARTUUID=$ROOT_PARTUUID ro rootwait console=ttyS0,115200
-	initrd /boot/microcode.img
-}
-
-# nomodeset keeps every DRM driver off the display, so the console stays on
-# the firmware framebuffer no matter what the GPU driver does. This is the
-# way back in when a graphics driver fails: log in, read journalctl -b -1,
-# fix, reboot normally.
-menuentry "AOS (safe graphics, no GPU driver)" {
-	linux \$kernel root=PARTUUID=$ROOT_PARTUUID ro rootwait nomodeset loglevel=4 console=ttyS0,115200 console=tty1
-	initrd /boot/microcode.img
-}
-
-# The kernel the image was installed with, whatever apm has done since.
-menuentry "AOS (image kernel)" {
-	linux /boot/bzImage root=PARTUUID=$ROOT_PARTUUID ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
-	initrd /boot/microcode.img
-}
-GRUBCFG
+slot_write_grub_cfg "$TARGET/boot/efi/grub/grub.cfg" \
+	"$(blkid -s PARTUUID -o value "$SLOT_A")" \
+	"$(blkid -s PARTUUID -o value "$SLOT_B")"
+grub-editenv "$TARGET/boot/efi/grub/grubenv" create
+grub-editenv "$TARGET/boot/efi/grub/grubenv" set slot=a
 
 echo ">>> Unmounting"
 for d in dev sys proc; do umount "$TARGET/$d"; done
+slot_umount_tree "$TARGET"
+umount "$TARGET/var"
 umount "$TARGET/boot/efi"
 umount "$TARGET"
 

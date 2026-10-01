@@ -68,7 +68,12 @@ machine's disk is readable by anyone who has the disk.
 
 ## Base OS updates
 
-Today: reinstall, keeping `/home`. Planned: a signed, versioned root image
-in A/B slots with a "previous version" boot entry (roadmap Phase 1, item
-5). Application updates already go through `apm upgrade` and the Settings
-application's Software page.
+A release's root filesystem, as a tarball named in a `SHA256SUMS` signed
+with the apm key, written by `aos-update` into the idle one of two root
+slots; GRUB boots it once and the desktop coming up confirms it, else the
+previous slot boots at the next reset, and "AOS (previous version)" in the
+boot menu goes back by hand ([upgrading.md](upgrading.md)). Accounts,
+`/home`, installed programs and settings live on a data partition no update
+touches. Application updates go through `apm upgrade`; both are on the
+Settings application's Software page. A disk installed before the slots
+existed is reinstalled, which erases it.

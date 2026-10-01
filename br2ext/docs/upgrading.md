@@ -45,16 +45,48 @@ An installed system takes a kernel from apm. After `make`:
 lifts `/boot/bzImage` and the whole `/usr/lib/modules/<ver>` (depmod's files
 and the NVIDIA modules included) out of `output/target` into a signed
 package. Publish it, or `apm install` the file, then reboot. The package's
-hooks write only symlinks: `/usr/lib/modules/<ver>` into the store, and
-`/boot/bzImage.apm`, with what it pointed at before becoming
-`/boot/bzImage.prev`. The grub.cfg `aos-install` writes boots `.apm` when it
-exists, offers "AOS (previous kernel)" and "AOS (image kernel)", and never
-touches the image's own `/boot/bzImage`. Because the NVIDIA modules ride in
-the package, build it from the same tree as the image's NVIDIA userspace.
+hooks link `/usr/lib/modules/<ver>` into the store and copy the kernel to
+`/boot/bzImage.apm` (a copy, because on an installed disk the store is on
+the data partition and GRUB cannot follow a symlink out of the root slot),
+with the kernel there before becoming `/boot/bzImage.prev`. The grub.cfg
+`aos-install` writes boots `.apm` when it exists, offers "AOS (previous
+kernel)" and "AOS (image kernel)", and never touches the image's own
+`/boot/bzImage`. Because the NVIDIA modules ride in the package, build it
+from the same tree as the image's NVIDIA userspace. The copy stays with
+the slot it was made in: after a base-OS update the new slot boots the
+release's kernel until `apm remove kernel && apm install kernel`.
 
-A disk installed before this grub.cfg existed keeps booting the image
-kernel; give it the new file once (the heredoc in `aos-install`, with its
-`root=PARTUUID=`) and it joins in.
+## Base OS updates
+
+An installed disk has two root slots ([../PLATFORM.md](../PLATFORM.md)
+describes the layout). `aos-update` moves a machine to a newer release:
+
+```sh
+aos-update --check     # "AOS 0.3.0 is available (this is 0.2.0)", or that it is the newest
+aos-update             # fetch, verify, write the idle slot; boots at the next restart
+aos-update --rollback  # the other slot -- what ran before -- boots at the next restart
+```
+
+It fetches `SHA256SUMS` and `SHA256SUMS.minisig` from the URL in
+`/usr/lib/aos/update.conf` (the apm package index's release in apm-recipes,
+where `release.sh --publish` puts them), checks the signature against the
+keys in `/opt/apm/etc/keys/trusted` -- the same key every machine already
+trusts for apm -- downloads the root tarball the file names, checks its
+sha256, writes it into the idle slot (`mkfs.ext4`, `tar -x`), gives that
+slot its `fstab`, appends any system account the new release adds to the
+overlay's `passwd`/`group`, and sets `next=<slot>` in
+`/boot/efi/grub/grubenv`. GRUB boots `next` once and clears it before the
+kernel runs; `aos-update-confirm.service`, twenty seconds after the
+desktop's service is up, sets `slot=` to the running slot. A slot that
+never reaches that point is forgotten at the next reset and the confirmed
+slot boots. The GRUB menu's "AOS (previous version)" entry boots the other
+slot by hand, and `--rollback` does the same from the running system.
+Nothing on the data partition -- accounts, `/home`, installed programs,
+settings -- is touched by any of it. The Settings application's Software
+page runs the same commands.
+
+A disk installed before the slots existed (one root partition) cannot be
+updated this way; reinstall it. `aos-install` wipes the disk.
 
 ## Kernel options
 

@@ -1,0 +1,144 @@
+#!/bin/sh
+#
+# aos-update -- move this machine to a newer AOS release.
+#
+# The disk has two root slots (see /usr/lib/aos/slot.sh). A release is a
+# tarball of the root filesystem, named with its sha256 in a SHA256SUMS
+# file that is signed with the key every AOS machine trusts for apm. This
+# fetches and checks those, writes the release into the idle slot, and
+# tells GRUB to boot that slot once. Reaching the desktop confirms it; a
+# boot that does not come up falls back to the old slot at the next reset.
+# Nothing on the data partition -- accounts, /home, installed programs,
+# settings -- is touched.
+
+set -e
+. /usr/lib/aos/slot.sh
+
+usage() {
+	cat <<USAGE
+Usage: aos-update [--url URL]        fetch the newest release into the idle slot
+       aos-update --check [--url URL] say whether there is a newer release
+       aos-update --rollback          boot the other slot at the next restart
+       aos-update --confirm           make the running slot the default (a service runs this)
+USAGE
+	exit 1
+}
+
+URL=$(sed -n 's/^URL=//p' /usr/lib/aos/update.conf)
+MODE=install
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--check)    MODE=check ;;
+		--confirm)  MODE=confirm ;;
+		--rollback) MODE=rollback ;;
+		--url)      URL="$2"; shift ;;
+		*)          usage ;;
+	esac
+	shift
+done
+[ "$(id -u)" = 0 ] || { echo "aos-update: needs root" >&2; exit 1; }
+CUR=$(slot_current) || { echo "aos-update: this system did not boot from a root slot" >&2; exit 1; }
+
+grubenv_get() {
+	grub-editenv "$GRUBENV" list | sed -n "s/^$1=//p"
+}
+
+case "$MODE" in
+confirm)
+	[ -f "$GRUBENV" ] || exit 0
+	if [ "$(grubenv_get slot)" != "$CUR" ]; then
+		grub-editenv "$GRUBENV" set "slot=$CUR"
+		echo "aos-update: slot $CUR confirmed"
+	fi
+	exit 0
+	;;
+rollback)
+	OTHER=$(slot_other)
+	M=/run/aos-update-rollback
+	mkdir -p "$M"
+	mount -o ro "$(slot_dev "$OTHER")" "$M" 2>/dev/null || { echo "aos-update: slot $OTHER holds no system" >&2; exit 1; }
+	[ -f "$M/boot/bzImage" ] || { umount "$M"; echo "aos-update: slot $OTHER holds no system" >&2; exit 1; }
+	ver=$(sed -n 's/^PRETTY_NAME="\(.*\)"/\1/p' "$M/usr/lib/os-release")
+	umount "$M"
+	grub-editenv "$GRUBENV" set "next=$OTHER"
+	echo "$ver (slot $OTHER) boots at the next restart"
+	exit 0
+	;;
+esac
+
+# check and install: what is out there, against what this is.
+CUR_VER=$(sed -n 's/^VERSION_ID=//p' /etc/os-release)
+# Under /var, not /tmp: the tarball is big and /tmp is memory.
+WORK=/var/tmp/aos-update
+rm -rf "$WORK"
+mkdir -p "$WORK"
+trap 'rm -rf "$WORK"' EXIT
+
+curl -fsSL -o "$WORK/SHA256SUMS" "$URL/SHA256SUMS"
+curl -fsSL -o "$WORK/SHA256SUMS.minisig" "$URL/SHA256SUMS.minisig"
+# Any trusted key will do; `apm verify` alone checks against the user's
+# own signing key, which a machine does not have.
+ok=no
+for k in /opt/apm/etc/keys/trusted/*.pub; do
+	[ -f "$k" ] || continue
+	if apm verify "$WORK/SHA256SUMS" --key "$k" > /dev/null 2>&1; then ok=yes; break; fi
+done
+[ "$ok" = yes ] || { echo "aos-update: SHA256SUMS from $URL is not signed by a trusted key" >&2; exit 1; }
+
+TAR=$(awk '$2 ~ /^aos-.*-x86_64-root\.tar\.xz$/ { print $2; exit }' "$WORK/SHA256SUMS")
+[ -n "$TAR" ] || { echo "aos-update: no root image in $URL/SHA256SUMS" >&2; exit 1; }
+NEW_VER=${TAR#aos-}
+NEW_VER=${NEW_VER%-x86_64-root.tar.xz}
+if [ "$(printf '%s\n%s\n' "$CUR_VER" "$NEW_VER" | sort -V | tail -1)" = "$CUR_VER" ]; then
+	echo "AOS $CUR_VER is the newest release; nothing to do"
+	exit 0
+fi
+if [ "$MODE" = check ]; then
+	echo "AOS $NEW_VER is available (this is $CUR_VER)"
+	exit 0
+fi
+
+OTHER=$(slot_other)
+DEV=$(slot_dev "$OTHER")
+echo ">>> Downloading AOS $NEW_VER"
+curl -fsSL -o "$WORK/$TAR" "$URL/$TAR"
+( cd "$WORK" && sha256sum -c --ignore-missing --quiet SHA256SUMS )
+
+echo ">>> Writing slot $OTHER ($DEV)"
+M=/run/aos-update
+mkdir -p "$M"
+mkfs.ext4 -q -F -L "aos-$OTHER" "$DEV"
+mount "$DEV" "$M"
+# /home and /opt/apm are mount points for the data partition; what the
+# image carries there would only be hidden. GRUB's own files live on the
+# ESP, not in a slot.
+tar -xJf "$WORK/$TAR" -C "$M" --exclude=./opt/apm --exclude=./home
+mkdir -p "$M/proc" "$M/sys" "$M/dev" "$M/run" "$M/tmp" "$M/home" "$M/opt/apm"
+chmod 1777 "$M/tmp"
+rm -rf "$M/boot/grub"
+rm -f "$WORK/$TAR"
+
+# The slot's own fstab, from this one's: the data partition, the ESP and
+# the swap line are the same; only the root changes. A copy of fstab a
+# person left in the overlay would shadow it on the next boot.
+slot_write_fstab "$M/etc" "UUID=$(blkid -s UUID -o value "$DEV")" \
+	"$(awk '$2 == "/var" { print $1 }' /etc/fstab)" \
+	"$(awk '$2 == "/boot/efi" { print $1 }' /etc/fstab)" \
+	"$(awk '$3 == "swap" || /^# no swap/' /etc/fstab)"
+rm -f /var/etc/upper/fstab
+
+# Accounts the new release adds -- a system user for a new service, say --
+# would be hidden by the copies of passwd and group the overlay holds once
+# anything on this machine changed them. Append what is new by name.
+# ponytail: name-based append only; a UID the image changed is not followed.
+for f in passwd group shadow gshadow; do
+	[ -f "$M/etc/$f" ] && [ -f "/etc/$f" ] || continue
+	awk -F: 'NR == FNR { have[$1] = 1; next } !($1 in have)' "/etc/$f" "$M/etc/$f" >> "/etc/$f"
+done
+umount "$M"
+
+# ponytail: a kernel installed by apm lives in the slot it was installed
+# into (bzImage.apm, the module links); the new slot boots the release's
+# kernel. `apm remove kernel && apm install kernel` brings it back there.
+grub-editenv "$GRUBENV" set "next=$OTHER"
+echo "AOS $NEW_VER is installed in slot $OTHER and boots at the next restart"

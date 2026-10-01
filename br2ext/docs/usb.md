@@ -139,7 +139,7 @@ aos-install /dev/vda
   ```
   >>> Copying system (this takes a while)          ~2 minutes on USB
   >>> Creating swap file
-      3924 MiB at /swapfile                        2-3 minutes, no progress shown
+      3924 MiB at /var/swapfile                    2-3 minutes, no progress shown
   >>> Writing /etc/fstab
   >>> Installing bootloader
   Installing for x86_64-efi platform.
@@ -173,7 +173,9 @@ NAME    SIZE PARTLABEL PARTTYPENAME     FSTYPE LABEL
 sda    28.7G
 ├─sda1    1M bios_grub BIOS boot
 ├─sda2  512M ESP       EFI System       vfat   AOS_ESP
-└─sda3 28.2G root      Linux filesystem ext4   aos
+├─sda3    6G aos-a     Linux filesystem ext4   aos-a
+├─sda4    6G aos-b     Linux filesystem ext4   aos-b
+└─sda5 16.2G aos-data  Linux filesystem ext4   aos-data
 >>> EFI system partition /dev/sda2 is FAT32    with:
 bootx64  efi ...
 Done. /dev/sda is ready.
