@@ -109,6 +109,13 @@ mkdir -p "${TARGET_DIR}/boot"
 	> "${TARGET_DIR}/boot/microcode.img"
 rm -rf "${ucode}"
 
+# Per-user defaults (the wallpaper, ...) live in /etc/skel. useradd -m
+# copies them for accounts made by aos-install; the prebuilt admin account
+# is made by Buildroot's mkusers, which does not, so copy them here. mkusers
+# runs after this and chowns the home to the user.
+mkdir -p "${TARGET_DIR}/home/admin"
+cp -a "${TARGET_DIR}/etc/skel/." "${TARGET_DIR}/home/admin/"
+
 # Authorized SSH keys for root, if the builder supplied any.
 #
 # Deliberately an untracked, optional file: a published AOS image must not
