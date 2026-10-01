@@ -1,0 +1,4 @@
+# The screen's brightness is the session's to set: the shell's keys and the
+# quick panel's slider write /sys/class/backlight/*/brightness as the user,
+# who is in video. (Settings goes through sudo and does not need this.)
+ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"

@@ -1,0 +1,11 @@
+config BR2_PACKAGE_ALSA_UCM_CONF
+	bool "alsa-ucm-conf (ALSA Use Case Manager profiles)"
+	depends on BR2_PACKAGE_ALSA_LIB_UCM
+	help
+	  The UCM2 profiles alsa-lib reads from /usr/share/alsa/ucm2: how a
+	  sound card's controls are set for each use (speaker, headphones,
+	  microphone). A SoundWire laptop card (sof-soundwire: Cirrus
+	  amplifiers behind an Intel DSP) plays nothing without its profile
+	  -- PipeWire finds the card and the amplifiers stay off.
+
+	  https://github.com/alsa-project/alsa-ucm-conf

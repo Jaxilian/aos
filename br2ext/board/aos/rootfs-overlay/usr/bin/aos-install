@@ -242,8 +242,9 @@ if [ "$DEMO" = no ]; then
 	echo ">>> Account: $NEWUSER replaces the demo account; root's console login is locked"
 	chroot "$TARGET" userdel -r admin 2>/dev/null || true
 	# wheel for sudo and polkit; pipewire for real-time audio (its limits.d
-	# entry, through pam_limits), the same two the demo account has.
-	chroot "$TARGET" useradd -m -G wheel,pipewire -s /bin/bash "$NEWUSER"
+	# entry, through pam_limits); video for the backlight (the udev rule in
+	# 70-aos-backlight.rules) -- the same three the demo account has.
+	chroot "$TARGET" useradd -m -G wheel,pipewire,video -s /bin/bash "$NEWUSER"
 	if [ -n "$NEWHASH" ]; then
 		chroot "$TARGET" usermod -p "$NEWHASH" "$NEWUSER"
 	else

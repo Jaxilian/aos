@@ -212,9 +212,20 @@ the card through the ACL logind sets for the active seat
 (`70-uaccess.rules`, which is why systemd is built with ACL support), and
 gets real-time priority through the `pipewire` group's `limits.d` entry
 rather than RTKit, which the image does not have. Intel SOF and AMD ACP
-(the DSPs on laptops from 2019 on) are in the kernel with their firmware;
+(the DSPs on laptops from 2019 on) are in the kernel with their firmware,
+and the ALSA UCM profiles (`alsa-ucm-conf`, `/usr/share/alsa/ucm2`) say
+how each card's controls are set for speakers, headphones and the
+microphone -- a SoundWire card (Cirrus amplifiers behind the Intel DSP,
+the G14) is found by PipeWire but stays silent without its profile.
 Bluetooth audio goes through PipeWire's BlueZ backend, with `bluetoothd`
-on the image and pairing on Settings' Bluetooth page.
+on the image and pairing on Settings' Bluetooth page; the controller is
+`btusb` on most machines and `btintel_pcie` on Intel's newest (BE201).
+
+**Brightness.** The panel's backlight is the one in `/sys/class/backlight`
+whose device is the eDP connector; a discrete GPU brings one of its own
+that drives nothing. The shell's keys and the quick panel's slider write
+it as the session's user, who is in `video`, which a udev rule gives the
+file to; Settings writes it through sudo.
 
 **The sandbox.** `aos-sandbox` runs a program in its own mount and pid
 namespace, unprivileged, on bubblewrap: the OS read-only, the apm

@@ -299,6 +299,24 @@ In the order a new user meets them.
    Bluetooth page in Settings (settings v0.1.13); UPower beside it for
    the programs that ask D-Bus about the battery. Also untestable in
    QEMU; the G14 checks it.
+   Round 10 on the G14, 2026-10-01, the first boot of the A/B layout
+   (which worked), six findings, all fixed the same day: no Bluetooth
+   adapter -- the G14's BE201 hangs its Bluetooth off PCIe and the
+   kernel had only btusb (`CONFIG_BT_INTEL_PCIE`), and Settings froze
+   for twelve seconds asking bluetoothctl about a daemon that never
+   started (it looks in sysfs first, settings v0.1.15); the SoundWire
+   card was found and silent -- no ALSA UCM profiles on the image
+   (`alsa-ucm-conf`); the brightness slider changed the NVIDIA GPU's
+   own backlight, first in sysfs, not the panel's (the eDP one wins,
+   settings v0.1.15, ade v0.1.24; a udev rule and the `video` group let
+   the shell write it); the time zone set in Settings never reached the
+   bar's clock -- `localtime_r` reads the zone once per process (`tzset`
+   first, aos-sdk v0.4.9); every window soft at 200% -- the compositor
+   told only the lock screen the output's scale, so each client drew at
+   1x and was stretched (ade v0.1.24 sends it to every surface); and the
+   quick panel's rounded corners were black because every awin surface
+   was opaque (layer surfaces are translucent, aos-sdk v0.4.9; the
+   overview and launcher are rounded too).
    *Lock screen done 2026-09-25 (ade v0.1.11)*: `ade-lock` on
    `ext-session-lock-v1`, the password through PAM (`/etc/pam.d/ade-lock`),
    Super+L and the Settings Power page start it, and the compositor

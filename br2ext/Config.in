@@ -28,6 +28,7 @@ source "$BR2_EXTERNAL_AOS_PATH/package/aos-desktop-file-utils/Config.in"
 comment "Sound"
 
 source "$BR2_EXTERNAL_AOS_PATH/package/sof-firmware/Config.in"
+source "$BR2_EXTERNAL_AOS_PATH/package/alsa-ucm-conf/Config.in"
 
 comment "Graphics"
 

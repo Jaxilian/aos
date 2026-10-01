@@ -222,9 +222,11 @@ def main():
         time.sleep(3)
         bt.monitor("sendkey meta_l")
         time.sleep(4)
-        # The overview's panel is dark on dark: the ink rises when it is up.
-        icons = ink("r8-overview") - typed
-        print("== overview drawn: ink up %.1f%%" % (icons * 100))
+        # The overview's panel covers most of the screen: the ink moves
+        # either way when it is up (down, since ade v0.1.24 -- the panel
+        # is darker than the wallpaper it now shows through its corners).
+        icons = abs(ink("r8-overview") - typed)
+        print("== overview drawn: ink moved %.1f%%" % (icons * 100))
         if icons < 0.05:
             print("!! the overview did not open")
             ok = False
