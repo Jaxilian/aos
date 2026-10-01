@@ -44,8 +44,12 @@ An AOS machine answers nothing it was not asked. The firewall
 packet that is not a reply, ICMP, a DHCP answer or SSH; sshd itself is
 enabled only in an image built with an SSH key; systemd-resolved's LLMNR
 and mDNS responders are off. There is no LSM policy (AppArmor, SELinux,
-Landlock) yet, and no automatic update timer: `apm upgrade` is run by a
-person or by the Settings application. Both are known gaps, not decisions.
+Landlock) yet -- a known gap, not a decision. Updates are looked for
+daily (`aos-update-check.timer`, which refreshes the signed indexes and
+asks whether a new AOS is out) and the desktop says when there are some;
+nothing is installed without the person: `apm upgrade`, Software ->
+Updates or Settings does that. The CVE report of each release and its
+triage are in [security-status.md](security-status.md).
 
 ## Secure Boot: unsupported
 

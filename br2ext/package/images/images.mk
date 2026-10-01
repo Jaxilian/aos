@@ -45,4 +45,7 @@ define IMAGES_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Images.svg
 endef
 
+# Ours, not a product of the same name in NVD ("terminal" matched Apple's).
+IMAGES_CPE_ID_VENDOR = jaxilian
+
 $(eval $(cargo-package))

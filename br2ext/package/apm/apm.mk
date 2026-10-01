@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-# A commit, not a tag -- see ade.mk. This one is v0.1.4.
-APM_VERSION = d703b79a4890719f0d4732ed463a78bd4db2386e
+# A commit, not a tag -- see ade.mk. This one is v0.1.6.
+APM_VERSION = 08d1c8b3a8abc03d2b7a04351895d914d61b714c
 APM_SITE = ssh://git@github.com/Jaxilian/apm
 APM_SITE_METHOD = git
 APM_LICENSE = MIT
@@ -33,5 +33,8 @@ define APM_INSTALL_TARGET_CMDS
 		$(@D)/target/$(RUSTC_TARGET_NAME)/$(APM_PROFILE)/apm \
 		$(TARGET_DIR)/usr/bin/apm
 endef
+
+# Ours, not a product of the same name in NVD ("terminal" matched Apple's).
+APM_CPE_ID_VENDOR = jaxilian
 
 $(eval $(cargo-package))

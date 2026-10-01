@@ -46,4 +46,7 @@ define TERMINAL_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Terminal.svg
 endef
 
+# Ours, not a product of the same name in NVD ("terminal" matched Apple's).
+TERMINAL_CPE_ID_VENDOR = jaxilian
+
 $(eval $(cargo-package))

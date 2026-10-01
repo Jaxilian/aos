@@ -4,6 +4,9 @@
 #
 #   ./br2ext/board/aos/release.sh            -> output/release/
 #   ./br2ext/board/aos/release.sh --publish  the same, then uploaded
+#   ./br2ext/board/aos/release.sh --publish --iso-to OWNER/REPO
+#                                          and the ISO for people to download:
+#                                          a GitHub release v<version> there
 #
 # Refuses a build whose BUILD_ID says -dirty: a release is a commit, and
 # one with uncommitted changes in it cannot be rebuilt by anyone. The
@@ -59,7 +62,17 @@ cp output/pkg-stats.json "$OUT/$NAME-pkg-stats.json"
 
 echo "release.sh: $VERSION ($BUILD_ID) in $OUT:"
 ls -l "$OUT"
-[ "$1" = --publish ] || exit 0
+PUBLISH=no
+ISO_TO=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--publish) PUBLISH=yes ;;
+		--iso-to)  ISO_TO="$2"; shift ;;
+		*) echo "release.sh: unknown argument $1" >&2; exit 2 ;;
+	esac
+	shift
+done
+[ "$PUBLISH" = yes ] || exit 0
 
 TAG=index
 REPO=Jaxilian/apm-recipes
@@ -74,3 +87,19 @@ until gh release upload "$TAG" -R "$REPO" --clobber "$OUT/$NAME-root.tar.xz" "$O
 done
 echo "published: https://github.com/$REPO/releases/download/$TAG/SHA256SUMS"
 echo "note: the edge cache serves the previous SHA256SUMS for a few minutes" >&2
+
+# The download page: the ISO and what checks it, as release v<version> of a
+# public repository of the publisher's choosing. The key goes beside it so
+# install.md's minisign step has it; it is the same key every machine
+# already trusts.
+[ -n "$ISO_TO" ] || exit 0
+cp "$HOME/.apm/etc/keys/apm.pub" "$OUT/apm.pub"
+gh release view "v$VERSION" -R "$ISO_TO" >/dev/null 2>&1 || \
+	gh release create "v$VERSION" -R "$ISO_TO" --title "AOS $VERSION" \
+		--notes "AOS $VERSION. Install guide: docs/install.md; what does not work yet: docs/known-issues.md; the CVE report and its triage: docs/security-status.md. Check the ISO: minisign -Vm SHA256SUMS -p apm.pub, then sha256sum -c --ignore-missing SHA256SUMS."
+n=0
+until gh release upload "v$VERSION" -R "$ISO_TO" --clobber "$OUT/$NAME.iso" "$OUT/SHA256SUMS" "$OUT/SHA256SUMS.minisig" "$OUT/apm.pub" "$OUT/$NAME-pkg-stats.html"; do
+	n=$((n + 1)); [ $n -lt 3 ] || exit 1
+	echo "upload failed, retrying ($n)" >&2; sleep 5
+done
+echo "download page: https://github.com/$ISO_TO/releases/tag/v$VERSION"

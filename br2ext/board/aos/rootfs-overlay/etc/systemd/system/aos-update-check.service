@@ -1,0 +1,11 @@
+# Looks for updates; installs nothing. See /usr/libexec/aos-update-check.
+[Unit]
+Description=Look for AOS and application updates
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/aos-update-check
+Nice=10
+IOSchedulingClass=idle

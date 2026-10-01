@@ -104,9 +104,13 @@ What an evaluator checks before anything else.
    repository configured, in `rootfs-overlay/opt/apm/etc`. A developer with
    an unsigned index sets `trust = "warn"`. Outstanding: the store showing
    which key signed each package.
-3. **A CVE report per release.** Buildroot's `make pkg-stats` against the
-   tagged configuration, published with the release, with a paragraph on
-   how a fix reaches an installed machine.
+3. **A CVE report per release.** *Done 2026-10-01*: `release.sh` makes
+   `pkg-stats` with every release, and [security-status.md](security-status.md)
+   triages it -- for 0.1.7, 64 CVEs in 19 packages: seven packages bumped
+   (util-linux, libxml2, pcre2, gzip, coreutils, gawk, patch), the
+   not-applicable ones ignored in `external.mk` with their reasons, our own
+   packages given an explicit CPE vendor, and five open ones with a plan
+   (binutils and systemd wait for a toolchain and core update).
 4. **Secure Boot: decide.** *Decided 2026-09-28*: unsupported, turn it
    off, first line of the known limitations ([policies.md](policies.md)).
    Shim plus a MOK-enrolled kernel and signed modules (NVIDIA's too) is
@@ -179,8 +183,10 @@ In the order a new user meets them.
    field keep working. The store shows applications as an icon grid and
    libraries and tools as their own list; hello and hello-c left the
    official repository. Per-package signers are still to come.
-5. **Updates in one place.** Base OS (Phase 1, item 5) and applications on
-   one screen, with a restart prompt.
+5. **Updates in one place.** *Done 2026-10-01*: `apm upgrade` carries the
+   OS (apm v0.1.3); Software -> Updates and Settings -> Software are the
+   one button, with Restart beside it; `aos-update-check.timer` looks
+   daily and the shell says when there is something (ade v0.1.27).
 6. **XWayland.** *Done 2026-09-23*: `runtime/xwayland` in apm-thirdparty,
    built out of the packages tree by `board/aos/runtime-xwayland.sh`.
    Installing it is the switch: ade-comp starts Xwayland at the next
@@ -448,8 +454,12 @@ In the order a new user meets them.
    the evaluation needs a single thing AOS does better. With what works
    today, that is a developer workstation — Visual Studio Code, gcc and Rust,
    nothing to configure. Gaming becomes the second once Steam runs.
-4. **Documentation for someone who is not the author.** An install guide a
-   systems administrator can follow, and a known-issues list.
+4. **Documentation for someone who is not the author.** *Written
+   2026-10-01*: [install.md](install.md) (download, verify, the stick,
+   the installer, after) and [known-issues.md](known-issues.md). Still
+   owed: a public place to download the ISO from -- the source repository
+   is private and `release.sh --publish` uploads only what `aos-update`
+   needs.
 
 ## Verification
 

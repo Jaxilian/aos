@@ -1,0 +1,12 @@
+# Ten minutes after boot, then daily; a day missed while off runs at boot.
+[Unit]
+Description=Look for updates daily
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1d
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

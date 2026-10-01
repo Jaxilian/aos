@@ -5,10 +5,10 @@
 ################################################################################
 
 # A commit, not a tag: a tag can be moved, and the point of pinning is that
-# this file and the sources it names cannot drift apart. This one is v0.1.26.
+# this file and the sources it names cannot drift apart. This one is v0.1.27.
 # Over ssh, because the repositories are private: whoever builds needs a
 # key GitHub knows. The applications' Cargo.toml fetch the SDK the same way.
-ADE_VERSION = a23a962b170db3fad5067451619d548f59a610c3
+ADE_VERSION = 3d000a9a0961a1dff3539df45e9c3c9182414b6d
 ADE_SITE = ssh://git@github.com/Jaxilian/ade
 ADE_SITE_METHOD = git
 ADE_LICENSE = MIT
@@ -79,5 +79,8 @@ define ADE_INSTALL_INIT_SYSTEMD
 	ln -sf ../ade.service \
 		$(TARGET_DIR)/usr/lib/systemd/system/multi-user.target.wants/ade.service
 endef
+
+# Ours, not a product of the same name in NVD ("terminal" matched Apple's).
+ADE_CPE_ID_VENDOR = jaxilian
 
 $(eval $(cargo-package))

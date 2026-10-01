@@ -45,4 +45,7 @@ define AOS_SETUP_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Setup.svg
 endef
 
+# Ours, not a product of the same name in NVD ("terminal" matched Apple's).
+AOS_SETUP_CPE_ID_VENDOR = jaxilian
+
 $(eval $(cargo-package))

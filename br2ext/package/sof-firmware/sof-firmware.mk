@@ -27,4 +27,6 @@ define SOF_FIRMWARE_INSTALL_TARGET_CMDS
 		cp -a $(@D)/$(d) $(TARGET_DIR)/lib/firmware/intel/$(sep))
 endef
 
+SOF_FIRMWARE_CPE_ID_VENDOR = thesofproject
+
 $(eval $(generic-package))

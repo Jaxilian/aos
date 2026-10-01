@@ -370,6 +370,23 @@ CLEANUP = ("for p in hello hello-c%s; do apm remove $p --quiet; done; ls -A /opt
            % (" vscode firefox discord steam runtime/xwayland runtime/gtk3 runtime/compat32 fonts rust terminal images" if APM_REPO else ""))
 
 
+def moved(a, b):
+    """The fraction of pixels that differ visibly between two screendumps."""
+    try:
+        from PIL import Image, ImageChops
+    except ImportError:
+        return 0.0
+    try:
+        ia = Image.open(os.path.join(OUT, "%s.screen.png" % a)).convert("L")
+        ib = Image.open(os.path.join(OUT, "%s.screen.png" % b)).convert("L")
+    except OSError:
+        return 0.0
+    if ia.size != ib.size:
+        return 1.0
+    d = ImageChops.difference(ia, ib).point(lambda v: 255 if v > 24 else 0)
+    return sum(1 for v in d.getdata() if v) / float(d.size[0] * d.size[1])
+
+
 def window_shot(ser, tag, exe, command, timeout=WINDOW_TIMEOUT, wait_for=None):
     """Start `command` through the desktop user's session, the way probe()
     starts the explorer, and screendump before and after: a new window on
@@ -392,7 +409,9 @@ def window_shot(ser, tag, exe, command, timeout=WINDOW_TIMEOUT, wait_for=None):
     while time.time() < t_end:
         time.sleep(3)
         after = shot("%s-after" % tag, quiet=True)
-        if after and before and abs(after[0] - before[0]) > 0.015:
+        # Ink alone misses a translucent window over the wallpaper (glass:
+        # 92.8% before and after); the pictures themselves differ.
+        if after and before and (abs(after[0] - before[0]) > 0.015 or moved("%s-before" % tag, "%s-after" % tag) > 0.05):
             if wait_for and not ser.run("pgrep -f %s >/dev/null && echo up" % wait_for).strip().endswith("up"):
                 continue
             changed = True

@@ -45,4 +45,7 @@ define NOTEPAD_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Notepad.svg
 endef
 
+# Ours, not a product of the same name in NVD ("terminal" matched Apple's).
+NOTEPAD_CPE_ID_VENDOR = jaxilian
+
 $(eval $(cargo-package))

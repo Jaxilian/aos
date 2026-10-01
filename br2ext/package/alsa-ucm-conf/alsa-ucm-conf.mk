@@ -18,4 +18,6 @@ define ALSA_UCM_CONF_INSTALL_TARGET_CMDS
 	cp -a $(@D)/ucm $(@D)/ucm2 $(TARGET_DIR)/usr/share/alsa/
 endef
 
+ALSA_UCM_CONF_CPE_ID_VENDOR = alsa-project
+
 $(eval $(generic-package))

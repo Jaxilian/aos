@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# aos-update-check -- what updates exist, for the shell to tell the person.
+#
+# Run daily by aos-update-check.timer, as root (apm's index and the OS's
+# release live in system places). Looks only: `apm update` refreshes the
+# signed indexes, `apm --dry-run upgrade` lists what an upgrade would do
+# and, through aos-update --check, whether a new AOS is out. Nothing is
+# installed -- that stays the person's choice (docs/policies.md).
+#
+# Writes /var/lib/aos/updates for the shell to read: the first line a
+# count, the rest one line per update. An empty count is 0. The shell
+# shows a toast when the file changes and the count is not 0.
+
+OUT=/var/lib/aos/updates
+mkdir -p /var/lib/aos
+
+apm --quiet update >/dev/null 2>&1 || exit 0
+plan=$(apm --dry-run --quiet upgrade 2>/dev/null)
+
+lines=$(printf '%s\n' "$plan" | sed -n 's/^ *upgrade  *\([^ ]*\) .*/\1/p; s/^ *install  *\([^ ]*\) .*/\1 (new)/p; s/^\(AOS [0-9.]* is available\).*/\1/p')
+n=$(printf '%s\n' "$lines" | grep -c .)
+
+tmp=$OUT.new
+{ echo "$n"; printf '%s\n' "$lines" | grep .; } > "$tmp"
+chmod 644 "$tmp"
+# Only a real change touches the file, so the shell's toast is once per news.
+if ! cmp -s "$tmp" "$OUT"; then
+	mv "$tmp" "$OUT"
+else
+	rm -f "$tmp"
+fi

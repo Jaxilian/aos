@@ -2,6 +2,14 @@
 
 Short guides for working on AOS. Start here.
 
+For someone using AOS rather than building it:
+
+- [install.md](install.md) — from the download to a working desktop
+- [known-issues.md](known-issues.md) — what does not work yet, and what to do about it
+- [security-status.md](security-status.md) — the CVE report of the release, triaged
+
+For working on AOS:
+
 - [what-is-aos.md](what-is-aos.md) — what AOS is: one desktop, one package manager, one stack
 - [packages.md](packages.md) — everything in the image, with versions
 - [building.md](building.md) — how to build it

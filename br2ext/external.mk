@@ -268,3 +268,30 @@ POLKIT_CONF_OPTS := $(filter-out -Dsession_tracking=ConsoleKit,$(POLKIT_CONF_OPT
 $(POLKIT_TARGET_CONFIGURE): | systemd
 polkit-depends: systemd
 endif
+
+# CVEs pkg-stats reports that do not apply to AOS, with the reason; the
+# triage is docs/security-status.md. Each is checked again when the
+# package changes version.
+#
+# linux: NVD records that match every kernel ever (CVE-1999-0656 is
+# ugidd, an RPC daemon; CVE-2007-4998 is cp), KVM host and nested-guest
+# bugs (AOS is not a hypervisor host for untrusted guests), JFS (not
+# built), vmwgfx (not built), NFC LLCP (not built), and a 2022 KPTI timing
+# leak that has no fix but a CPU.
+LINUX_IGNORE_CVES += CVE-1999-0656 CVE-2007-4998 CVE-2010-4563 CVE-2019-3016 \
+	CVE-2019-3819 CVE-2019-3887 CVE-2020-25672 CVE-2020-27815 CVE-2021-20194 \
+	CVE-2021-3564 CVE-2021-3669 CVE-2022-38096 CVE-2022-4543
+# gcc: AArch64's stack protector only.
+GCC_FINAL_IGNORE_CVES += CVE-2023-4039
+# openssh: OPIE (not built), RHEL 4/5's trojaned packages, a Rowhammer
+# theory against password authentication (sshd here takes keys only).
+OPENSSH_IGNORE_CVES += CVE-2007-2768 CVE-2008-3844 CVE-2023-51767
+# glibc: the deprecated ns_print* debugging functions of libresolv;
+# nothing on the image calls them.
+GLIBC_IGNORE_CVES += CVE-2026-5435 CVE-2026-6238
+# tar: --one-top-level and incremental dumps, neither of which anything
+# on the image uses; aos-update extracts signed tarballs without them.
+TAR_IGNORE_CVES += CVE-2026-18477 CVE-2026-18508
+# python-setuptools: a host build tool, not on the image.
+PYTHON_SETUPTOOLS_IGNORE_CVES += CVE-2026-59890
+HOST_PYTHON_SETUPTOOLS_IGNORE_CVES += CVE-2026-59890

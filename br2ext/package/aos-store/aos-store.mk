@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-# A commit, not a tag -- see ade.mk. This one is v0.1.2.
-AOS_STORE_VERSION = fd7e5e36d28c5fa2ae8e09ee502963384688dd5f
+# A commit, not a tag -- see ade.mk. This one is v0.1.3.
+AOS_STORE_VERSION = a52a5dd9bb0a570e449c1c2481e2a6f5619b555d
 AOS_STORE_SITE = ssh://git@github.com/Jaxilian/store
 AOS_STORE_SITE_METHOD = git
 AOS_STORE_LICENSE = MIT
@@ -44,5 +44,8 @@ define AOS_STORE_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/res/store.svg \
 		$(TARGET_DIR)/usr/share/icons/hicolor/scalable/apps/org.aos.Store.svg
 endef
+
+# Ours, not a product of the same name in NVD ("terminal" matched Apple's).
+AOS_STORE_CPE_ID_VENDOR = jaxilian
 
 $(eval $(cargo-package))
