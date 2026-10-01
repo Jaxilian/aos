@@ -28,10 +28,25 @@ import threading
 import time
 
 BT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "boot-test.py")
+# --usb: the disk as a USB stick, the way the G14 runs it. Its partitions
+# are then USB media to udev, which once mounted the idle slot under
+# /run/media and stopped the first update on hardware at mkfs.
+USB = "--usb" in sys.argv
 sys.argv = ["boot-test.py", "disk"]
 spec = importlib.util.spec_from_file_location("bt", BT)
 bt = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bt)
+if USB:
+    _virtio = bt.qemu_command
+
+    def _usb():
+        cmd = _virtio()
+        i = cmd.index("virtio-blk-pci,drive=hd0,bootindex=0")
+        cmd[i] = "usb-storage,bus=xhci.0,drive=hd0,bootindex=0"
+        cmd[i - 1:i - 1] = ["-device", "qemu-xhci,id=xhci"]
+        return cmd
+
+    bt.qemu_command = _usb
 
 APM = bt.APM_BIN
 RELEASE = os.path.join(bt.OUT, "update-release")
@@ -46,6 +61,8 @@ FAILED = "systemctl --failed --no-pager"
 CHECKS = [
     "cat /proc/cmdline",
     SLOT,
+    # Nothing of the OS's own disk may be under /run/media (--usb).
+    "findmnt -n -o TARGET,SOURCE | grep run/media || echo 'no media'",
     ENV,
     "grep -E 'VERSION_ID|BUILD_ID' /etc/os-release",
     'for m in / /var /etc /home /opt/apm /boot/efi; do findmnt -n -o TARGET,SOURCE,FSTYPE $m || echo "$m: not mounted"; done',
@@ -127,6 +144,10 @@ def expect(n, out, slot, env_has, env_not=()):
             ok = False
     if "0 loaded" not in out[FAILED]:
         print("!! boot %d: failed units" % n)
+        ok = False
+    media = out["findmnt -n -o TARGET,SOURCE | grep run/media || echo 'no media'"]
+    if "/run/media/aos" in media or "AOS_ESP" in media:
+        print("!! boot %d: the OS's own partitions are mounted as media: %r" % (n, media))
         ok = False
     return ok
 
