@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Software
+GenericName=App store
+Comment=Install, remove and update software
+Exec=aos-store
+Icon=org.aos.Store
+Categories=System;
+Keywords=software;store;apps;install;packages;updates;
+StartupWMClass=org.aos.Store

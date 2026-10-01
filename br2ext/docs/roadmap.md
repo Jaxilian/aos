@@ -161,8 +161,17 @@ In the order a new user meets them.
    ten minutes by default; ade switches every head off through its DPMS
    property after that long without input and on again at the next key
    or pointer event, and the Display page offers the times.
-4. **The app store.** A graphical front to apm, with Official and Third-party
-   clearly separated: search, install, update, remove, and who signed it.
+4. **The app store.** *Done 2026-10-01 (aos-store v0.1.0)*: "Software"
+   in the overview -- Installed, Official and Third-party pages with
+   search, Install and Remove, the key every index is checked against,
+   and Updates with one button for every package and a new AOS. It
+   reads through apm-core as a library (the repositories, the index,
+   what is installed, what an upgrade would do -- typed, no text
+   parsing, no root) and changes things through `sudo apm`, asking the
+   password once like Settings. Not yet, because apm's index does not
+   carry them: icons, long descriptions, per-package signers (both
+   repositories sign with one key today, so "who signed it" is the
+   repository's key); an index format 2 is where they go.
 5. **Updates in one place.** Base OS (Phase 1, item 5) and applications on
    one screen, with a restart prompt.
 6. **XWayland.** *Done 2026-09-23*: `runtime/xwayland` in apm-thirdparty,

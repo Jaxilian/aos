@@ -23,6 +23,7 @@ source "$BR2_EXTERNAL_AOS_PATH/package/files/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/sysmon/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/settings/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/aos-setup/Config.in"
+source "$BR2_EXTERNAL_AOS_PATH/package/aos-store/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/images/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/aos-desktop-file-utils/Config.in"
 

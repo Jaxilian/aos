@@ -517,6 +517,8 @@ BR2_PACKAGE_IMAGES=y
 BR2_PACKAGE_SETTINGS=y
 # The graphical installer, on the live ISO: Install AOS in the overview.
 BR2_PACKAGE_AOS_SETUP=y
+# The app store: Software in the overview.
+BR2_PACKAGE_AOS_STORE=y
 
 ################################################################################
 # M4 -- self-hosting.
