@@ -102,7 +102,10 @@ installs Firefox and Xwayland from the repositories the disk knows.
 the host as a fake release 9.9.9, signed with the local apm key, then four
 boots -- the update into slot b, its confirmation, a rollback armed, the
 trial of slot a forgotten -- with the mounts, the account and failed units
-checked on each. Transcripts: `update-N.serial.txt`.
+checked on each. Transcripts: `update-N.serial.txt`. `kernel-test.py
+<file.apkg>` installs a kernel package made by `kernel-apkg.sh` on the
+same disk and boots it: `/boot/bzImage.apm` must be a copy, not a link,
+since GRUB cannot follow a link out of the root slot.
 
 For a one-off look inside a booted guest without editing the check lists,
 put commands in `BOOT_TEST_EXTRA`, separated by ` ;; `; every mode runs

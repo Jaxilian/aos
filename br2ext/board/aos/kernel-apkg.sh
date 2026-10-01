@@ -11,13 +11,14 @@
 # userspace it will run under. Not through br2apkg.py, which has no rule
 # for ./boot and would leave depmod's output behind.
 #
-# The hooks write only symlinks outside the store, the rule from plans/08:
-# /usr/lib/modules/<ver> for the module loader, and /boot/bzImage.apm for
-# GRUB, with whatever it pointed at before moved to /boot/bzImage.prev. The
-# grub.cfg aos-install writes boots .apm when it exists and offers .prev as
-# "previous kernel"; the image's own /boot/bzImage is never touched and is
-# the last fallback. A new kernel takes effect at the next reboot. Removing
-# the package drops the links that point into it.
+# The hooks write a symlink for the module loader, /usr/lib/modules/<ver>
+# into the store, and a copy for GRUB, /boot/bzImage.apm, with the kernel
+# that was there before moved to /boot/bzImage.prev -- a copy because the
+# store is on the data partition and GRUB cannot follow a link out of the
+# root slot. The grub.cfg aos-install writes boots .apm when it exists and
+# offers .prev as "previous kernel"; the image's own /boot/bzImage is never
+# touched and is the last fallback. A new kernel takes effect at the next
+# reboot. Removing the package drops what points into it.
 #
 # ponytail: no `apm gc` yet, so every kernel keeps ~170M in the store until
 # `apm remove kernel`, which drops all versions at once.
