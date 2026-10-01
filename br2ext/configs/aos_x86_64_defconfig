@@ -296,6 +296,10 @@ BR2_PACKAGE_GIT=y
 ################################################################################
 BR2_PACKAGE_SOF_FIRMWARE=y
 BR2_PACKAGE_ALSA_UCM_CONF=y
+# amixer and aplay, for aos-report and a terminal: what a sound bug is read from.
+BR2_PACKAGE_ALSA_UTILS=y
+BR2_PACKAGE_ALSA_UTILS_AMIXER=y
+BR2_PACKAGE_ALSA_UTILS_APLAY=y
 # The Cirrus Logic codec and amplifier blobs (cs42l43.bin, cirrus/) are
 # added in external.mk: Buildroot has no option for them, and without them
 # the SoundWire codec in a 2024+ laptop never probes -- the DSP firmware

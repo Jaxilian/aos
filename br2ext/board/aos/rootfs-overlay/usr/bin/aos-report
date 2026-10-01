@@ -48,6 +48,26 @@ run drm                 sh -c 'for c in /sys/class/drm/card*-*; do echo "$c $(ca
 run vulkan              sh -c 'ls /usr/share/vulkan/icd.d/ /usr/share/glvnd/egl_vendor.d/'
 run apm-list            apm list
 run apm-repos           cat /opt/apm/etc/config.toml
+# Sound and Bluetooth: what the cards and the adapter look like from the
+# session's side (PipeWire and bluetoothd are reached as the seat's user;
+# run as that user, or SUDO_USER, so the answers are the user's).
+u=${SUDO_USER:-$(id -un)}
+as_user() { # command...
+	if [ "$(id -u)" = 0 ] && [ "$u" != root ]; then
+		su -s /bin/sh "$u" -c 'XDG_RUNTIME_DIR=/run/user/$(id -u) exec "$@"' -- sh "$@"
+	else
+		"$@"
+	fi
+}
+run sound-cards         cat /proc/asound/cards
+run sound-pcm           aplay -l
+run sound-mixer         sh -c 'for c in /proc/asound/card*; do n=${c#/proc/asound/card}; echo "== card $n"; amixer -c "$n" contents 2>&1 | head -400; done'
+run sound-wpctl         as_user wpctl status
+run sound-journal       as_user journalctl --user -b --no-pager -u pipewire -u wireplumber
+run bluetooth-rfkill    sh -c 'for r in /sys/class/rfkill/*; do echo "$(cat $r/name): soft=$(cat $r/soft) hard=$(cat $r/hard)"; done'
+run bluetooth-hci       sh -c 'ls /sys/class/bluetooth; bluetoothctl --timeout 3 show; bluetoothctl --timeout 3 devices'
+run bluetooth-user      as_user bluetoothctl --timeout 3 show
+run bluetooth-journal   journalctl -b --no-pager -u bluetooth
 
 if [ "$STEAM" = yes ]; then
 	h=${SUDO_USER:+$(getent passwd "$SUDO_USER" | cut -d: -f6)}
