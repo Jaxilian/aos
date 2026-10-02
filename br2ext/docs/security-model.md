@@ -95,10 +95,16 @@ unprivileged, the OS read-only, the package and what it depends on, the
 session's sockets, and a home of its own under `~/.var/app/<org>.<name>`
 that holds nothing of the real one but the shared directories. The
 store's details page shows it as "Sees: its own files and Downloads"
-before Install. Firefox and Discord run that way; Visual Studio Code
-sees the whole home, being an editor; Steam runs in the same sandbox
-with the whole home and its 32-bit runtime. A package that declares
-nothing runs as the person, and the store says "everything, undeclared".
+before Install, and Settings -> Programs shows every sandboxed program
+with what it may see, and lets the person change it: its own files or
+the whole home, each of Downloads, Documents, Pictures, Music and
+Videos, and the network. The change is a line in
+`~/.config/aos/sandbox/<org>.<name>` that aos-sandbox reads over the
+package's declaration. Firefox and Discord run that way; Visual Studio
+Code sees the whole home, being an editor; Steam runs in the same
+sandbox with the whole home and its 32-bit runtime. A package that
+declares nothing runs as the person, and the store says "everything,
+undeclared".
 
 ## What is next, in order
 
@@ -106,8 +112,8 @@ nothing runs as the person, and the store says "everything, undeclared".
    directories are in (above); what is still to come: a file dialog the
    desktop draws, so a sandboxed program reaches one chosen file outside
    its home and nothing else (the portal pattern) -- until then a program
-   that needs more declares a directory; Settings letting the person
-   change a program's declaration; Landlock fencing the view a second
+   that needs more declares a directory, or the person grants one in
+   Settings; Landlock fencing the view a second
    time from inside; a package that cannot be installed without a
    declaration, once every recipe has one; and AOS's own programs in it
    too. The declaration is what answers the child with the download: a

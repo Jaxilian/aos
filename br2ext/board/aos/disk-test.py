@@ -188,6 +188,26 @@ def main():
         print("$ sandbox\n%s" % ser.run("head -3 /opt/apm/bin/firefox | cut -c1-200; grep -c Exec=/usr/bin/aos-sandbox /opt/apm/exports/share/applications/mozilla.firefox.desktop; "
                                         "ls -la /home/admin/.var/app/ 2>&1 | tail -2; p=$(pgrep -x firefox | head -1); [ -n \"$p\" ] && grep -c ' /home/admin ' /proc/$p/mountinfo; "
                                         "[ -n \"$p\" ] && grep -E ' /home/admin[ /]' /proc/$p/mountinfo | awk '{print $4, $5}' | head -4; tail -5 /tmp/ff.log"))
+        # The person's override (Settings -> Programs writes this line):
+        # with "full" the real home is what Firefox mounts at /home/admin,
+        # with the declaration it is the private one under .var/app.
+        ser.run("pkill -f firefox; sleep 2; su -s /bin/sh admin -c 'mkdir -p /home/admin/.config/aos/sandbox; echo full > /home/admin/.config/aos/sandbox/mozilla.firefox'")
+        ser.run("su -s /bin/sh admin -c '%s setsid /opt/apm/bin/firefox file:///etc/os-release >/tmp/ff2.log 2>&1 &'; sleep 12" % ENV)
+        over = ser.run("p=$(pgrep -x firefox | head -1); echo pid=$p; grep -E ' /home/admin ' /proc/$p/mountinfo | awk '{print $4}' | head -2")
+        print("$ override full: home source\n%s" % over)
+        ser.run("pkill -f firefox; sleep 2; rm -f /home/admin/.config/aos/sandbox/mozilla.firefox")
+        if "/.var/app/" in over or "/home/admin" not in over:
+            print("!! the override did not give Firefox the real home: %r" % over)
+            ok = False
+        ser.run("su -s /bin/sh admin -c '%s setsid /opt/apm/bin/firefox file:///etc/os-release >/tmp/ff.log 2>&1 &'; sleep 12" % ENV)
+        back = ser.run("p=$(pgrep -x firefox | head -1); grep -E ' /home/admin ' /proc/$p/mountinfo | awk '{print $4}' | head -2")
+        print("$ declaration again: home source\n%s" % back)
+        if "/.var/app/mozilla.firefox" not in back:
+            print("!! without the override Firefox did not get its private home: %r" % back)
+            ok = False
+        # Maximised again for the hamburger's position below.
+        bt.monitor("sendkey meta_l-up")
+        time.sleep(4)
         return_early = os.environ.get("R9I_STOP_AT_FF")
         if return_early:
             print("== stopping after the firefox dump for a look")

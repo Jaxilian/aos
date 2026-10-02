@@ -55,7 +55,10 @@ esac
 if [ "$MODE" = install ]; then
 	LOG=/var/log/aos-update.log
 	{ echo; echo "=== $(date '+%F %T') aos-update"; } >> "$LOG" 2>/dev/null || LOG=/dev/null
-	exec > >(tee -a "$LOG") 2>&1
+	# tee -p: Settings closed mid-update takes the pipe with it, and
+	# without -p tee dies of the broken pipe and the next echo kills this
+	# script under set -e, mid-write. With it tee keeps the file going.
+	exec > >(tee -p -a "$LOG") 2>&1
 fi
 
 grubenv_get() {
@@ -65,6 +68,10 @@ grubenv_get() {
 case "$MODE" in
 confirm)
 	[ -f "$GRUBENV" ] || exit 0
+	# A slot that booted to the desktop is complete whatever wrote it:
+	# the mark --rollback asks for, also on a machine installed before
+	# the mark existed.
+	: > /.aos-slot-ok 2>/dev/null || true
 	if [ "$(grubenv_get slot)" != "$CUR" ]; then
 		grub-editenv "$GRUBENV" set "slot=$CUR"
 		echo "aos-update: slot $CUR confirmed"
@@ -76,7 +83,9 @@ rollback)
 	M=/run/aos-update-rollback
 	mkdir -p "$M"
 	mount -o ro "$(slot_dev "$OTHER")" "$M" 2>/dev/null || { echo "aos-update: slot $OTHER holds no system" >&2; exit 1; }
-	[ -f "$M/boot/bzImage" ] || { umount "$M"; echo "aos-update: slot $OTHER holds no system" >&2; exit 1; }
+	# The marker is the last thing a write puts there: a slot without it
+	# was interrupted, and is no system to boot however much of one it holds.
+	[ -f "$M/boot/bzImage" ] && [ -f "$M/.aos-slot-ok" ] || { umount "$M"; echo "aos-update: slot $OTHER holds no system" >&2; exit 1; }
 	ver=$(sed -n 's/^PRETTY_NAME="\(.*\)"/\1/p' "$M/usr/lib/os-release")
 	umount "$M"
 	grub-editenv "$GRUBENV" set "next=$OTHER"
@@ -126,6 +135,12 @@ curl -fsSL -o "$WORK/$TAR" "$URL/$TAR"
 echo ">>> Writing slot $OTHER ($DEV)"
 M=/run/aos-update
 mkdir -p "$M"
+# GRUB must not be pointed at this slot while it is being written: a run
+# that completed set next=$OTHER, and a later run that is interrupted (a
+# power-off, Settings closed, the lid) would otherwise leave next naming
+# a half-written slot. Cleared first, set last; in between the machine
+# boots what it runs now, whatever happens to the slot.
+grub-editenv "$GRUBENV" unset next
 # A run that dies mid-write (a power-off, an error under set -e) must not
 # leave the slot mounted, or the next run's mkfs refuses the device.
 trap 'umount "$M" 2>/dev/null; rm -f "$WORK/$TAR"' EXIT
@@ -164,6 +179,8 @@ for f in passwd group shadow gshadow; do
 	[ -f "$M/etc/$f" ] && [ -f "/etc/$f" ] || continue
 	awk -F: 'NR == FNR { have[$1] = 1; next } !($1 in have)' "/etc/$f" "$M/etc/$f" >> "/etc/$f"
 done
+# Last: the mark a complete write leaves, which --rollback looks for.
+: > "$M/.aos-slot-ok"
 umount "$M"
 
 # ponytail: a kernel installed by apm lives in the slot it was installed

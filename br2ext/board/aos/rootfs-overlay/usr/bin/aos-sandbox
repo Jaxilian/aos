@@ -110,6 +110,34 @@ while [ $# -gt 0 ]; do
 done
 [ $# -gt 0 ] || { echo "usage: aos-sandbox [--package ORG/NAME]... [--no-home] -- COMMAND [ARG]..." >&2; exit 64; }
 
+# This person's say over the declaration: Settings -> Programs writes
+# ~/.config/aos/sandbox/ORG.NAME, one line in apm's compact form
+# (`private:Downloads,Pictures`, `full`, `...;nonet`), and it replaces the
+# flags apm wrote. Anything malformed is ignored, not half-applied.
+if [ -n "$APP" ]; then
+	OVR="${XDG_CONFIG_HOME:-$HOME/.config}/aos/sandbox/$(echo "$APP" | tr / .)"
+	if [ -f "$OVR" ]; then
+		line=$(head -n 1 "$OVR" | tr -d ' \t\r')
+		onet=""
+		case "$line" in *';nonet') onet="--unshare-net"; line=${line%;nonet} ;; esac
+		ohome=${line%%:*}
+		oshare=""
+		case "$line" in *:*) oshare=$(echo "${line#*:}" | tr , ' ') ;; esac
+		good=yes
+		case "$ohome" in private|full) ;; *) good=no ;; esac
+		for d in $oshare; do
+			case "$d" in ""|/*|.*|*/*) good=no ;; esac
+		done
+		if [ "$good" = yes ]; then
+			HOMEMODE=$ohome
+			SHARES=$oshare
+			NET=$onet
+		else
+			echo "aos-sandbox: $OVR is not a declaration; using the package's" >&2
+		fi
+	fi
+fi
+
 # The home: read-write, or a fresh tmpfs. Account names are validated by
 # aos-install (lowercase, digits, - and _), so $HOME never needs quoting
 # through the word-split below.

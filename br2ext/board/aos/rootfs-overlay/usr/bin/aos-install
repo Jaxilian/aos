@@ -190,6 +190,9 @@ mkdir -p "$SRC"
 mount --bind / "$SRC"
 tar -cf - -C "$SRC" . | tar -xf - -C "$TARGET"
 umount "$SRC"
+# The mark of a completely written slot, which aos-update --rollback asks
+# for before it will boot one.
+: > "$TARGET/.aos-slot-ok"
 rmdir "$SRC"
 
 # Mount points, which are empty directories in the source tree.

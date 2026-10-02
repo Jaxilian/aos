@@ -74,6 +74,13 @@ whole machine, the way a distribution's upgrade does; the OS part is
 skipped where there is no `aos-update` (a developer's machine, the live
 ISO).
 
+An update interrupted at any point -- the power, the lid, Settings
+closed -- leaves the machine booting what it runs now: GRUB's `next` is
+cleared before the idle slot is touched and set only when the slot is
+complete, and a slot without the mark a complete write leaves
+(`/.aos-slot-ok`) is one `aos-update --rollback` refuses to boot. The
+next update simply writes the slot again.
+
 One update runs at a time: a second `aos-update` (or an `apm upgrade`
 beside one) says "another update is already running" and leaves, and
 Settings' buttons do nothing while one is working. Everything an update

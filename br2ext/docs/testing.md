@@ -100,7 +100,11 @@ Two more scripts drive the session itself through QEMU's monitor and QMP
 `ade-comp`, `ade-shell`, `settings` and `sysmon` from `output/target` in
 over ssh first -- a compositor change tested without an ISO -- and
 installs Firefox and Xwayland from the repositories the disk knows.
-`update-test.py`, also on the installed disk, is a base-OS update
+`update-abort-test.py` kills QEMU while `aos-update` is writing the idle
+slot, then checks the machine boots its slot as before, `--rollback`
+refuses the half-written one, and a second update completes; run it
+after `update-test.py`, whose last boot leaves the disk where this one
+expects it. `update-test.py`, also on the installed disk, is a base-OS update
 ([upgrading.md](upgrading.md)): the build's own root tarball served from
 the host as a fake release 9.9.9, signed with the local apm key, then four
 boots -- the update into slot b, its confirmation, a rollback armed, the
