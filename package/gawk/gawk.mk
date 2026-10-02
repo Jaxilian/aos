@@ -31,7 +31,11 @@ else
 GAWK_CONF_OPTS += --without-readline
 endif
 
-HOST_GAWK_CONF_OPTS = --without-readline --without-mpfr
+# With mpfr: gawk 5.4.1 built without it generates a broken options.cc
+# for gcc ("0Wendif-labels does not have a Var() flag"), which is why LFS
+# builds gawk with mpfr before gcc. host-mpfr is built for gcc anyway.
+HOST_GAWK_DEPENDENCIES = host-mpfr
+HOST_GAWK_CONF_OPTS = --without-readline
 
 define GAWK_CREATE_SYMLINK
 	ln -sf gawk $(TARGET_DIR)/usr/bin/awk
