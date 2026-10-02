@@ -72,7 +72,7 @@ kernel log are root's; BPF and perf counters are root's; the running
 kernel cannot be replaced from userspace (`/etc/sysctl.d/10-aos-hardening.conf`).
 The kernel builds with the memory-corruption checks Fedora's does and the
 security modules a desktop can use without a policy -- Landlock, Yama,
-lockdown, BPF -- and not SELinux, Smack, TOMOYO or AppArmor, which do
+lockdown -- and not SELinux, Smack, TOMOYO or AppArmor, which do
 nothing without a policy nobody has written and would imply one.
 
 **Everything is built with the usual hardening**: PIE, full RELRO,

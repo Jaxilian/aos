@@ -124,7 +124,11 @@ prompt under an explanation, `systemctl restart ade` recovers).
 `store-test.py` fetches the index on the installed disk and screendumps
 the store's pages. `shot-test.py` copies the working tree's compositor
 and shell onto the installed disk, presses Print and Shift+Print through
-QEMU's monitor, and copies the two PNGs back to look at.
+QEMU's monitor, and copies the two PNGs back to look at. `sec-test.py`
+is the security round on the live ISO: the sysctls applied, the kernel's
+LSM list, and the bar's red "SSH open" following port 22 (stopped over
+serial, then enabled again with sudo as the demo account, the way
+Settings does it).
 
 For a one-off look inside a booted guest without editing the check lists,
 put commands in `BOOT_TEST_EXTRA`, separated by ` ;; `; every mode runs
