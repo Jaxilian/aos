@@ -1,0 +1,7 @@
+# Buildroot runs `systemctl preset-all` when it assembles the filesystem,
+# after post-build.sh, and systemd's rule for a unit no preset names is
+# "enable": that is how sshd came up on every image, key or no key. Off
+# here; a build with board/aos/authorized_keys gets a 60-aos-ssh.preset
+# from post-build.sh that says enable, and Settings -> Network enables it
+# on an installed machine. docs/security-model.md.
+disable sshd.service

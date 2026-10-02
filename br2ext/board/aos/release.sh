@@ -40,8 +40,13 @@ esac
 # root on every machine that installs it. post-build.sh puts the builder's
 # board/aos/authorized_keys on the image and enables sshd for the stick
 # rounds; a release is a build made without that file (docs/ssh.md).
-if [ -s output/target/root/.ssh/authorized_keys ]; then
+if [ -s output/target/root/.ssh/authorized_keys ] || [ -e output/target/usr/lib/systemd/system-preset/60-aos-ssh.preset ]; then
 	echo "release.sh: the image carries SSH keys for root; move board/aos/authorized_keys away, make, and run this again" >&2
+	exit 1
+fi
+# The tarball is what aos-update installs: sshd must not be enabled in it.
+if tar -tJf "$ROOT" | grep -q 'multi-user.target.wants/sshd.service'; then
+	echo "release.sh: sshd is enabled in $ROOT; see board/aos/rootfs-overlay/usr/lib/systemd/system-preset" >&2
 	exit 1
 fi
 

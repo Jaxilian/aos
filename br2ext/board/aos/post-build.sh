@@ -124,19 +124,26 @@ cp -a "${TARGET_DIR}/etc/skel/." "${TARGET_DIR}/home/admin/"
 # nobody can log into remotely has no business listening on port 22. With
 # no key the image ships sshd disabled; "systemctl enable --now sshd" after
 # adding a key turns it on. See docs/ssh.md.
+#
+# Enabled through a preset, not a wants link: Buildroot runs `systemctl
+# preset-all` on the filesystem after this script, and that would undo a
+# link either way. The overlay's 70-aos.preset says disable; this one,
+# written only with a key, comes first and says enable.
 keys="${BR2_EXTERNAL_AOS_PATH}/board/aos/authorized_keys"
-wants="${TARGET_DIR}/etc/systemd/system/multi-user.target.wants"
+preset="${TARGET_DIR}/usr/lib/systemd/system-preset/60-aos-ssh.preset"
+rm -f "${TARGET_DIR}/etc/systemd/system/multi-user.target.wants/sshd.service"
 if [ -s "${keys}" ]; then
 	mkdir -p "${TARGET_DIR}/root/.ssh"
 	chmod 700 "${TARGET_DIR}/root/.ssh"
 	grep -v '^[[:space:]]*#' "${keys}" | grep -v '^[[:space:]]*$' \
 		> "${TARGET_DIR}/root/.ssh/authorized_keys"
 	chmod 600 "${TARGET_DIR}/root/.ssh/authorized_keys"
-	mkdir -p "${wants}"
-	ln -sf /usr/lib/systemd/system/sshd.service "${wants}/sshd.service"
+	mkdir -p "$(dirname "${preset}")"
+	echo "enable sshd.service" > "${preset}"
 	echo "post-build.sh: installed $(wc -l < "${TARGET_DIR}/root/.ssh/authorized_keys") SSH key(s) for root; sshd enabled"
 else
-	rm -f "${wants}/sshd.service" "${TARGET_DIR}/root/.ssh/authorized_keys"
+	rm -f "${preset}" "${TARGET_DIR}/root/.ssh/authorized_keys"
+	rmdir "${TARGET_DIR}/root/.ssh" 2>/dev/null || true
 	echo "post-build.sh: no board/aos/authorized_keys -- sshd disabled"
 fi
 
