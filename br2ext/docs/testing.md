@@ -121,8 +121,10 @@ shell (it comes back, the pause doubles), the compositor while the
 session is locked (it comes back locked, the toast says so) and the
 compositor five times in a row (the unit stops, tty1 gets a login
 prompt under an explanation, `systemctl restart ade` recovers).
-`store-test.py` fetches the index on the live ISO and screendumps the
-store's Official and Third-party pages.
+`store-test.py` fetches the index on the installed disk and screendumps
+the store's pages. `shot-test.py` copies the working tree's compositor
+and shell onto the installed disk, presses Print and Shift+Print through
+QEMU's monitor, and copies the two PNGs back to look at.
 
 For a one-off look inside a booted guest without editing the check lists,
 put commands in `BOOT_TEST_EXTRA`, separated by ` ;; `; every mode runs

@@ -234,6 +234,12 @@ top or overlay panel per frame. Only the desktop shows through, never
 other windows -- the cheap kind of blur, so it runs on an integrated GPU;
 `light` turns it off and keeps everything opaque.
 
+**Screenshots.** Print saves the display under the pointer, Shift+Print
+the focused window, Super+Shift+S the display (for a keyboard without
+Print), as PNGs in `~/Pictures/Screenshots` (or `/tmp/Screenshots` where
+the home cannot be written). The compositor renders the next frame again
+without the pointer and reads it back; nothing while locked.
+
 **When the desktop dies.** The compositor starts the shell again when it
 exits, pausing a second, then two, up to thirty between tries. systemd
 restarts the compositor two seconds after a crash, at most four times in
