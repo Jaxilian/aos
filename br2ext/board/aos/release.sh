@@ -35,6 +35,10 @@ BUILD_ID=$(sed -n 's/^BUILD_ID=//p' "$OSREL")
 case "$BUILD_ID" in
 	*-dirty|unknown|"") echo "release.sh: BUILD_ID is '$BUILD_ID'; commit, tag, rebuild" >&2; exit 1 ;;
 esac
+# The version is the tag's only when the tag is on the built commit; a
+# commit past it builds with the overlay's placeholder version, and one
+# such build went out as "0.1.0" (2026-10-02). Tag HEAD, make, then this.
+[ "$BUILD_ID" = "v$VERSION" ] || { echo "release.sh: BUILD_ID '$BUILD_ID' is not the tag of VERSION_ID $VERSION; tag HEAD (git tag -f vX.Y.Z), make, and run this again" >&2; exit 1; }
 
 # A published image carries nobody's key: with one, whoever built it has
 # root on every machine that installs it. post-build.sh puts the builder's
