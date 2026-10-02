@@ -370,6 +370,25 @@ CONFIG_DEBUG_LIST=y
 CONFIG_SCHED_STACK_END_CHECK=y
 CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y
 
+# --- Security modules ---------------------------------------------------------
+# The ones a policy-less desktop can use: Landlock (a program fencing its
+# own file access; the app sandbox will), Yama (ptrace only of one's own
+# children: a program cannot read another's memory for its passwords),
+# lockdown (ready for Secure Boot) and BPF. The mainline defconfig also
+# builds SELinux, Smack, TOMOYO and AppArmor, each of which does nothing
+# without a policy and implies one that is not there (docs/security-model.md).
+CONFIG_SECURITY=y
+CONFIG_SECURITY_LANDLOCK=y
+CONFIG_SECURITY_YAMA=y
+CONFIG_SECURITY_LOCKDOWN_LSM=y
+CONFIG_BPF_LSM=y
+# CONFIG_SECURITY_SELINUX is not set
+# CONFIG_SECURITY_SMACK is not set
+# CONFIG_SECURITY_TOMOYO is not set
+# CONFIG_SECURITY_APPARMOR is not set
+# CONFIG_SECURITY_IPE is not set
+CONFIG_LSM="landlock,lockdown,yama,bpf"
+
 # Sound. The mainline x86_64 defconfig builds the HDA controller in and not
 # one codec, so a machine has a sound card and no way to talk to it. The
 # codecs on ordinary PCs, as modules; the generic one is what QEMU's

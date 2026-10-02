@@ -36,6 +36,15 @@ case "$BUILD_ID" in
 	*-dirty|unknown|"") echo "release.sh: BUILD_ID is '$BUILD_ID'; commit, tag, rebuild" >&2; exit 1 ;;
 esac
 
+# A published image carries nobody's key: with one, whoever built it has
+# root on every machine that installs it. post-build.sh puts the builder's
+# board/aos/authorized_keys on the image and enables sshd for the stick
+# rounds; a release is a build made without that file (docs/ssh.md).
+if [ -s output/target/root/.ssh/authorized_keys ]; then
+	echo "release.sh: the image carries SSH keys for root; move board/aos/authorized_keys away, make, and run this again" >&2
+	exit 1
+fi
+
 APM=${APM:-$(command -v apm || echo "$BASE/../apm/target/release/apm")}
 [ -x "$APM" ] || { echo "release.sh: no apm on the host (APM=/path/to/apm)" >&2; exit 1; }
 [ -f "$HOME/.apm/etc/keys/apm.key" ] || { echo "release.sh: no signing key; apm key new" >&2; exit 1; }

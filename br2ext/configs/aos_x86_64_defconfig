@@ -13,6 +13,10 @@ BR2_x86_x86_64_v2=y
 BR2_TOOLCHAIN_BUILDROOT_GLIBC=y
 BR2_GCC_VERSION_15_X=y
 BR2_TOOLCHAIN_BUILDROOT_CXX=y
+# Runtime checks on the libc calls the compiler can bound (memcpy, sprintf,
+# ...), as Fedora and Ubuntu build; PIE, full RELRO and the strong stack
+# protector are Buildroot's defaults. docs/security-model.md.
+BR2_FORTIFY_SOURCE_2=y
 
 # System.
 BR2_TARGET_GENERIC_HOSTNAME="aos"

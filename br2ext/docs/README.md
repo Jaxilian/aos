@@ -7,6 +7,7 @@ For someone using AOS rather than building it:
 - [install.md](install.md) — from the download to a working desktop
 - [known-issues.md](known-issues.md) — what does not work yet, and what to do about it
 - [security-status.md](security-status.md) — the CVE report of the release, triaged
+- [security-model.md](security-model.md) — what AOS defends against, how, and what is still to build
 
 For working on AOS:
 

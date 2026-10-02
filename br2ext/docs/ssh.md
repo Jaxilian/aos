@@ -21,7 +21,13 @@ make
 The file may hold several keys, one per line, and `#` comments are stripped.
 It is **deliberately untracked** — see `br2ext/.gitignore`. An image you
 publish must not carry anyone's key, or whoever built it has root on every
-machine that installs it. If you have no key yet, `ssh-keygen -t ed25519`.
+machine that installs it: `release.sh` refuses an image with a root key on
+it, so a release is built with the file moved away (`make` again after;
+only post-build.sh reruns). If you have no key yet, `ssh-keygen -t ed25519`.
+
+On an installed machine the person turns sshd on in Settings -> Network
+("Let other computers log in over SSH"), keys only, with their own
+`~/.ssh/authorized_keys`; the bar shows **SSH open** in red while it is.
 
 `post-build.sh` says which it did at the end of every build:
 

@@ -69,4 +69,6 @@ an issue on the project.
 ## Security status
 
 The CVE report of each release and what was done about every entry:
-[security-status.md](security-status.md).
+[security-status.md](security-status.md). What AOS defends against and
+what it does not yet -- third-party programs are not sandboxed, the root
+is not verified, the disk is not encrypted: [security-model.md](security-model.md).
