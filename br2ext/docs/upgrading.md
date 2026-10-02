@@ -74,6 +74,13 @@ whole machine, the way a distribution's upgrade does; the OS part is
 skipped where there is no `aos-update` (a developer's machine, the live
 ISO).
 
+One update runs at a time: a second `aos-update` (or an `apm upgrade`
+beside one) says "another update is already running" and leaves, and
+Settings' buttons do nothing while one is working. Everything an update
+printed is kept in `/var/log/aos-update.log`, on the data partition, so
+a failed one can be read afterwards -- from another machine too, since
+that partition is readable with the stick plugged in.
+
 It fetches `SHA256SUMS` and `SHA256SUMS.minisig` from the URL in
 `/usr/lib/aos/update.conf` (the apm package index's release in apm-recipes,
 where `release.sh --publish` puts them), checks the signature against the

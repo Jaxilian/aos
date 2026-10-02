@@ -39,6 +39,25 @@ done
 [ "$(id -u)" = 0 ] || { echo "aos-update: needs root" >&2; exit 1; }
 CUR=$(slot_current) || { echo "aos-update: this system did not boot from a root slot" >&2; exit 1; }
 
+# One at a time. Settings' Install pressed twice and then Upgrade (which
+# runs this too) had three of these formatting and writing the same slot
+# at once (the G14, 2026-10-02); the second and third now say so and
+# leave. --check and --confirm are reads and take no lock.
+LOCK=/run/aos-update.lock
+case "$MODE" in
+install|rollback)
+	exec 9> "$LOCK"
+	flock -n 9 || { echo "aos-update: another update is already running" >&2; exit 1; }
+	;;
+esac
+# What this printed, kept: Settings shows the tail of it and nothing else
+# keeps it, so a failed update had left no trace to read afterwards.
+if [ "$MODE" = install ]; then
+	LOG=/var/log/aos-update.log
+	{ echo; echo "=== $(date '+%F %T') aos-update"; } >> "$LOG" 2>/dev/null || LOG=/dev/null
+	exec > >(tee -a "$LOG") 2>&1
+fi
+
 grubenv_get() {
 	grub-editenv "$GRUBENV" list | sed -n "s/^$1=//p"
 }
@@ -107,6 +126,9 @@ curl -fsSL -o "$WORK/$TAR" "$URL/$TAR"
 echo ">>> Writing slot $OTHER ($DEV)"
 M=/run/aos-update
 mkdir -p "$M"
+# A run that dies mid-write (a power-off, an error under set -e) must not
+# leave the slot mounted, or the next run's mkfs refuses the device.
+trap 'umount "$M" 2>/dev/null; rm -f "$WORK/$TAR"' EXIT
 # An idle slot is nobody's to mount, but a stick's partitions are USB
 # media to udev, and the removable-media rule has mounted one under
 # /run/media before (the G14, 2026-10-01); mkfs refuses a mounted device.
