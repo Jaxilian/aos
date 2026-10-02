@@ -122,11 +122,17 @@ def main():
             if s and s[0] >= 0.005:
                 break
             time.sleep(2)
-        # 0. The new binaries in, the session restarted on them.
-        files = [os.path.join(TARGET, b) for b in ("ade-comp", "ade-shell", "ade-lock", "settings", "sysmon")]
-        if not scp(files, "/root/new/"):
+        # 0. The new binaries in, the session restarted on them. apm and
+        #    aos-sandbox too: the app sandbox is theirs. With APM_THIRDPARTY
+        #    a local index directory (publish.sh --local), the recipes under
+        #    test go in beside them and the guest reads them by file://.
+        files = [os.path.join(TARGET, b) for b in ("ade-comp", "ade-shell", "ade-lock", "settings", "sysmon", "apm", "aos-sandbox")]
+        if bt.APM_TP_LOCAL:
+            files.append(bt.APM_THIRDPARTY.rstrip("/"))
+        ser.run("mkdir -p /root/new")
+        if not scp(["-r"] + files, "/root/new/"):
             return False
-        print("$ install\n%s" % ser.run("mkdir -p /root/new; ls -la /root/new; for f in /root/new/*; do mv -f $f /usr/bin/; done; systemctl restart ade; sleep 12; "
+        print("$ install\n%s" % ser.run("ls -la /root/new; for f in /root/new/*; do [ -f $f ] && mv -f $f /usr/bin/; done; systemctl restart ade; sleep 12; "
                                        "journalctl -b _COMM=ade-comp --no-pager | tail -6 | cut -c17-200", timeout=120))
         for _ in range(30):
             s = bt.shot("r9i-desktop", quiet=True)
@@ -158,8 +164,8 @@ def main():
         #     knows (the apm run leaves the repos and the key, removes the
         #     packages).
         print("$ install firefox, xwayland\n%s" % ser.run(
-            "apm repo add thirdparty https://github.com/Jaxilian/apm-thirdparty/releases/download/index --third-party 2>&1 | tail -1; for i in $(seq 30); do getent hosts github.com >/dev/null 2>&1 && break; sleep 1; done; "
-            "apm update --force --quiet 2>&1 | tail -1; apm install firefox --quiet 2>&1 | tail -2; apm install xwayland --quiet 2>&1 | tail -2; "
+            "apm repo remove thirdparty >/dev/null 2>&1; apm repo add thirdparty %s --third-party 2>&1 | tail -1; for i in $(seq 30); do getent hosts github.com >/dev/null 2>&1 && break; sleep 1; done; " % ("file:///root/new/" + os.path.basename(bt.APM_THIRDPARTY.rstrip("/")) if bt.APM_TP_LOCAL else bt.APM_THIRDPARTY) +
+            "apm update --force --quiet 2>&1 | tail -1; apm --yes --force remove firefox >/dev/null 2>&1; rm -rf /home/admin/.var/app/mozilla.firefox; apm install firefox --quiet 2>&1 | tail -2; apm install xwayland --quiet 2>&1 | tail -2; "
             "ls /opt/apm/bin/ | head; sleep 25; journalctl -b _COMM=ade-comp --no-pager | grep -i xwayland | tail -4 | cut -c17-200", timeout=1500))
         # 2. Firefox maximised, its hamburger button at the top right: the
         #    menu must open on screen (a box left of and below the button
@@ -176,6 +182,12 @@ def main():
         time.sleep(4)
         ink("r9i-ff")
         print("$ firefox\n%s" % ser.run("pgrep -a firefox | head -2; " + "journalctl -b _COMM=ade-comp --no-pager | grep -E 'mapped|snapped' | tail -3 | cut -c17-160"))
+        # The sandbox, when the recipe declares one: the farm entry is a
+        # wrapper, Firefox's home is its own, and the real home is not in
+        # its mount table.
+        print("$ sandbox\n%s" % ser.run("head -3 /opt/apm/bin/firefox | cut -c1-200; grep -c Exec=/usr/bin/aos-sandbox /opt/apm/exports/share/applications/mozilla.firefox.desktop; "
+                                        "ls -la /home/admin/.var/app/ 2>&1 | tail -2; p=$(pgrep -x firefox | head -1); [ -n \"$p\" ] && grep -c ' /home/admin ' /proc/$p/mountinfo; "
+                                        "[ -n \"$p\" ] && grep -E ' /home/admin[ /]' /proc/$p/mountinfo | awk '{print $4, $5}' | head -4; tail -5 /tmp/ff.log"))
         return_early = os.environ.get("R9I_STOP_AT_FF")
         if return_early:
             print("== stopping after the firefox dump for a look")

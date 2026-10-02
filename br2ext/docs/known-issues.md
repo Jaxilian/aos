@@ -58,6 +58,11 @@ an issue on the project.
   update of either; they are marked wherever they appear.
 - **Firefox may show pages as boxes** on some machines (its sandbox and the
   fonts); fixed in testing, not yet confirmed on hardware.
+- **Firefox and Discord now live in a home of their own** (`~/.var/app/`,
+  see [security-model.md](security-model.md)); a profile or login made
+  by an earlier release stays in `~/.mozilla` or `~/.config/discord` and
+  is not carried over. Downloads is shared, so what they saved there is
+  where it was. A file dialog inside them shows their own home.
 
 ## Updates
 

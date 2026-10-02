@@ -7,7 +7,20 @@
 # interpreter path is absolute, and /lib/ld-linux.so.2 can mean something
 # in here without existing on AOS.
 #
-#   aos-sandbox [--package ORG/NAME]... [--lib32 ORG/NAME] [--no-home] -- COMMAND [ARG]...
+#   aos-sandbox [--app ORG/NAME] [--home private|full] [--share DIR]... [--no-net]
+#               [--package ORG/NAME]... [--lib32 ORG/NAME] [--no-home] -- COMMAND [ARG]...
+#
+# apm writes the call for a package with a [sandbox] section in its
+# manifest (its farm entry and its desktop entry), so what the store says
+# a program sees is what it sees (docs/security-model.md):
+#
+#   --app ORG/NAME     names the program; --home private gives it a home
+#                      of its own, ~/.var/app/ORG.NAME, bound at $HOME so
+#                      the program sees the usual path and nothing else of
+#                      the real home. --home full is the person's home.
+#   --share DIR        with a private home: this directory of the real
+#                      home, read-write, at the same place (Downloads).
+#   --no-net           no network at all.
 #
 # bubblewrap does the namespaces, unprivileged: user namespaces are on in
 # the kernel and bwrap is not setuid here (external.mk). The view inside:
@@ -57,9 +70,27 @@ set -e
 
 BINDS=""
 NOHOME=no
+APP=""
+HOMEMODE=full
+SHARES=""
+NET=""
 LIB="--symlink usr/lib /lib"
 while [ $# -gt 0 ]; do
 	case "$1" in
+		--app) APP="$2"; shift ;;
+		--home)
+			case "$2" in
+				private|full) HOMEMODE="$2" ;;
+				*) echo "aos-sandbox: --home takes private or full" >&2; exit 64 ;;
+			esac
+			shift ;;
+		--share)
+			case "$2" in
+				""|/*|.*|*/*) echo "aos-sandbox: --share takes a directory name in the home: Downloads" >&2; exit 64 ;;
+			esac
+			SHARES="$SHARES $2"
+			shift ;;
+		--no-net) NET="--unshare-net" ;;
 		--lib32)
 			d="/opt/apm/packages/$2/current/lib"
 			[ -f "$d/ld-linux.so.2" ] || { echo "aos-sandbox: $2 has no lib/ld-linux.so.2" >&2; exit 66; }
@@ -84,6 +115,19 @@ done
 # through the word-split below.
 if [ "$NOHOME" = yes ]; then
 	HOME_BIND="--tmpfs $HOME"
+elif [ "$HOMEMODE" = private ]; then
+	[ -n "$APP" ] || { echo "aos-sandbox: --home private needs --app ORG/NAME" >&2; exit 64; }
+	# Flatpak's layout, so a program that knows it behaves; one directory
+	# per program, the person's own, nothing of the real home inside it
+	# but what --share names.
+	PRIV="$HOME/.var/app/$(echo "$APP" | tr / .)"
+	mkdir -p "$PRIV"
+	chmod 700 "$PRIV"
+	HOME_BIND="--bind $PRIV $HOME"
+	for d in $SHARES; do
+		mkdir -p "$HOME/$d"
+		HOME_BIND="$HOME_BIND --bind $HOME/$d $HOME/$d"
+	done
 else
 	HOME_BIND="--bind $HOME $HOME"
 fi
@@ -111,6 +155,6 @@ exec bwrap \
 	--ro-bind-try /run/systemd/resolve /run/systemd/resolve \
 	--bind-try /run/media /run/media \
 	--ro-bind-try /tmp/.X11-unix /tmp/.X11-unix \
-	$RUN_BIND $HOME_BIND $BINDS \
+	$RUN_BIND $HOME_BIND $BINDS $NET \
 	--unshare-pid --unshare-uts --die-with-parent \
 	-- "$@"

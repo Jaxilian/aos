@@ -84,29 +84,34 @@ administrator and the rest are not; root has no password and no
 console login; `sudo` asks for the person's own.
 
 **Third-party programs are labelled**, carried in their own repository
-at the person's risk, and never a dependency of anything official. One
-of them, Steam, already runs in `aos-sandbox`: bubblewrap, unprivileged,
-with the OS read-only, its own packages, and the session's sockets.
+at the person's risk, and never a dependency of anything official.
+
+**A program sees what its package declares, and the store says so.** A
+package's manifest carries a `[sandbox]` section -- `home = "private"`
+with the directories it may share (`Downloads`), or `home = "full"` for
+an editor -- and apm writes the program's command and desktop entry to
+run through `aos-sandbox` with exactly those flags: bubblewrap,
+unprivileged, the OS read-only, the package and what it depends on, the
+session's sockets, and a home of its own under `~/.var/app/<org>.<name>`
+that holds nothing of the real one but the shared directories. The
+store's details page shows it as "Sees: its own files and Downloads"
+before Install. Firefox and Discord run that way; Visual Studio Code
+sees the whole home, being an editor; Steam runs in the same sandbox
+with the whole home and its 32-bit runtime. A package that declares
+nothing runs as the person, and the store says "everything, undeclared".
 
 ## What is next, in order
 
-1. **Every third-party program in the sandbox, with a private home.**
-   Today Firefox, Visual Studio Code and Discord run as the person, and
-   "free RAM" would too: it could read `~/.ssh`, every document, and the
-   browser's session. The ChromeOS and Flatpak answer, and the one AOS
-   will take: each package runs in `aos-sandbox` with a home of its own
-   under `~/.var/app/<org>.<name>` (the layout Flatpak uses, so programs
-   that know it behave), sees nothing else of `~`, and reaches the
-   person's files only through a file dialog the desktop draws -- the
-   portal pattern, where a chosen file is handed in and nothing else is.
-   A package declares what more it needs in its manifest (`Downloads`,
-   a games directory, the whole home for an editor), the store shows
-   it on the details page before Install, and Settings lets the person
-   change it. Landlock fences the file view a second time from inside
-   the sandbox, and the network is a permission too, for the programs
-   that need none. Official programs follow once the portal exists.
-   This is the single largest security item, and the one that answers
-   the child with the download.
+1. **The rest of the sandbox.** The private home and the declared
+   directories are in (above); what is still to come: a file dialog the
+   desktop draws, so a sandboxed program reaches one chosen file outside
+   its home and nothing else (the portal pattern) -- until then a program
+   that needs more declares a directory; Settings letting the person
+   change a program's declaration; Landlock fencing the view a second
+   time from inside; a package that cannot be installed without a
+   declaration, once every recipe has one; and AOS's own programs in it
+   too. The declaration is what answers the child with the download: a
+   "free RAM" package that asks for the whole home says so on its page.
 2. **Verified root slots.** Each A/B slot is one image, written once and
    never changed, which is what dm-verity is for: a hash tree over the
    slot, its root hash in the signed `SHA256SUMS`, checked by the kernel
