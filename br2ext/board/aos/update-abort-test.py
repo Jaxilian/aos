@@ -48,25 +48,38 @@ def boot_and_cut():
         ser.read_until(b"# ", 30)
         ser.send("stty -echo cols 200 rows 50\n")
         ser.read_until(b"# ", 10)
-        print("$ " + ut.ENV + "\n" + ser.run(ut.ENV))
-        part = ser.run(ut.SLOT).strip().lstrip("# ").strip()
-        print("$ booted partition %s" % part)
+        # A machine confirms the slot it booted within 20 s of the desktop;
+        # only then is "what it runs" also what GRUB boots by default, and
+        # that is the state an interrupted update must preserve. Wait for
+        # it, and refuse to test from any other state.
+        # The first command after the login's stty leaves a line behind;
+        # a throwaway first, then the partition, last line only.
+        ser.run("true")
+        part = ser.run(ut.SLOT).strip().splitlines()[-1].lstrip("# ").strip()
+        letter = {"3": "a", "4": "b"}.get(part, "?")
+        env = ser.run("sleep 35; " + ut.ENV)
+        print("$ booted partition %s (slot %s); after the confirm: %s" % (part, letter, env.replace("\n", " ")))
+        if ("slot=" + letter) not in env.split():
+            print("!! boot 1: slot %s is running but is not GRUB's default; the disk is not in a state a real machine reaches" % letter)
+            return None
         ser.run("rm -f %s; (setsid aos-update --url %s >/dev/null 2>&1 &)" % (LOG, ut.URL))
-        for _ in range(120):
-            time.sleep(2)
-            r = ser.run("grep -c 'Writing slot' %s 2>/dev/null; grep -c 'installed in slot' %s 2>/dev/null" % (LOG, LOG))
+        # On QEMU's virtio disk the whole slot write takes about ten
+        # seconds (minutes on a USB stick), so the plug is pulled the
+        # moment "Writing slot" appears: the poll is as tight as the
+        # serial line allows, and nothing is read afterwards.
+        for _ in range(600):
+            r = ser.run("grep -c 'Writing slot' %s 2>/dev/null; grep -c 'installed in slot' %s 2>/dev/null" % (LOG, LOG), timeout=10)
             lines = [l.strip().lstrip("# ").strip() for l in r.splitlines() if l.strip()]
             if lines and lines[0] not in ("0", ""):
                 break
+            time.sleep(0.3)
         else:
             print("!! boot 1: the update never reached the slot write")
             return None
         if len(lines) > 1 and lines[1] not in ("0", ""):
             print("!! boot 1: the update finished before it could be cut")
             return None
-        # Into the extraction: a few seconds of writing, then the plug.
-        time.sleep(6)
-        print("== boot 1: slot write under way; killing QEMU now\n$ tail " + LOG + "\n" + ser.run("tail -3 " + LOG))
+        print("== boot 1: slot write under way; killing QEMU now")
         try:
             bt.monitor("quit")
         except OSError:
@@ -119,7 +132,12 @@ def main():
         out = ut.boot(3, ["sleep 35; " + ut.ENV, "ls -la /.aos-slot-ok"])
         if out is None:
             return False
-        ok &= ut.expect(3, out, other[0], ["slot=" + other_slot], ["next=" + other_slot])
+        # expect() reads the grubenv taken at login; the confirm comes 20 s
+        # after the desktop, so the slot is checked on the later read.
+        ok &= ut.expect(3, out, other[0], [], ["next=" + other_slot])
+        if ("slot=" + other_slot) not in out["sleep 35; " + ut.ENV].split():
+            print("!! boot 3: slot %s was not confirmed: %r" % (other_slot, out["sleep 35; " + ut.ENV]))
+            ok = False
     finally:
         httpd.shutdown()
     print("\n== done, abort test ok: %s" % ok)

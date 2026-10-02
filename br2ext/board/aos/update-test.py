@@ -157,39 +157,43 @@ def main():
     httpd = serve()
     ok = True
     try:
-        print("== boot 1: on slot a, update")
+        print("== boot 1: update")
         out = boot(1, ["aos-update --check --url %s" % URL,
                        "aos-update --url %s 2>&1 | tail -5" % URL,
                        ENV])
         if out is None:
             return False
-        ok &= expect(1, out, "3", ["slot=a"])
+        # Whichever slot the disk is on: A is it, B the other.
+        part = out[SLOT].strip().lstrip("# ").strip()
+        A, B = (("3", "a"), ("4", "b")) if part != "4" else (("4", "b"), ("3", "a"))
+        print("== running slot %s; the update goes to slot %s" % (A[1], B[1]))
+        ok &= expect(1, out, A[0], ["slot=" + A[1]])
         # The ENV step ran after the update and replaced the check's entry.
-        if "next=b" not in out[ENV].split():
-            print("!! boot 1: the update did not arm slot b: %r" % out[ENV])
+        if ("next=" + B[1]) not in out[ENV].split():
+            print("!! boot 1: the update did not arm slot %s: %r" % (B[1], out[ENV]))
             ok = False
 
-        print("\n== boot 2: on slot b; the confirm service runs; a rollback is armed")
+        print("\n== boot 2: on the new slot; the confirm service runs; a rollback is armed")
         out = boot(2, ["sleep 35; " + ENV,
                        "systemctl disable aos-update-confirm 2>&1",
                        "aos-update --rollback",
                        "aos-update --rollback; " + ENV])
         if out is None:
             return False
-        ok &= expect(2, out, "4", [], ["next=b"])
-        if "slot=b" not in out["sleep 35; " + ENV].split():
-            print("!! boot 2: slot b was not confirmed: %r" % out["sleep 35; " + ENV])
+        ok &= expect(2, out, B[0], [], ["next=" + B[1]])
+        if ("slot=" + B[1]) not in out["sleep 35; " + ENV].split():
+            print("!! boot 2: slot %s was not confirmed: %r" % (B[1], out["sleep 35; " + ENV]))
             ok = False
-        if "next=a" not in out["aos-update --rollback; " + ENV].split():
-            print("!! boot 2: the rollback did not arm slot a")
+        if ("next=" + A[1]) not in out["aos-update --rollback; " + ENV].split():
+            print("!! boot 2: the rollback did not arm slot %s" % A[1])
             ok = False
 
         print("\n== boot 3: slot a on trial, confirm disabled")
         out = boot(3, ["sleep 35; " + ENV, "systemctl enable aos-update-confirm 2>&1"])
         if out is None:
             return False
-        ok &= expect(3, out, "3", ["slot=b"], ["next=a"])
-        if "slot=b" not in out["sleep 35; " + ENV].split():
+        ok &= expect(3, out, A[0], ["slot=" + B[1]], ["next=" + A[1]])
+        if ("slot=" + B[1]) not in out["sleep 35; " + ENV].split():
             print("!! boot 3: a disabled confirm still changed the slot")
             ok = False
 
@@ -197,7 +201,7 @@ def main():
         out = boot(4, [])
         if out is None:
             return False
-        ok &= expect(4, out, "4", ["slot=b"], ["next=a", "next=b"])
+        ok &= expect(4, out, B[0], ["slot=" + B[1]], ["next=a", "next=b"])
     finally:
         httpd.shutdown()
     return ok

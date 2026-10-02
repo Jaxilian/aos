@@ -100,6 +100,10 @@ Two more scripts drive the session itself through QEMU's monitor and QMP
 `ade-comp`, `ade-shell`, `settings` and `sysmon` from `output/target` in
 over ssh first -- a compositor change tested without an ISO -- and
 installs Firefox and Xwayland from the repositories the disk knows.
+Every test on the installed disk wants the keyed build in `output/images`
+(`board/aos/authorized_keys` present at `make`): `update-test.py` writes
+the build's root tarball into the disk's slots, and a keyless one takes
+sshd and root's key off the disk, after which nothing can be copied in.
 `update-abort-test.py` kills QEMU while `aos-update` is writing the idle
 slot, then checks the machine boots its slot as before, `--rollback`
 refuses the half-written one, and a second update completes; run it
