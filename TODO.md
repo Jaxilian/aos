@@ -15,12 +15,12 @@ closed eight CVEs and the systemd one is ignored with its reason
 ([br2ext/docs/performance.md](br2ext/docs/performance.md)); the CI
 runner is installed on this laptop.
 
-1. ~~**The kernel to 7.2.y.**~~ Done 2026-10-03 evening: 7.2.9 pinned,
-   NVIDIA open builds against it, the fragment fixed for 7.2 (cdc_ether
-   renamed, the Baytrail boards finally build), all QEMU tests pass. Left:
-   published as 0.1.18; the aos/kernel 7.2.9-3 package (built,
-   signed, in apm-recipes/index) with `./publish.sh` there, so a stick
-   that boots `bzImage.apm` leaves 7.1.13 too.
+1. ~~**The kernel to 7.2.y.**~~ Done and published 2026-10-03 evening as
+   0.1.18: 7.2.9 pinned, NVIDIA open builds against it, the fragment fixed
+   for 7.2, all QEMU tests pass. The aos/kernel 7.2.9-3 package is in the
+   public index and copies its modules into the slot (release 2 linked
+   them into the store, which early boot cannot see). Untested on the
+   stick: [TEST.md](TEST.md) step 0.
 2. **CI's first real run.** `systemctl --user enable --now aos-runner`,
    then watch the v0.1.17 tag build at
    https://github.com/Jaxilian/aos/actions; fix what differs from a
