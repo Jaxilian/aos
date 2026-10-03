@@ -224,6 +224,19 @@ def main():
         if menu < 0.05:
             print("!! the hamburger menu did not open")
             ok = False
+        # An item in that menu must take the click: "New Window" is the
+        # third entry (the G14: the menu opened but no item did anything,
+        # 2026-10-03). A new toplevel mapping says it did.
+        before = ser.run("journalctl -b _COMM=ade-comp --no-pager | grep -c 'toplevel mapped'").strip().lstrip("# ").strip()
+        ix, iy = int(os.environ.get("R9I_IX", W - 160)), int(os.environ.get("R9I_IY", hy + 132))
+        qmp.button("left", ix, iy)
+        time.sleep(6)
+        after = ser.run("journalctl -b _COMM=ade-comp --no-pager | grep -c 'toplevel mapped'").strip().lstrip("# ").strip()
+        ink("r9i-ff-newwin")
+        print("== menu item at %d,%d: toplevels %s -> %s" % (ix, iy, before, after))
+        if before == after:
+            print("!! the menu item took no click: no new window")
+            ok = False
         bt.monitor("sendkey esc")
         time.sleep(1)
         ser.run("pkill -f firefox; sleep 2")

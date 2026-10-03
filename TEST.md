@@ -25,13 +25,22 @@ per item, with its number.
 
 ## 1. Sound
 
-1. Open Firefox and play any YouTube video.
-2. Settings → Sound: try each output, and the volume keys.
-3. If silent:
+The speaker PCM exists on this laptop but no "Speaker" output shows up;
+the host Fedora on the same machine has one. These lines say why:
+
+1. ```
+   amixer -c 1 info | grep -i components
+   alsaucm -c sof-soundwire -i _verb HiFi list _devices
    ```
-   wpctl status
-   cat /proc/asound/cards
+   Put the output in `~/issues.md`. (The report collects it too now.)
+2. Open Firefox and play any YouTube video. If silent, while it plays:
    ```
+   wpctl status | sed -n '/Streams/,$p'
+   ```
+   A Firefox line there means Firefox reaches PipeWire from its sandbox.
+3. Settings → Sound: an output that is not plugged in (Headphones, an
+   HDMI port with no display) cannot be chosen; that is PipeWire's rule,
+   not a bug.
 
 ## 2. Bluetooth
 
@@ -75,6 +84,11 @@ per item, with its number.
    ls ~/.var/app/
    ```
    Expect `mozilla.firefox`.
+
+## 5b. Firefox menus
+
+1. Hamburger menu → **New Window**: a second window must open.
+2. Right-click an image → **Save Image As…**: a file dialog must open.
 
 ## 6. Settings → Programs
 

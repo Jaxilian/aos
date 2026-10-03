@@ -65,6 +65,7 @@ as_user() { # command...
 run sound-cards         cat /proc/asound/cards
 run sound-pcm           aplay -l
 run sound-mixer         sh -c 'for c in /proc/asound/card*; do n=${c#/proc/asound/card}; echo "== card $n"; amixer -c "$n" contents 2>&1 | head -400; done'
+run sound-ucm           sh -c 'for c in /proc/asound/card*; do n=${c#/proc/asound/card}; echo "== card $n"; amixer -c "$n" info 2>&1 | grep -i components; id=$(cat $c/id); alsaucm -c "$id" list _verbs 2>&1; alsaucm -c "$id" -i _verb HiFi list _devices 2>&1; done'
 run sound-wpctl         as_user wpctl status
 run sound-journal       as_user journalctl --user -b --no-pager -u pipewire -u wireplumber
 run bluetooth-rfkill    sh -c 'for r in /sys/class/rfkill/*; do echo "$(cat $r/name): soft=$(cat $r/soft) hard=$(cat $r/hard)"; done'

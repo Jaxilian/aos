@@ -142,8 +142,12 @@ mkdir -p "$M"
 # boots what it runs now, whatever happens to the slot.
 grub-editenv "$GRUBENV" unset next
 # A run that dies mid-write (a power-off, an error under set -e) must not
-# leave the slot mounted, or the next run's mkfs refuses the device.
-trap 'umount "$M" 2>/dev/null; rm -f "$WORK/$TAR"' EXIT
+# leave the slot mounted, or the next run's mkfs refuses the device. The
+# trap replaces the one above, so the work directory goes here too; and
+# every command in it is allowed to fail: under set -e a failing umount
+# (the slot already unmounted, the normal case) ended the script with
+# umount's status, and a completed update reported "failed with exit 32".
+trap 'umount "$M" 2>/dev/null || true; rm -rf "$WORK" || true' EXIT
 # An idle slot is nobody's to mount, but a stick's partitions are USB
 # media to udev, and the removable-media rule has mounted one under
 # /run/media before (the G14, 2026-10-01); mkfs refuses a mounted device.

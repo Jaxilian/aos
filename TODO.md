@@ -11,9 +11,15 @@ installation is postponed (see the end).
 1. **The live ISO's demo account.** Replace `admin` / `123321` and the
    passwordless root with a random password only the installer uses.
    The first thing a reviewer flags.
-2. **The stick round** ([TEST.md](TEST.md)): sound, Bluetooth, suspend
-   and lid, XWayland, Firefox in its sandbox, Settings → Programs, the
-   red SSH mark, crash recovery, two displays.
+2. **The stick round** ([TEST.md](TEST.md)). Open from the last one:
+   - **Sound**: the kernel makes a Speaker PCM (card 1 device 2) but
+     PipeWire shows no Speaker output; UCM files and mixer controls match
+     the working Fedora host, so it is how the kernel names the speaker
+     codecs to UCM (`amixer -c 1 info`, now in the report and TEST.md).
+   - **Bluetooth**: `bluetoothctl show` prints nothing even as root
+     while bluetoothd runs; under investigation in QEMU.
+   - **Firefox menu items** took no click; a QEMU test clicks one now.
+   - Suspend and lid, the Programs page, Firefox's sandbox on hardware.
 3. **Release notes** on the download page, generated from the commit
    messages of each release. The release body is empty today.
 4. **Open CVEs**: binutils and systemd, through the toolchain and core
@@ -27,6 +33,9 @@ installation is postponed (see the end).
 7. **Display arrangement** and per-display on/off in Settings → Display.
 8. **A file dialog the desktop draws** for sandboxed programs, so they
    reach one chosen file outside their home.
+8b. **Programs page as a list** that folds each program open, with a
+   search field, as a tgn widget other pages can use (there will be
+   many programs).
 9. **AOS's own apps in the sandbox** (Files, Notepad, Images, Terminal),
    once the file dialog exists.
 10. **dm-verity on the root slots.** The release becomes an image, not a
