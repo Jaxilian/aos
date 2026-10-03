@@ -26,14 +26,23 @@ ENV = ("WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/admi
 APPS = ["terminal", "notepad", "files"]
 
 
-def first_change(tag, before, timeout=60):
-    """Seconds until the screen differs from `before`, polled twice a second."""
-    t0 = time.time()
-    while time.time() - t0 < timeout:
-        after = bt.shot("%s-after" % tag, quiet=True)
-        if after and before and (abs(after[0] - before[0]) > 0.015 or bt.moved("%s-before" % tag, "%s-after" % tag) > 0.05):
-            return round(time.time() - t0, 1)
-        time.sleep(0.5)
+def first_window(ser, app):
+    """Seconds from starting `app` to the compositor mapping its window, by
+    the guest's own clock: the launch time taken just before, the journal's
+    timestamp of the next "toplevel mapped" line after it. A screendump
+    costs seconds, so the screen is no clock for this."""
+    t0 = ser.run("echo; date +%s.%N").strip().splitlines()[-1].strip()
+    ser.run("su -s /bin/sh admin -c '%s setsid %s >/tmp/perf-%s.log 2>&1 &'" % (ENV, app, app))
+    for _ in range(60):
+        time.sleep(1)
+        out = ser.run("echo; journalctl -b _COMM=ade-comp --no-pager -o short-unix --since=@%s 2>/dev/null | grep 'toplevel mapped' | head -1 | cut -d' ' -f1" % t0.split('.')[0])
+        line = out.strip().splitlines()[-1].strip()
+        try:
+            t1 = float(line)
+        except ValueError:
+            continue
+        if t1 >= float(t0):
+            return round(t1 - float(t0), 2)
     return None
 
 
@@ -77,13 +86,13 @@ def main():
                 parts = l.split(None, 1)
                 if len(parts) == 2 and parts[0].isdigit():
                     r["top_rss"].append([parts[1], int(parts[0]) // 1024])
-        print("$ systemd-analyze\n" + ser.run("systemd-analyze"))
+        analyze = ser.run("echo; systemd-analyze; systemd-analyze critical-chain --no-pager 2>&1 | head -14; echo; systemd-analyze blame --no-pager 2>&1 | head -10", timeout=60)
+        r["analyze"] = analyze.strip()
+        print("$ systemd-analyze; critical-chain; blame\n" + analyze)
         # Each app's first window: the autostarted terminal is closed first.
         ser.run("pkill -x terminal; sleep 2")
         for app in APPS:
-            before = bt.shot("perf-%s-before" % app, quiet=True)
-            ser.run("su -s /bin/sh admin -c '%s setsid %s >/tmp/perf-%s.log 2>&1 &'" % (ENV, app, app))
-            r["first_window_s"][app] = first_change("perf-%s" % app, before)
+            r["first_window_s"][app] = first_window(ser, app)
             ser.run("pkill -x %s; sleep 2" % app)
         ser.send("poweroff\n")
         ser.read_until(b"reboot: Power down", 90)

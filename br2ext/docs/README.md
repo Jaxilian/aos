@@ -17,6 +17,7 @@ For working on AOS:
 - [upgrading.md](upgrading.md) — how to move to a newer kernel or package
 - [keyboard.md](keyboard.md) — changing the console keyboard layout
 - [testing.md](testing.md) — how to run and test it
+- [performance.md](performance.md) — the baseline per release, and what it says to do
 - [usb.md](usb.md) — making a USB stick that actually boots (`./usb.sh` does it all), and every way that failed
 - [ssh.md](ssh.md) — remote access, and the key you must add before building
 - [roadmap.md](roadmap.md) — the platform contract, and the plan to an alpha: release engineering, trust, the no-terminal user path, stability, hardware

@@ -8,41 +8,44 @@ installation is postponed (see the end).
 
 ## Next, in priority order
 
-1. **The live ISO's demo account.** Replace `admin` / `123321` and the
-   passwordless root with a random password only the installer uses.
-   The first thing a reviewer flags.
-2. **The stick round** ([TEST.md](TEST.md)). Open from the last one:
-   - **Sound**: the kernel makes a Speaker PCM (card 1 device 2) but
-     PipeWire shows no Speaker output; UCM files and mixer controls match
-     the working Fedora host, so it is how the kernel names the speaker
-     codecs to UCM (`amixer -c 1 info`, now in the report and TEST.md).
-   - **Bluetooth**: `bluetoothctl show` prints nothing even as root
-     while bluetoothd runs; under investigation in QEMU.
-   - **Firefox menu items** took no click; a QEMU test clicks one now.
-   - Suspend and lid, the Programs page, Firefox's sandbox on hardware.
-3. **Release notes** on the download page, generated from the commit
-   messages of each release. The release body is empty today.
-4. **Open CVEs**: binutils and systemd, through the toolchain and core
-   bump, a clean rebuild and the QEMU suite
-   ([br2ext/docs/security-status.md](br2ext/docs/security-status.md)).
-5. **CI runner**: register a self-hosted GitHub runner with the label
-   `kvm` on the Fedora laptop. `.github/workflows/aos.yml` and
-   `br2ext/board/aos/ci.sh` are ready.
-6. **Steam's sandbox declaration.** It already runs in `aos-sandbox`;
+Done since 2026-10-03 morning: the live ISO's account has no password
+(0.1.16); release notes come from the commit log; binutils 2.46.1
+closed eight CVEs and the systemd one is ignored with its reason
+(0.1.17); a performance baseline exists
+([br2ext/docs/performance.md](br2ext/docs/performance.md)); the CI
+runner is installed on this laptop.
+
+1. **The kernel to 7.2.y.** 7.1.y had no point release after 7.1.13
+   (kernel.org: 7.2.9 is stable), so the one open kernel CVE waits for
+   it, and the G14's missing Speaker output most likely does too (the
+   Fedora host on 7.2.8 has one). Pinned version, the config fragment,
+   NVIDIA's modules, the aos/kernel package: a release of its own.
+2. **CI's first real run.** `systemctl --user enable --now aos-runner`,
+   then watch the v0.1.17 tag build at
+   https://github.com/Jaxilian/aos/actions; fix what differs from a
+   desk build. Stop the runner before a local release chain.
+3. **Performance, from the baseline:** boot to login is 30 s in QEMU and
+   the critical chain says where; the shell and the compositor hold 200
+   and 150 MB resident at idle (llvmpipe inflates that; measure on the
+   stick); the ISO is 1057 MB and the root tarball 520 MB, and
+   `output/target` 2.7 GB: list what a desktop needs none of. Each a
+   measured change, with perf-test.py run before and after.
+4. **Steam's sandbox declaration.** It already runs in `aos-sandbox`;
    the store still says "everything, undeclared".
-7. **Display arrangement** and per-display on/off in Settings → Display.
-8. **A file dialog the desktop draws** for sandboxed programs, so they
+5. **Display arrangement** and per-display on/off in Settings → Display.
+6. **A file dialog the desktop draws** for sandboxed programs, so they
    reach one chosen file outside their home.
-8b. **Programs page as a list** that folds each program open, with a
-   search field, as a tgn widget other pages can use (there will be
-   many programs).
-9. **AOS's own apps in the sandbox** (Files, Notepad, Images, Terminal),
-   once the file dialog exists.
-10. **dm-verity on the root slots.** The release becomes an image, not a
-    tarball: release.sh, aos-update and aos-install change. Testable in
-    QEMU.
-11. **LUKS-encrypted home**, unlocked at login. QEMU first, then the
-    stick, which needs its data partition recreated.
+6b. **Programs page as a list** that folds each program open, with a
+   search field, as a tgn widget other pages can use.
+7. **AOS's own apps in the sandbox**, once the file dialog exists.
+8. **dm-verity on the root slots.** The release becomes an image, not a
+   tarball: release.sh, aos-update and aos-install change. Testable in
+   QEMU.
+9. **LUKS-encrypted home**, unlocked at login. QEMU first, then the
+   stick, which needs its data partition recreated.
+
+The stick round ([TEST.md](TEST.md)) stays as written for whenever the
+laptop is free; sound and Bluetooth wait for the target hardware.
 
 ## Postponed: needs hardware
 
