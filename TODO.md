@@ -1,6 +1,6 @@
 # TODO
 
-Updated 2026-10-03 evening. The newest release is 0.1.16; 0.1.17 and the kernel are built but unpublished. The stick round is in
+Updated 2026-10-03 evening. The newest release is 0.1.18 (kernel 7.2.9). The stick round is in
 [TEST.md](TEST.md).
 
 Anything that needs a second machine, a second stick or a permanent
@@ -18,7 +18,7 @@ runner is installed on this laptop.
 1. ~~**The kernel to 7.2.y.**~~ Done 2026-10-03 evening: 7.2.9 pinned,
    NVIDIA open builds against it, the fragment fixed for 7.2 (cdc_ether
    renamed, the Baytrail boards finally build), all QEMU tests pass. Left:
-   publish it as 0.1.18, and the aos/kernel 7.2.9-3 package (built,
+   published as 0.1.18; the aos/kernel 7.2.9-3 package (built,
    signed, in apm-recipes/index) with `./publish.sh` there, so a stick
    that boots `bzImage.apm` leaves 7.1.13 too.
 2. **CI's first real run.** `systemctl --user enable --now aos-runner`,

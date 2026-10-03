@@ -14,7 +14,7 @@ per item, with its number.
    ```
    grep VERSION_ID /etc/os-release
    ```
-   Expect `0.1.14`.
+   Expect `0.1.18`.
 4. Settings → Software → **Upgrade**, once. This rebuilds Firefox,
    VS Code and Discord into their sandboxes. Wait until it says done.
 5. Once only, for the brightness slider:
