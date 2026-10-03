@@ -48,10 +48,13 @@ An installed system takes a kernel from apm. After `make`:
 lifts `/boot/bzImage` and the whole `/usr/lib/modules/<ver>` (depmod's files
 and the NVIDIA modules included) out of `output/target` into a signed
 package. Publish it, or `apm install` the file, then reboot. The package's
-hooks link `/usr/lib/modules/<ver>` into the store and copy the kernel to
-`/boot/bzImage.apm` (a copy, because on an installed disk the store is on
-the data partition and GRUB cannot follow a symlink out of the root slot),
-with the kernel there before becoming `/boot/bzImage.prev`. The grub.cfg
+hooks copy `/usr/lib/modules/<ver>` (marked with a `.apm` file) and the
+kernel, as `/boot/bzImage.apm`, into the root slot. Copies, not links into
+the store: on an installed disk the store is on the data partition, which
+GRUB cannot read and which is not mounted yet when the firewall, zram and
+udev load their modules at boot (release 2 linked the modules; a 7.2.9
+package on a 7.1.13 image booted with no firewall). The kernel there
+before becomes `/boot/bzImage.prev`. The grub.cfg
 `aos-install` writes boots `.apm` when it exists, offers "AOS (previous
 kernel)" and "AOS (image kernel)", and never touches the image's own
 `/boot/bzImage`. Because the NVIDIA modules ride in the package, build it

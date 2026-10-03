@@ -64,7 +64,7 @@ def run_with_copy(name):
         for c in ["apm install /root/%s --quiet 2>&1 | tail -3" % name,
                   "ls -l /boot/ | grep bzImage",
                   "cmp /boot/bzImage.apm /opt/apm/packages/aos/kernel/current/boot/bzImage && echo same",
-                  "ls -l /usr/lib/modules/",
+                  "ls -l /usr/lib/modules/; ls /usr/lib/modules/*/.apm",
                   ut.FAILED]:
             o = ser.run(c, timeout=600)
             print("\n$ %s\n%s" % (c, o))
@@ -98,6 +98,10 @@ def run_with_copy(name):
     after = out["ls -l /boot/ | grep bzImage; ls -l /usr/lib/modules/"]
     if "bzImage.apm" in after:
         print("!! bzImage.apm survived apm remove")
+        ok = False
+    ver = name.split("-")[2]
+    if ver in after.split("total", 1)[-1]:
+        print("!! /usr/lib/modules/%s survived apm remove" % ver)
         ok = False
     return ok
 

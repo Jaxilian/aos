@@ -188,7 +188,7 @@ done
 umount "$M"
 
 # ponytail: a kernel installed by apm lives in the slot it was installed
-# into (bzImage.apm, the module links); the new slot boots the release's
+# into (bzImage.apm, the modules copy); the new slot boots the release's
 # kernel. `apm remove kernel && apm install kernel` brings it back there.
 grub-editenv "$GRUBENV" set "next=$OTHER"
 echo "AOS $NEW_VER is installed in slot $OTHER and boots at the next restart"
