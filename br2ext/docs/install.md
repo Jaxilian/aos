@@ -3,6 +3,21 @@
 For someone installing AOS on a machine of their own, from a release.
 About twenty minutes, most of it the copy.
 
+## Will it run here?
+
+Before writing a stick, on the machine as it is now, under any Linux:
+
+```sh
+sh aos-check.sh
+```
+
+([br2ext/board/aos/aos-check.sh](../board/aos/aos-check.sh), nothing to
+install.) It prints a verdict per item -- the CPU level, firmware and
+Secure Boot, the GPU against the NVIDIA rule, which driver this Linux
+uses for the Wi-Fi, sound and Bluetooth -- and writes
+`~/aos-check-<host>-<date>.txt` to send with a bug report. A NO stops
+AOS; a CHECK is something to look at in [known-issues.md](known-issues.md).
+
 ## What you need
 
 - A 64-bit PC from about 2012 on (the CPU must support x86-64-v2; a Core
