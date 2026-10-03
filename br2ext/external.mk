@@ -295,3 +295,8 @@ TAR_IGNORE_CVES += CVE-2026-18477 CVE-2026-18508
 # python-setuptools: a host build tool, not on the image.
 PYTHON_SETUPTOOLS_IGNORE_CVES += CVE-2026-59890
 HOST_PYTHON_SETUPTOOLS_IGNORE_CVES += CVE-2026-59890
+
+# systemd CVE-2026-40223: an assertion reachable only through a unit with
+# Delegate=yes and no User=; no unit on the image has that, and apm
+# packages install no system units with Delegate=.
+SYSTEMD_IGNORE_CVES += CVE-2026-40223

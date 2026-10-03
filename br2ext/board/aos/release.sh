@@ -112,9 +112,26 @@ echo "note: the edge cache serves the previous SHA256SUMS for a few minutes" >&2
 # already trusts.
 [ -n "$ISO_TO" ] || exit 0
 cp "$HOME/.apm/etc/keys/apm.pub" "$OUT/apm.pub"
+# The release notes: what changed since the previous tag, from the commit
+# subjects of this tree (one line each, the "aos:" prefix dropped), under
+# the standing pointers. Written beside the release too, for the record.
+PREV=$(git describe --tags --abbrev=0 "v$VERSION^" 2>/dev/null || true)
+{
+	echo "AOS $VERSION"
+	echo
+	if [ -n "$PREV" ]; then
+		echo "Since ${PREV#v}:"
+		echo
+		git log --no-merges --format='%s' "$PREV..v$VERSION" | sed -n 's/^aos: //p' | sed 's/^/- /'
+		echo
+	fi
+	echo "Install guide: docs/install.md. What does not work yet: docs/known-issues.md."
+	echo "The CVE report and its triage: docs/security-status.md."
+	echo
+	echo 'Check the ISO: `minisign -Vm SHA256SUMS -p apm.pub`, then `sha256sum -c --ignore-missing SHA256SUMS`.'
+} > "$OUT/NOTES.md"
 gh release view "v$VERSION" -R "$ISO_TO" >/dev/null 2>&1 || \
-	gh release create "v$VERSION" -R "$ISO_TO" --title "AOS $VERSION" \
-		--notes "AOS $VERSION. Install guide: docs/install.md; what does not work yet: docs/known-issues.md; the CVE report and its triage: docs/security-status.md. Check the ISO: minisign -Vm SHA256SUMS -p apm.pub, then sha256sum -c --ignore-missing SHA256SUMS."
+	gh release create "v$VERSION" -R "$ISO_TO" --title "AOS $VERSION" --notes-file "$OUT/NOTES.md"
 n=0
 until gh release upload "v$VERSION" -R "$ISO_TO" --clobber "$OUT/$NAME.iso" "$OUT/SHA256SUMS" "$OUT/SHA256SUMS.minisig" "$OUT/apm.pub" "$OUT/$NAME-pkg-stats.html"; do
 	n=$((n + 1)); [ $n -lt 3 ] || exit 1

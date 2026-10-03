@@ -7,6 +7,11 @@ NVD's feed). This page is its triage, redone when the report changes.
 
 **Triaged 2026-10-01 against the 0.1.7 report: 64 CVEs in 19 packages.**
 
+## Fixed by a version bump (in 0.1.17)
+
+- **binutils** 2.45.1 → 2.46.1: the eight readelf/objdump/XCOFF entries.
+  The toolchain's binutils too, so this was a clean rebuild.
+
 ## Fixed by a version bump (in 0.1.8)
 
 | Package | From | To | CVEs | Why it mattered |
@@ -38,6 +43,9 @@ dropped.
 - **tar** CVE-2026-18477, 18508: incremental dumps and `--one-top-level`;
   `aos-update` uses neither, and extracts only signed tarballs.
 - **python-setuptools** CVE-2026-59890: a build tool, not on the image.
+- **systemd** CVE-2026-40223: an assertion behind a `Delegate=yes` unit
+  with no `User=`; no such unit is on the image, and apm installs no
+  system units with `Delegate=`. Ignored until the systemd bump.
 - **terminal** CVE-2011-0189: Apple's Terminal. Our applications now carry
   an explicit vendor in their CPE, so a name match cannot happen again.
 
@@ -45,9 +53,7 @@ dropped.
 
 | Package | CVEs | Exposure | Plan |
 |---|---|---|---|
-| linux 7.1.13 | CVE-2026-52972 (af_alg AEAD length) | local | the next 7.1.y point release, through the kernel package |
-| binutils 2.45.1 | 8 (readelf/objdump, an XCOFF linker overflow) | local, a developer reading a hostile binary | binutils is the toolchain's version too: 2.47 rebuilds the toolchain, planned with the next toolchain bump |
-| systemd 258.7 | CVE-2026-40223 (an assert, local) | needs a `Delegate=yes` unit with no `User=`; AOS ships none | systemd 260+ with the next Buildroot update |
+| linux 7.1.13 | CVE-2026-52972 (af_alg AEAD length) | local | 7.1.y had no further point release (kernel.org lists 7.2.9 as stable, 2026-10-03): the kernel moves to 7.2.y, which is also what the G14's sound wants |
 | grub2 2.14 | CVE-2025-61662 (gettext use-after-free) | needs the GRUB prompt, i.e. the keyboard at boot | the next GRUB release |
 | bison 3.8.2 | CVE-2026-56389, 56390 | a developer building a hostile grammar | no fixed release yet |
 

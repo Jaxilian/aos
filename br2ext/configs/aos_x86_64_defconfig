@@ -13,6 +13,8 @@ BR2_x86_x86_64_v2=y
 BR2_TOOLCHAIN_BUILDROOT_GLIBC=y
 BR2_GCC_VERSION_15_X=y
 BR2_TOOLCHAIN_BUILDROOT_CXX=y
+# 2.46.1: the eight binutils CVEs of the 0.1.16 report (security-status.md).
+BR2_BINUTILS_VERSION_2_46_X=y
 # Runtime checks on the libc calls the compiler can bound (memcpy, sprintf,
 # ...), as Fedora and Ubuntu build; PIE, full RELRO and the strong stack
 # protector are Buildroot's defaults. docs/security-model.md.
