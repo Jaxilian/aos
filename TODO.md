@@ -1,52 +1,67 @@
-# TODO -- needs hardware or a person
+# TODO
 
-Everything here has been built and tested in QEMU only, or needs a
-machine Claude cannot reach. Written 2026-10-02; the stick is on 0.1.9,
-the next release is 0.1.10 (per-display scale, GPU names, the store's
-icons and its own icon, the terminal's right-click Copy, the report in
-the home directory).
+Updated 2026-10-03. The newest release is 0.1.14. The stick round is in
+[TEST.md](TEST.md).
 
-## On the G14 (next stick round)
+Anything that needs a second machine, a second stick or a permanent
+installation is postponed (see the end).
 
-1. **Update the stick**: `sudo aos-update` in a terminal, restart. The
-   stick's Settings button should work too now (0.1.9 has apm v0.1.6).
-2. **XWayland**: Settings -> Software -> Compatibility, toggle on. The
-   two attempts in the stick's journal were on the old version (the flag
-   bug); none was made on 0.1.9. If it still fails, note what the page
-   says, and try `sudo apm --yes --quiet install runtime/xwayland`.
-3. **Bluetooth** (parked): Settings -> Bluetooth. The adapter is up in
-   the 0.1.9 journal (btintel_pcie, firmware loaded, rfkill clear,
-   bluetoothd running) and no power-on or scan was ever sent, so say
-   what the page shows. `bluetoothctl show` in a terminal, as the user,
-   tells whether Settings can see the controller at all.
-4. **Sound**: play something, try each output in Settings -> Sound.
-5. **The installer**: Super -> Install AOS. Walk the pages; only press
-   Install with a spare disk to erase. Check the stick itself is not
-   offered.
-6. **Crash recovery**: `pkill -ABRT -x ade-shell` (bar comes back),
-   `sudo pkill -ABRT -x ade-comp` while locked (comes back locked, toast).
-7. **Suspend / lid close** -- never tested on hardware.
-8. **The ISO from the boot menu**: write the ISO to a second stick with
-   dd (docs/install.md) and see whether the G14's boot menu lists it.
-9. **Scale with two displays**: Settings -> Display now has a Scale
-   section per display. Pick 125% for eDP-1 and Automatic for the
-   monitor; both should follow within seconds.
-10. Still owed from before: Firefox fonts, NVIDIA under a game, the
-   clock after a time-zone change, crisp windows at 200%.
+## Next, in priority order
 
-When done: Settings -> About -> Save Report (it lands in the home
-directory now), notes in ~/issues.md, mount the stick here.
+1. **The live ISO's demo account.** Replace `admin` / `123321` and the
+   passwordless root with a random password only the installer uses.
+   The first thing a reviewer flags.
+2. **The stick round** ([TEST.md](TEST.md)): sound, Bluetooth, suspend
+   and lid, XWayland, Firefox in its sandbox, Settings → Programs, the
+   red SSH mark, crash recovery, two displays.
+3. **Release notes** on the download page, generated from the commit
+   messages of each release. The release body is empty today.
+4. **Open CVEs**: binutils and systemd, through the toolchain and core
+   bump, a clean rebuild and the QEMU suite
+   ([br2ext/docs/security-status.md](br2ext/docs/security-status.md)).
+5. **CI runner**: register a self-hosted GitHub runner with the label
+   `kvm` on the Fedora laptop. `.github/workflows/aos.yml` and
+   `br2ext/board/aos/ci.sh` are ready.
+6. **Steam's sandbox declaration.** It already runs in `aos-sandbox`;
+   the store still says "everything, undeclared".
+7. **Display arrangement** and per-display on/off in Settings → Display.
+8. **A file dialog the desktop draws** for sandboxed programs, so they
+   reach one chosen file outside their home.
+9. **AOS's own apps in the sandbox** (Files, Notepad, Images, Terminal),
+   once the file dialog exists.
+10. **dm-verity on the root slots.** The release becomes an image, not a
+    tarball: release.sh, aos-update and aos-install change. Testable in
+    QEMU.
+11. **LUKS-encrypted home**, unlocked at login. QEMU first, then the
+    stick, which needs its data partition recreated.
 
-## Infrastructure
+## Postponed: needs hardware
 
-- **CI runner**: register a self-hosted GitHub runner with the label
-  `kvm` on a machine with /dev/kvm; `.github/workflows/aos.yml` and
-  `br2ext/board/aos/ci.sh` are ready.
-- **More test machines**: an Intel laptop, an AMD APU, an NVIDIA
-  desktop, a ~2012 machine (the x86-64-v2 floor). Per machine: boot,
-  graphics, Wi-Fi, suspend, audio, touchpad.
+- A second test machine (Intel or AMD laptop): boot, graphics, Wi-Fi,
+  sound, suspend, touchpad.
+- The ISO written with dd to a stick, and whether the firmware boots it.
+- The graphical installer end to end on a disk that can be erased.
 
-## Decisions waiting
+## After stable, decided
 
-- btrfs for `aos-data` (snapshots) -- ext4 until a feature needs it.
-- First-boot setup for preinstalled hardware (roadmap Phase 4, item 2).
+- Secure Boot (unsupported; turn it off). See
+  [br2ext/docs/policies.md](br2ext/docs/policies.md).
+- Drag and drop between programs; glass showing other windows.
+- btrfs and snapshots for `aos-data`.
+
+## Done (for the record)
+
+- Releases: pinned sources, signed SHA256SUMS, a public download page
+  with the CVE report; release.sh refuses a dirty build, a build that is
+  not its tag, and an image with an SSH key or with sshd enabled.
+- Updates: A/B root slots with confirm and rollback; one update at a
+  time; a log in `/var/log/aos-update.log`; safe to interrupt at any
+  point (`update-abort-test.py`).
+- Security: the model and values in
+  [br2ext/docs/security-model.md](br2ext/docs/security-model.md); a
+  closed firewall; sshd off unless switched on, with a red bar mark;
+  kernel and sysctl hardening; signed package indexes; the app sandbox
+  with private homes, declarations shown in the store and changeable in
+  Settings → Programs; Firefox without telemetry.
+- The desktop: installer, Settings, app store, crash-safe session,
+  screenshots, per-display scale, glass.
