@@ -128,7 +128,7 @@ BR2_LINUX_KERNEL=y
 # Pinned, not "latest": a release must build the same kernel next year as
 # it did today. Bump it here on purpose, with linux-dirclean; upgrading.md.
 BR2_LINUX_KERNEL_CUSTOM_VERSION=y
-BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="7.1.13"
+BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="7.2.9"
 # The toolchain headers follow the kernel ("same as kernel being built" is
 # the default), and with a custom version Buildroot has to be told which
 # series that is. Leave this out and glibc silently drops out of the

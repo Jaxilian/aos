@@ -25,7 +25,7 @@ Installed size is **2.6 GB**. The ISO is 956 MB because it is compressed.
 
 | Package | Version |
 |---|---|
-| linux | 7.1.13 |
+| linux | 7.2.9 |
 | glibc | 2.44 |
 | systemd | 258.7 (init, journald, udev, logind, networkd, resolved, oomd, machined, sysext, repart) |
 | dbus-broker | 37 |

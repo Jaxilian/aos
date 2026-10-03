@@ -7,15 +7,18 @@ The kernel version is pinned in
 
 ```
 BR2_LINUX_KERNEL_CUSTOM_VERSION=y
-BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="7.1.13"
+BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="7.2.9"
 BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_1=y
 ```
 
 Pinned rather than `BR2_LINUX_KERNEL_LATEST_VERSION`, which moves whenever
 Buildroot is upgraded: a release has to build the same kernel next year as
 it did today. To move to a newer kernel, change the value -- and the
-headers series on the third line if the major.minor changed. That third
-line is not optional. The toolchain headers follow the kernel, and with a
+headers series on the third line if the major.minor changed, unless the
+one chosen is already the newest Buildroot knows (its prompt then says
+"7.1.x or later", and a custom kernel's headers are checked loosely, so
+7.2.9 builds against the 7_1 choice; 2026-10-03). That third line is not
+optional. The toolchain headers follow the kernel, and with a
 custom version Buildroot must be told which series; without it glibc drops
 out of the configuration silently (`grep BR2_TOOLCHAIN_BUILDROOT_GLIBC
 .config` comes back empty) and the build fails hours later in elfutils.

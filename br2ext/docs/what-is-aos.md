@@ -41,7 +41,7 @@ it. No official package depends on it.
 
 | | |
 |---|---|
-| Kernel | Linux 7.1.13, modular, ~115 driver modules |
+| Kernel | Linux 7.2.9, modular, ~115 driver modules |
 | C library | glibc 2.44 |
 | Init | systemd 258.7, all of it — journald, udev, logind, polkit, networkd, resolved, oomd, nspawn |
 | Desktop | ade: a Wayland compositor on smithay, and a shell on the awin/tgn Vulkan stack |

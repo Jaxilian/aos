@@ -7,6 +7,12 @@ NVD's feed). This page is its triage, redone when the report changes.
 
 **Triaged 2026-10-01 against the 0.1.7 report: 64 CVEs in 19 packages.**
 
+## Fixed by a version bump (in 0.1.18)
+
+- **linux** 7.1.13 → 7.2.9: CVE-2026-52972 (af_alg AEAD length). 7.1.y
+  ended at 7.1.13; 7.2.y is the stable series. The headers choice stays
+  at "7.1.x or later", so the toolchain was not rebuilt.
+
 ## Fixed by a version bump (in 0.1.17)
 
 - **binutils** 2.45.1 → 2.46.1: the eight readelf/objdump/XCOFF entries.
@@ -53,7 +59,6 @@ dropped.
 
 | Package | CVEs | Exposure | Plan |
 |---|---|---|---|
-| linux 7.1.13 | CVE-2026-52972 (af_alg AEAD length) | local | 7.1.y had no further point release (kernel.org lists 7.2.9 as stable, 2026-10-03): the kernel moves to 7.2.y, which is also what the G14's sound wants |
 | grub2 2.14 | CVE-2025-61662 (gettext use-after-free) | needs the GRUB prompt, i.e. the keyboard at boot | the next GRUB release |
 | bison 3.8.2 | CVE-2026-56389, 56390 | a developer building a hostile grammar | no fixed release yet |
 
