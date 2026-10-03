@@ -1,0 +1,4 @@
+# The live system's account has no password, so its sudo asks for none:
+# whoever sits at a live stick owns the machine. aos-install removes this
+# file from an installed system, where the real account has a password.
+admin ALL=(ALL:ALL) NOPASSWD: ALL

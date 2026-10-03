@@ -77,9 +77,10 @@ other item is a result no one else can reproduce.
 4. **Release shape.**
    *Half done 2026-09-22*: `aos-install` now asks for the machine's own
    account and installs that; the demo account survives only with `--demo`,
-   which the tests pass. Outstanding: the live ISO itself still carries
-   `admin` / `123321`, because the desktop session needs a user to belong
-   to. That goes when first-boot setup exists (Phase 2, item 2).
+   which the tests pass. *Done 2026-10-03*: the live ISO's account has no
+   password at all (sudo asks for none there, no lock screen, root on the
+   serial console only); the desktop session still needs a user to belong
+   to, and this one can be nobody's way in.
 5. **Signed releases.**
    Today: [publishing.md](publishing.md) suggests a bare `sha256sum`.
    Done: `SHA256SUMS` signed with the same minisign key every AOS machine

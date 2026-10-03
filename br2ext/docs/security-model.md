@@ -81,7 +81,10 @@ Ubuntu do.
 
 **Accounts are separate.** Homes are 0700; the first account is an
 administrator and the rest are not; root has no password and no
-console login; `sudo` asks for the person's own.
+console login; `sudo` asks for the person's own. The live system's
+account has no password either: nothing on the ISO lets anyone in by a
+password that every copy shares, and whoever sits at the stick owns the
+machine, so its sudo asks for none and there is no lock screen there.
 
 **Third-party programs are labelled**, carried in their own repository
 at the person's risk, and never a dependency of anything official.

@@ -26,9 +26,9 @@ ISO is handed out by hand. The version is the tag's (`v0.2.0` ->
 (`python3 -m pip install --user aiohttp setuptools` -- the second for
 `distutils`, gone from Python 3.12); it fetches the NVD feed, minutes.
 
-**The live ISO carries the demo account.** `admin` with password
-`123321`, and a passwordless root on the live system. Say so when you
-publish it. An install does not: `aos-install` asks for the machine's own
+**The live ISO's account has no password.** `admin` logs in nowhere by
+password, its sudo asks for none, and root logs in on the serial console
+only (`/etc/securetty`). Say so when you publish it. An install does not: `aos-install` asks for the machine's own
 account and installs that instead, unless told `--demo`. A live ISO with no
 demo account needs the first-boot setup of [roadmap.md](roadmap.md),
 Phase 2. See the accounts section of [../PLATFORM.md](../PLATFORM.md).

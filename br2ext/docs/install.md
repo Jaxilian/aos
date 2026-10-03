@@ -50,7 +50,9 @@ On Windows or macOS, any tool that writes a raw image works (Rufus in
    [known-issues.md](known-issues.md) -- some refuse an ISO written to a
    stick.
 
-The live desktop runs as a demo account, `admin`, password `123321`.
+The live desktop runs as `admin`, an account with no password: sudo asks
+for none there, and there is no lock screen, because whoever sits at a
+live stick owns the machine.
 Nothing on your disk is touched until you install.
 
 If the screen goes black after GRUB, restart and pick "AOS (live, safe

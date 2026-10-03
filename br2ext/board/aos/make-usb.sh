@@ -216,7 +216,7 @@ fi
 cat <<EOF
 
 $([ "$RELEASE" = yes ] && echo "Log in as $NEWUSER; the demo account is gone and root's console login is locked." \
-                         || echo "The demo account is admin, password 123321; sudo asks for it.")
+                         || echo "The live account is admin, with no password; sudo asks for none.")
 
 Next, on the machine you are booting:
   1. power fully off, not restart

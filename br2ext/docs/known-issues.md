@@ -20,7 +20,8 @@ an issue on the project.
   system, no choosing partitions.
 - **No disk encryption.** `/home` on LUKS is planned; until then anyone
   with the disk can read it ([policies.md](policies.md)).
-- **The live session's account is `admin` / `123321`.** It exists only on
+- **The live session's account, `admin`, has no password**: sudo asks for
+  none, and there is no lock screen. It exists only on
   the installer; an installed machine has only the account you create.
 
 ## Hardware

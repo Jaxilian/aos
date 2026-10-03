@@ -111,7 +111,7 @@ def main():
         red_off = bar_shot("sec-ssh-off")
 
         print("\n== enable it again the way Settings does: sudo as admin")
-        print(ser.run("su -s /bin/sh admin -c \"printf '123321\\n' | sudo -S -v -p '' && sudo -n -- systemctl enable --now sshd; systemctl is-enabled sshd\"; sleep 7", timeout=60))
+        print(ser.run("su -s /bin/sh admin -c \"sudo -n -- systemctl enable --now sshd; systemctl is-enabled sshd\"; sleep 7", timeout=60))
         time.sleep(2)
         red_again = bar_shot("sec-ssh-again")
 

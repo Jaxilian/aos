@@ -108,9 +108,10 @@ CHECKS = [
     "cc --version | head -1; rustc --version; uname -r",
 ]
 
-PAM_CHECK = (r"""su admin -s /bin/sh -c 'printf "%s\0" 123321 | unix_chkpwd admin nullok; r=$?; """
-             r"""printf "%s\0" nope | unix_chkpwd admin nullok && w=accepted || w=refused; """
-             r"""echo right=$r wrong=$w'""")
+# The live account has no password: any password is refused, and sudo
+# asks for none. An installed account (setup-test.py) has one.
+PAM_CHECK = (r"""su admin -s /bin/sh -c 'printf "%s\0" nope | unix_chkpwd admin nullok && w=accepted || w=refused; """
+             r"""sudo -n true && s=free || s=asks; echo wrong=$w sudo=$s'""")
 
 INSTALL = [
     "lsblk -o NAME,SIZE,TYPE /dev/vda",

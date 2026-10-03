@@ -16,12 +16,15 @@
 # home, and sudo asks this user's password.
 #
 # A member of wheel, which is what both sudo (10-aos-wheel) and polkit's
-# default rules treat as administrators. The password is usable only at the
-# keyboard: sshd refuses password authentication. An install made with
-# "aos-install --release" (./usb.sh --release) deletes this account and
-# creates the real one in its place.
+# default rules treat as administrators. It has NO password: the field is
+# locked (an image carrying a known password was the first thing a
+# reviewer would flag), and the live session's sudo asks for none
+# (sudoers.d/20-aos-live), because whoever sits at a live stick owns the
+# machine anyway; there is no lock screen on the live system for the same
+# reason. aos-install deletes this account, the sudoers line and the
+# marker, and creates the real account in their place.
 #
 # Also in "pipewire": that group's entry in /etc/security/limits.d gives the
 # session real-time priority for audio through pam_limits, the way PipeWire
 # does it on a system without RTKit (Buildroot has none).
-admin	1000	admin	1000	=123321	/home/admin	/bin/bash	wheel,pipewire,video	Demo account
+admin	1000	admin	1000	!x	/home/admin	/bin/bash	wheel,pipewire,video	Live session account

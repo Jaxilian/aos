@@ -46,11 +46,12 @@ the host Fedora on the same machine has one. These lines say why:
 
 1. Settings → Bluetooth: turn it on, scan, pair something (headphones,
    a mouse).
-2. Note what the page says at each step. If nothing shows:
+2. Note what the page says at each step. If nothing shows, this trace
+   of the client's attempt is what I need (put it in `~/issues.md`):
    ```
-   bluetoothctl show
-   bluetoothctl power on
-   bluetoothctl --timeout 10 scan on
+   bluetoothctl --timeout 5 show; echo rc=$?
+   busctl --no-pager status org.bluez | head -5
+   timeout 8 busctl --no-pager monitor org.bluez > /tmp/bt.txt & sleep 1; bluetoothctl --timeout 3 show; sleep 6; head -40 /tmp/bt.txt
    ```
 
 ## 3. Suspend and lid

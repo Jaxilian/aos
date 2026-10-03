@@ -1,0 +1,2 @@
+This is the live system: the account has no password and sudo asks for
+none, and there is no lock screen. aos-install removes this file.

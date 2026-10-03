@@ -2,6 +2,9 @@
 # which registers the login as a logind session -- and so gives it a seat and
 # an XDG_RUNTIME_DIR. Without it a compositor started from this login cannot
 # take the GPU or input devices through logind.
+# root only where /etc/securetty says: the serial console, for the QEMU
+# tests and a developer's cable, never a tty with a keyboard in front of it.
+auth		required	pam_securetty.so
 auth		required	pam_unix.so nullok
 account		required	pam_unix.so
 password	required	pam_unix.so nullok

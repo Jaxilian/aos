@@ -69,7 +69,8 @@ run sound-ucm           sh -c 'for c in /proc/asound/card*; do n=${c#/proc/asoun
 run sound-wpctl         as_user wpctl status
 run sound-journal       as_user journalctl --user -b --no-pager -u pipewire -u wireplumber
 run bluetooth-rfkill    sh -c 'for r in /sys/class/rfkill/*; do echo "$(cat $r/name): soft=$(cat $r/soft) hard=$(cat $r/hard)"; done'
-run bluetooth-hci       sh -c 'ls /sys/class/bluetooth; bluetoothctl --timeout 3 show; bluetoothctl --timeout 3 devices'
+run bluetooth-hci       sh -c 'ls /sys/class/bluetooth; bluetoothctl --timeout 3 show; echo "bluetoothctl rc=$?"; bluetoothctl --timeout 3 devices'
+run bluetooth-bus       sh -c 'busctl --no-pager status org.bluez 2>&1 | head -5; busctl --no-pager tree org.bluez 2>&1 | head -12; timeout 8 busctl --no-pager monitor org.bluez > /tmp/aos-bt-bus.txt 2>&1 & sleep 1; bluetoothctl --timeout 3 show >/dev/null 2>&1; sleep 5; head -60 /tmp/aos-bt-bus.txt'
 run bluetooth-user      as_user bluetoothctl --timeout 3 show
 run bluetooth-journal   journalctl -b --no-pager -u bluetooth
 

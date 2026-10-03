@@ -16,8 +16,9 @@ Usage: aos-install [--demo | --user NAME [--hash HASH | --password-file FILE]]
   <disk>  the whole disk to install onto, e.g. /dev/sda or /dev/nvme0n1
 
   With no option, asks for a user name and a password: that account owns
-  the desktop session and is a member of wheel, the demo account (admin,
-  password 123321) is not installed, and root's console login is locked.
+  the desktop session and is a member of wheel, the live account (admin,
+  no password, sudo without one) is not installed, and root's console
+  login is locked.
   Root stays reachable over SSH with a key, and everything else through
   sudo.
 
@@ -262,6 +263,9 @@ systemd-machine-id-setup --root="$TARGET" >/dev/null 2>&1
 if [ "$DEMO" = no ]; then
 	echo ">>> Account: $NEWUSER replaces the demo account; root's console login is locked"
 	chroot "$TARGET" userdel -r admin 2>/dev/null || true
+	# The live system's leave: passwordless sudo for that account, and
+	# the marker that turns the lock screen off.
+	rm -f "$TARGET/etc/sudoers.d/20-aos-live" "$TARGET/etc/aos/live"
 	# wheel for sudo and polkit; pipewire for real-time audio (its limits.d
 	# entry, through pam_limits); video for the backlight (the udev rule in
 	# 70-aos-backlight.rules) -- the same three the demo account has.
