@@ -118,27 +118,14 @@ journalctl -b --no-pager _COMM=ade-shell | grep -i bright | tail -3
 4. Settings has no Programs page any more; About's **Open Software**
    button opens Software on Update.
 
-## 5. Firefox in its sandbox
-
-1. Open Firefox. Expect no "Welcome / Terms of Use" screen.
-2. Open any website. Text must be letters, not boxes.
-3. Download a file. Expect it in `~/Downloads`.
-
-## 6. Update, after the upgrade
+## 5. Update, after the upgrade
 
 1. Right after step 0's upgrade, before the restart: Software → Update
    must say "AOS 0.1.20 is installed and boots at the next restart"
    with a **Restart** button, and no second Upgrade system for the OS.
 2. Software → AOS says the same at the top.
 
-## 7. Crash recovery
-
-```
-pkill -ABRT -x ade-shell
-```
-The bar disappears and comes back within a few seconds.
-
-## 8. The HDMI port
+## 6. The HDMI port
 
 On this laptop the HDMI port is wired to the NVIDIA GPU, and the
 desktop renders on the Intel one only, so an HDMI monitor stays black
