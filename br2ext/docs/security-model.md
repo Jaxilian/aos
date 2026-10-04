@@ -97,9 +97,9 @@ run through `aos-sandbox` with exactly those flags: bubblewrap,
 unprivileged, the OS read-only, the package and what it depends on, the
 session's sockets, and a home of its own under `~/.var/app/<org>.<name>`
 that holds nothing of the real one but the shared directories. The
-store's details page shows it as "Sees: its own files and Downloads"
-before Install, and Settings -> Programs shows every sandboxed program
-with what it may see, and lets the person change it: its own files or
+store's package page shows it as "Sees: its own files and Downloads"
+before Install, and once installed the page's Permissions section shows
+what it may see, and lets the person change it: its own files or
 the whole home, each of Downloads, Documents, Pictures, Music and
 Videos, and the network. The change is a line in
 `~/.config/aos/sandbox/<org>.<name>` that aos-sandbox reads over the
