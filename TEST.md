@@ -16,10 +16,10 @@ per item, with its number.
    ```
    grep VERSION_ID /etc/os-release
    ```
-   Expect `0.1.18`.
+   Expect `0.1.20`.
 4. Software → Update → **Upgrade system** once more, if lines are
-   left: this rebuilds Firefox, VS Code and Discord into their sandboxes.
-   Each line ends in done or failed; note any failed one with its reason.
+   left: runtime/gtk3 release 7 (libpulse) is one. Each line ends in
+   done or failed; note any failed one with its reason.
 4b. About two minutes after a boot a toast says what updates wait (if
    any). Click it: Software must open on its Update page.
 5. Once only, for the brightness slider:
@@ -30,102 +30,124 @@ per item, with its number.
 
 ## 1. Sound
 
-The speaker PCM exists on this laptop but no "Speaker" output shows up;
-the host Fedora on the same machine has one. These lines say why:
+Firefox and Discord play through PulseAudio's API, and 0.1.19 had no
+libpulse at all; runtime/gtk3 release 7 carries it. So first:
+Software → Update → **Upgrade system** (or `sudo apm upgrade`), which
+rebuilds Firefox on the new runtime, then start Firefox again.
 
-1. ```
-   amixer -c 1 info | grep -i components
-   alsaucm -c sof-soundwire -i _verb HiFi list _devices
-   ```
-   Put the output in `~/issues.md`. (The report collects it too now.)
-2. Open Firefox and play any YouTube video. If silent, while it plays:
+1. Play any YouTube video. While it plays:
    ```
    wpctl status | sed -n '/Streams/,$p'
    ```
-   A Firefox line there means Firefox reaches PipeWire from its sandbox.
-3. Settings → Sound: an output that is not plugged in (Headphones, an
-   HDMI port with no display) cannot be chosen; that is PipeWire's rule,
-   not a bug.
+   Expect a Firefox line under Streams, and sound from the chosen output.
+2. If still silent, from the terminal:
+   ```
+   ls /opt/apm/packages/runtime/gtk3/current/lib/ | grep pulse
+   journalctl --user -b | grep -i -E "pulse|pipewire" | tail -5
+   ```
+3. The speaker: the card's components say `spk:cs35l56+cs42l43-spk`,
+   the same as Fedora on this machine. This lists what UCM offers:
+   ```
+   alsaucm -c sof-soundwire list _verbs
+   alsaucm -c sof-soundwire set _verb HiFi list _devices
+   ```
+   Put both outputs in `~/issues.md`.
 
 ## 2. Bluetooth
 
-1. Settings → Bluetooth: turn it on, scan, pair something (headphones,
-   a mouse).
-2. Note what the page says at each step. If nothing shows, this trace
-   of the client's attempt is what I need (put it in `~/issues.md`):
-   ```
-   bluetoothctl --timeout 5 show; echo rc=$?
-   busctl --no-pager status org.bluez | head -5
-   timeout 8 busctl --no-pager monitor org.bluez > /tmp/bt.txt & sleep 1; bluetoothctl --timeout 3 show; sleep 6; head -40 /tmp/bt.txt
-   ```
+The journal of your last round shows the adapter working (hci0 with its
+firmware loaded, bluetoothd managing it); what prints nothing is the
+bluetoothctl client. Put the output of these in `~/issues.md`:
+```
+busctl --no-pager tree org.bluez
+busctl --no-pager --json=short call org.bluez / org.freedesktop.DBus.ObjectManager GetManagedObjects | cut -c1-600
+bluetoothctl show | cat; echo rc=$?
+```
+Settings → Bluetooth stays as it was; a client that talks to BlueZ
+directly is the next step and these lines tell me the shape of the data.
 
 ## 3. Suspend and lid
 
-1. Close the lid, wait 30 seconds, open it. Expect the lock screen and
-   then your desktop as you left it.
-2. Then from a terminal:
-   ```
-   systemctl suspend
-   ```
-   Press the power button to wake it.
+Last round: the windows' contents vanished after the first resume and
+the machine froze after the second; no lock screen. The shell now locks
+the screen when the machine is about to sleep.
 
-## 4. XWayland
+1. Open Notepad with some text and a terminal. Then, before closing
+   the lid, so the journal survives a freeze:
+   ```
+   sudo journalctl --flush; sync
+   ```
+2. Close the lid, wait 30 seconds, open it. Expect the lock screen,
+   then your desktop with the windows' contents intact. Note which of
+   the three you got.
+3. If it came back, at once:
+   ```
+   journalctl -b --no-pager | grep -i -E "resume|vulkan|device lost|awin|ade:" | tail -30 > ~/suspend.txt
+   ```
+   If it froze, after the reboot:
+   ```
+   journalctl -b -1 --no-pager | tail -150 > ~/suspend.txt
+   ```
+4. Only if 2 went well: `systemctl suspend` from a terminal, power
+   button to wake, same expectations.
 
-1. Software → AOS → Compatibility → **XWayland**: switch it on.
-2. After a few seconds:
-   ```
-   pgrep -a Xwayland
-   ```
-   Expect a line with `Xwayland`.
+## 3b. Brightness
+
+The slider writes the panel's backlight as your user, which needs the
+`video` group and the udev rule's permissions. Put the output in
+`~/issues.md`:
+```
+id | tr ' ' '\n' | grep -c video
+ls -l /sys/class/backlight/*/brightness
+for b in /sys/class/backlight/*; do echo "$b -> $(readlink $b/device)"; done
+```
+Then the quick panel's slider: expect the panel to follow. If not,
+```
+journalctl -b --no-pager _COMM=ade-shell | grep -i bright | tail -3
+```
+
+## 4. Software: the system applications and the permissions
+
+1. Software → Official: Files, Images, Notepad, Terminal, Settings,
+   Software, System Monitor, every one marked **Installed**.
+2. Software → Third-party → Firefox. Expect, below the details, a
+   **Permissions** section: "Its own files" chosen, the folders with
+   Downloads on, Network on.
+3. Give it **Pictures**, start Firefox, File → Open File: the dialog
+   reaches `~/Pictures`. Switch Pictures off again.
+4. Settings has no Programs page any more; About's **Open Software**
+   button opens Software on Update.
 
 ## 5. Firefox in its sandbox
 
-1. Open Firefox. Expect no "Welcome / Terms of Use" screen, and a fresh
-   profile (your old bookmarks stay in `~/.mozilla`; that is expected).
+1. Open Firefox. Expect no "Welcome / Terms of Use" screen.
 2. Open any website. Text must be letters, not boxes.
 3. Download a file. Expect it in `~/Downloads`.
-4. In Firefox, File → Open File: the dialog shows Firefox's own home,
-   with only `Downloads` from yours. Its files live here:
-   ```
-   ls ~/.var/app/
-   ```
-   Expect `mozilla.firefox`.
 
-## 5b. Firefox menus
+## 6. Update, after the upgrade
 
-1. Hamburger menu → **New Window**: a second window must open.
-2. Right-click an image → **Save Image As…**: a file dialog must open.
+1. Right after step 0's upgrade, before the restart: Software → Update
+   must say "AOS 0.1.20 is installed and boots at the next restart"
+   with a **Restart** button, and no second Upgrade system for the OS.
+2. Software → AOS says the same at the top.
 
-## 6. Settings → Programs
-
-1. Settings → **Programs**. Expect Firefox and Discord as "its own
-   files and Downloads", and VS Code as "everything in your home".
-2. Give Firefox **Pictures**, restart Firefox, and check that a file
-   dialog inside it now reaches `~/Pictures`. Then switch it back.
-
-## 7. Remote login and the red mark
-
-1. The bar should show nothing in the middle.
-2. Settings → Network → **Let other computers log in over SSH**: on.
-   Expect a red **SSH open** in the middle of the bar within 5 seconds.
-3. Switch it off. The red mark disappears.
-
-## 8. Crash recovery
+## 7. Crash recovery
 
 ```
 pkill -ABRT -x ade-shell
 ```
 The bar disappears and comes back within a few seconds.
 
-## 9. Glass and the two displays
+## 8. The HDMI port
 
-1. With the monitor plugged in: Settings → Display → **Scale**. Set
-   125% for eDP-1 and Automatic for DP-1. Both follow within seconds.
-2. Settings → Display → Appearance → **Light**, then **Glass** again.
+On this laptop the HDMI port is wired to the NVIDIA GPU, and the
+desktop renders on the Intel one only, so an HDMI monitor stays black
+for now; the USB-C port goes through the Intel GPU and works. Nothing
+to test; it is on the list.
 
 ## When done
 
 1. Settings → About → **Save Report**. It lands in your home folder.
 2. Plug the stick into the Fedora laptop, open the `aos-data` partition
-   in Files, and tell me. I read the report, `~/issues.md` and
-   `/var/log/aos-update.log` from there.
+   in Files, and tell me. I read the report, `~/issues.md`,
+   `~/suspend.txt` and `/var/log/aos-update.log` from there.

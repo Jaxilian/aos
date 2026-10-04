@@ -127,6 +127,9 @@ def main():
     ap.add_argument("packages", nargs="+", metavar="package")
     ap.add_argument("--name", help="the package name; required for a bundle")
     ap.add_argument("--wrapper", metavar="CMD", help="generate bin/CMD setting this package's environment")
+    ap.add_argument("--libpath", action="append", default=[], metavar="DIR",
+                    help="a directory under the package the wrapper adds to the loader path after lib/ "
+                         "(lib/pulseaudio: libpulse's own RPATH names /usr/lib/pulseaudio, which the sandbox has not)")
     ap.add_argument("--org", default="aos")
     ap.add_argument("--kind", default="lib", choices=["lib", "bin", "app"])
     ap.add_argument("--global", dest="global_", action="store_true",
@@ -248,7 +251,7 @@ def main():
 # never changes what a running program already resolved.
 P=%s
 export PATH="$P/bin:$PATH"
-export LD_LIBRARY_PATH="$P/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="%s${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$P/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export GSETTINGS_SCHEMA_DIR="$P/share/glib-2.0/schemas"
 export FONTCONFIG_FILE="$P/etc/fonts/fonts.conf"
@@ -259,7 +262,7 @@ done
 export GTK_PATH="$P/lib/gtk-3.0"
 export GIO_EXTRA_MODULES="$P/lib/gio/modules"
 exec "$@"
-""" % (pkg, runtime_prefix))
+""" % (pkg, runtime_prefix, ":".join(["$P/lib"] + ["$P/" + d.strip("/") for d in a.libpath])))
         os.chmod(wrapper, 0o755)
         # The wrapper is the one command on PATH: a runtime's own tools run
         # through it, since bare they would not find its libraries.

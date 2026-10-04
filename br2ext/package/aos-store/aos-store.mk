@@ -5,7 +5,7 @@
 ################################################################################
 
 # A commit, not a tag -- see ade.mk. This one is v0.1.5.
-AOS_STORE_VERSION = 666ae6c516ca3532b10c0219c6767cc787ccc3f1
+AOS_STORE_VERSION = db3a613ecdbd1827b39515cdff67d585d237c6fa
 AOS_STORE_SITE = ssh://git@github.com/Jaxilian/store
 AOS_STORE_SITE_METHOD = git
 AOS_STORE_LICENSE = MIT

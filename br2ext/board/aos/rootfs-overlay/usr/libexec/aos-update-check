@@ -21,7 +21,10 @@ mkdir -p /var/lib/aos
 apm --quiet update >/dev/null 2>&1 || exit 0
 plan=$(apm --dry-run --quiet upgrade 2>/dev/null)
 
-lines=$(printf '%s\n' "$plan" | sed -n 's/^ *upgrade  *\([^ ]*\) .*/\1/p; s/^ *install  *\([^ ]*\) .*/\1 (new)/p; s/^\(AOS [0-9.]* is available\).*/\1/p')
+# A release already written into the idle slot is not "available": it is
+# installed, and only the restart is left; the line says so, and the
+# store shows Restart instead of Upgrade system for it.
+lines=$(printf '%s\n' "$plan" | sed -n 's/^ *upgrade  *\([^ ]*\) .*/\1/p; s/^ *install  *\([^ ]*\) .*/\1 (new)/p; s/^\(AOS [0-9.]* is available\).*/\1/p; s/^AOS \([0-9.]*\) is already in slot .*/AOS \1 is installed; restart to finish/p')
 n=$(printf '%s\n' "$lines" | grep -c .)
 
 tmp=$OUT.new

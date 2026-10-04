@@ -236,3 +236,10 @@ umount "$M"
 grub-editenv "$GRUBENV" set "next=$OTHER"
 echo "AOS $NEW_VER is installed in slot $OTHER and boots at the next restart"
 prog done
+# What the shell and the store read: the release is no longer waiting to
+# be fetched, it is waiting for the restart (aos-update-check writes the
+# same line on its next run).
+U=/var/lib/aos/updates
+if [ -f "$U" ] && grep -q "^AOS $NEW_VER is available" "$U"; then
+	sed -i "s/^AOS $NEW_VER is available.*/AOS $NEW_VER is installed; restart to finish/" "$U" 2>/dev/null || true
+fi

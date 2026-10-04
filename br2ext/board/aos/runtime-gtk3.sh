@@ -21,13 +21,14 @@ BR2_OUTPUT="$BASE/output-pkgs" exec "$BASE/br2ext/board/aos/br2apkg.py" \
 	libepoxy at-spi2-core libpng shared-mime-info \
 	adwaita-icon-theme hicolor-icon-theme \
 	alsa-lib cups sqlite libnss libnspr \
+	pulseaudio libsndfile \
 	xcb-proto libxcb xlib_libX11 xlib_libXau xlib_libXdmcp xlib_libXext \
 	xlib_libXcomposite xlib_libXdamage xlib_libXfixes xlib_libXi \
 	xlib_libXrandr xlib_libXrender xlib_libXtst xlib_libxshmfence \
 	xlib_libXcursor \
-	--name gtk3 --org runtime --kind lib --wrapper gtk3-run \
+	--name gtk3 --org runtime --kind lib --wrapper gtk3-run --libpath lib/pulseaudio \
 	--version 3.24.0 --release "$REL" \
 	--license "LGPL-2.1-or-later AND MPL-2.0 AND MIT AND Apache-2.0" \
-	--summary "GTK3 and what Electron applications and Firefox load: fontconfig, NSS, ALSA, CUPS, the X client libraries" \
+	--summary "GTK3 and what Electron applications and Firefox load: fontconfig, NSS, ALSA, libpulse, CUPS, the X client libraries" \
 	--depends 'aos/fonts@*' \
 	--out "$OUT"

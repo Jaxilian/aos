@@ -1,8 +1,7 @@
 # TODO
 
-Updated 2026-10-04 afternoon. The newest release is 0.1.19 (Software
-owns the system update; kernel 7.2.9), published with aos/settings,
-aos/store and aos/sysmon in the official index. The stick round is in
+Updated 2026-10-04 evening. The newest release is 0.1.19; 0.1.20 (the
+round-13 fixes below) is in the works. The stick round is in
 [TEST.md](TEST.md).
 
 Anything that needs a second machine, a second stick or a permanent
@@ -28,6 +27,43 @@ installation is postponed (see the end).
   the file is new since boot, and a click on the toast opens
   `aos-store update` (ade v0.1.34).
 - Test: `upgrade-ui-test.py` (docs/testing.md).
+
+## Round 13 (stick on 0.1.19, 2026-10-04 afternoon): what came back
+
+Works: boot, Upgrade system, restart into 0.1.19, XWayland, Firefox
+(menus, downloads, dialogs), Programs, SSH mark, crash recovery.
+Fixed for 0.1.20: Settings → Programs became the Permissions section
+on each package's page in Software; a release already written into the
+idle slot shows as "installed; restart to finish" (Restart, not Upgrade
+again); the screen locks before sleep (logind's PrepareForSleep);
+libpulse in runtime/gtk3 release 7, which is why Firefox was silent
+(pipewire-pulse listened, nothing could speak to it).
+Open, in priority order:
+
+1. **Resume.** s2idle goes in and out cleanly (the journal); afterwards
+   the windows' contents are gone, and the second time the desktop
+   froze. Nothing in the journal names it. TEST.md step 3 captures the
+   lines after a resume; suspect the clients' GPU textures, or the
+   compositor's. [[qemu-suspend-limits]]: QEMU cannot stand in.
+2. **Bluetooth: a client that talks to BlueZ.** The adapter works
+   (hci0, firmware, bluetoothd, pipewire's endpoints registered);
+   bluetoothctl prints nothing. Settings' Bluetooth page should use
+   zbus on the system bus (power, discovery held open for the scan,
+   devices, pair, connect); the host Fedora has BlueZ to develop against.
+   TEST.md step 2 asks for the object tree first.
+3. **Brightness slider on the G14**: untested after the group change;
+   TEST.md step 3b.
+4. **The HDMI port is the NVIDIA GPU's**: the compositor renders on one
+   DRM device (the Intel one) and never sees the other's connectors.
+   Multi-GPU output: scan the second device's connectors and copy
+   frames across (smithay's GpuManager). Big.
+5. **Glass only on the chrome**: the user wants the bar, the quick
+   panel and the overview translucent and windows solid (awin theme).
+6. **Camera and microphone permissions**: the sandbox binds /dev/snd
+   and the session's PipeWire socket for everyone; a per-app switch
+   needs the socket (and /dev/video*) withheld, which PipeWire's access
+   module could then grant on request. The Permissions section is where
+   they go.
 
 ## Next, in priority order
 
@@ -63,8 +99,8 @@ runner is installed on this laptop.
 5. **Display arrangement** and per-display on/off in Settings → Display.
 6. **A file dialog the desktop draws** for sandboxed programs, so they
    reach one chosen file outside their home.
-6b. **Programs page as a list** that folds each program open, with a
-   search field, as a tgn widget other pages can use.
+6b. ~~**Programs page as a list.**~~ Gone: each program's permissions
+   are on its own page in Software (2026-10-04).
 7. **AOS's own apps in the sandbox**, once the file dialog exists.
 8. **dm-verity on the root slots.** The release becomes an image, not a
    tarball: release.sh, aos-update and aos-install change. Testable in
