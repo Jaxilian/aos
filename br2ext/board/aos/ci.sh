@@ -18,6 +18,13 @@ if [ "$(id -u)" = 0 ]; then
 	exit 1
 fi
 
+# The apps' Cargo.toml name the SDK as a git dependency over ssh. Buildroot
+# vendors them with cargo's own fetcher, which authenticates through the
+# agent alone; the runner's agent holds no key, and the v0.1.19 run died
+# there after the toolchain (2026-10-04). The git command reads ~/.ssh
+# itself, so cargo is told to use it.
+export CARGO_NET_GIT_FETCH_WITH_CLI=true
+
 make BR2_EXTERNAL="$BASE/br2ext" aos_x86_64_defconfig >/dev/null
 
 # kconfig drops a symbol whose dependencies are unmet without a word, and
