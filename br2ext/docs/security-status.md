@@ -65,9 +65,10 @@ dropped.
 ## How a fix reaches a machine
 
 A package fix is a new AOS release: a version bump here, a tag, and
-`release.sh --publish`. Every installed machine looks daily
-(`aos-update-check.timer`), the desktop shows a notice, and Software ->
-Updates (or `sudo apm upgrade`) writes the new release into the idle root
+`release.sh --publish`. Every installed machine looks two minutes
+after a boot and daily (`aos-update-check.timer`), the desktop shows a
+toast that opens Software -> Update, and Upgrade system there (or `sudo
+apm upgrade`) writes the new release into the idle root
 slot and boots it at the next restart, with the old one a menu entry away
 (docs/upgrading.md). Applications from apm update the same way, in the
 same step.

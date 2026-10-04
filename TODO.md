@@ -1,10 +1,32 @@
 # TODO
 
-Updated 2026-10-03 evening. The newest release is 0.1.18 (kernel 7.2.9). The stick round is in
-[TEST.md](TEST.md).
+Updated 2026-10-04. The newest release is 0.1.18 (kernel 7.2.9); the
+Software/update round below is built and tested in QEMU, not released.
+The stick round is in [TEST.md](TEST.md).
 
 Anything that needs a second machine, a second stick or a permanent
 installation is postponed (see the end).
+
+## Done 2026-10-04: Software owns updates (features.md on the stick)
+
+- Settings' Software page is gone; About has an "Open Software" button.
+- Software: Official marks the image's own applications installed (no
+  Install on what is there); an AOS page (version, build, kernel, the
+  system packages, the third-party and XWayland switches); Updates became
+  Update: every pending package under Official / Third-party / AOS with
+  old -> new, one "Upgrade system" button, and while it runs a line per
+  package -- downloading with a percentage, building, installing, done,
+  failed with the reason -- the OS line last, then Restart. A package's
+  details page has Upgrade for that one package.
+- apm v0.1.9: `--progress` (`::pkg`, `::dl`, `::os` lines); a failed
+  package is skipped and reported, the rest and the OS update still run,
+  exit 1 with the count. aos-update `--progress`, and a release already
+  waiting in the idle slot is not written twice.
+- The check runs two minutes after boot (then daily), rewrites
+  /var/lib/aos/updates every time; the shell toasts once per boot when
+  the file is new since boot, and a click on the toast opens
+  `aos-store update` (ade v0.1.34).
+- Test: `upgrade-ui-test.py` (docs/testing.md).
 
 ## Next, in priority order
 
@@ -21,6 +43,12 @@ runner is installed on this laptop.
    public index and copies its modules into the slot (release 2 linked
    them into the store, which early boot cannot see). Untested on the
    stick: [TEST.md](TEST.md) step 0.
+1b. **Release 0.1.19 with the above**: tag and push apm v0.1.9, store
+   v0.2.0, settings v0.1.22, ade v0.1.34; repin the four .mk files;
+   remove local.mk; publish aos/settings, aos/store and aos/sysmon to
+   apm-recipes so Official shows every system application
+   (`br2apkg.py <pkg> --name <n> --kind app --launcher --version 0.1.0
+   --summary ... --license MIT`); stick test per TEST.md step 0.
 2. **CI's first real run.** `systemctl --user enable --now aos-runner`,
    then watch the v0.1.17 tag build at
    https://github.com/Jaxilian/aos/actions; fix what differs from a

@@ -1,12 +1,13 @@
-# Ten minutes after boot, then daily; a day missed while off runs at boot.
+# Two minutes after boot (the person is at the desktop by then, and the
+# shell tells them what it found), then daily; a day missed while off runs
+# at boot.
 [Unit]
 Description=Look for updates daily
 
 [Timer]
-OnBootSec=10min
+OnBootSec=2min
 OnUnitActiveSec=1d
 Persistent=true
-RandomizedDelaySec=10min
 
 [Install]
 WantedBy=timers.target

@@ -48,8 +48,8 @@ an issue on the project.
 - **No drag and drop between applications** yet. (Screenshots: Print for
   the display, Shift+Print for the window, Super+Shift+S without a Print
   key; they land in Pictures/Screenshots.)
-- **X11 programs** need XWayland, a third-party package (Settings ->
-  Software, or the Third-party page in Software); Steam installs it.
+- **X11 programs** need XWayland, a third-party package (Software ->
+  AOS -> Compatibility); Steam installs it.
 
 ## Software
 
@@ -71,6 +71,9 @@ an issue on the project.
   itself; reinstall it.
 - **An update replaces the system, not a part of it**: about 650 MB per
   release. Delta updates are not planned before 1.0.
+- **AOS's own applications show as installed in Software but do not
+  upgrade one by one**: they are part of the release image, and a new
+  version of one comes with the next system update.
 
 ## Security status
 

@@ -68,7 +68,8 @@ An installed disk has two root slots ([../PLATFORM.md](../PLATFORM.md)
 describes the layout). `aos-update` moves a machine to a newer release:
 
 ```sh
-sudo apm upgrade       # every package, then the OS itself: what Settings' "Install every update" runs
+sudo apm upgrade       # every package, then the OS itself: what Software's "Upgrade system" runs
+sudo apm --progress upgrade  # the same, with "::pkg", "::dl" and "::os" lines Software reads for its Update page
 aos-update --check     # "AOS 0.3.0 is available (this is 0.2.0)", or that it is the newest
 aos-update             # fetch, verify, write the idle slot; boots at the next restart
 aos-update --rollback  # the other slot -- what ran before -- boots at the next restart
@@ -78,7 +79,9 @@ aos-update --rollback  # the other slot -- what ran before -- boots at the next 
 (`--dry-run` runs `--check`), so one command, or one button, moves the
 whole machine, the way a distribution's upgrade does; the OS part is
 skipped where there is no `aos-update` (a developer's machine, the live
-ISO).
+ISO). A package that fails -- a third-party recipe that will not build,
+say -- is reported and skipped, the rest are installed, and the OS update
+still runs; apm then exits 1 with "N package(s) failed".
 
 An update interrupted at any point -- the power, the lid, Settings
 closed -- leaves the machine booting what it runs now: GRUB's `next` is
@@ -89,7 +92,7 @@ next update simply writes the slot again.
 
 One update runs at a time: a second `aos-update` (or an `apm upgrade`
 beside one) says "another update is already running" and leaves, and
-Settings' buttons do nothing while one is working. Everything an update
+Software's button says "Upgrading..." while one is working. Everything an update
 printed is kept in `/var/log/aos-update.log`, on the data partition, so
 a failed one can be read afterwards -- from another machine too, since
 that partition is readable with the stick plugged in.
@@ -109,8 +112,13 @@ never reaches that point is forgotten at the next reset and the confirmed
 slot boots. The GRUB menu's "AOS (previous version)" entry boots the other
 slot by hand, and `--rollback` does the same from the running system.
 Nothing on the data partition -- accounts, `/home`, installed programs,
-settings -- is touched by any of it. The Settings application's Software
-page runs the same commands.
+settings -- is touched by any of it. Software's Update page runs the same
+command, one button for the packages and the OS, with a line per package
+that says where it is (downloading with a percentage, installing, done,
+failed with the reason) and a Restart button when the OS part is done.
+Two minutes after a boot, and daily after that, `aos-update-check.timer`
+refreshes the indexes and writes what waits to `/var/lib/aos/updates`;
+the desktop shows a toast, and a click on it opens that page.
 
 A disk installed before the slots existed (one root partition) cannot be
 updated this way; reinstall it. `aos-install` wipes the disk.

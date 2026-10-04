@@ -99,7 +99,7 @@ AOS**:
   Third-party once you switch that repository on (they are not part of
   AOS, and are marked).
 - **Updates**: AOS looks once a day and says so when there are some.
-  Software -> Updates installs every application update and a new AOS in
+  Software -> Update installs every application update and a new AOS in
   one step; a new AOS starts at the next restart, and the boot menu's "AOS
   (previous version)" goes back to the one before if anything is wrong.
 - **Screenshots**: Print (the display), Shift+Print (the window); they

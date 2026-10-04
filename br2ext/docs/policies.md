@@ -79,5 +79,5 @@ previous slot boots at the next reset, and "AOS (previous version)" in the
 boot menu goes back by hand ([upgrading.md](upgrading.md)). Accounts,
 `/home`, installed programs and settings live on a data partition no update
 touches. Application updates go through `apm upgrade`; both are on the
-Settings application's Software page. A disk installed before the slots
+Software application's Update page. A disk installed before the slots
 existed is reinstalled, which erases it.

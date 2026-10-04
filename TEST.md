@@ -8,15 +8,20 @@ per item, with its number.
 
 1. Boot the stick. If it does not reach the desktop, hold the power
    button, start it again: it falls back to the old version by itself.
-2. Settings → Software → **Install**. Press it **once**, then wait for
-   "installed in slot …" (a few minutes). Touch nothing else meanwhile.
+2. Software → Update → **Upgrade system**. Press it **once**: every
+   line says what its package is doing (downloading with a percentage,
+   installing, done or failed with the reason), the AOS line last. Wait
+   for "done; boots at the next restart" and press **Restart** there.
 3. Restart. About 20 seconds after the desktop appears, check:
    ```
    grep VERSION_ID /etc/os-release
    ```
    Expect `0.1.18`.
-4. Settings → Software → **Upgrade**, once. This rebuilds Firefox,
-   VS Code and Discord into their sandboxes. Wait until it says done.
+4. Software → Update → **Upgrade system** once more, if lines are
+   left: this rebuilds Firefox, VS Code and Discord into their sandboxes.
+   Each line ends in done or failed; note any failed one with its reason.
+4b. About two minutes after a boot a toast says what updates wait (if
+   any). Click it: Software must open on its Update page.
 5. Once only, for the brightness slider:
    ```
    sudo usermod -aG video admin
@@ -66,7 +71,7 @@ the host Fedora on the same machine has one. These lines say why:
 
 ## 4. XWayland
 
-1. Settings → Software → Compatibility → **XWayland**: switch it on.
+1. Software → AOS → Compatibility → **XWayland**: switch it on.
 2. After a few seconds:
    ```
    pgrep -a Xwayland

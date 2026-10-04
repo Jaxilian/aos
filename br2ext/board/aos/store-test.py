@@ -4,7 +4,7 @@ the live ISO's apm cache is on its read-only root, so there the store
 can only say "no index yet"): the index fetched over the network (`apm
 update` as root, the way the Updates page's Check does it through sudo),
 then aos-store opened in the demo account's session on the Official,
-Third-party and Updates pages and screendumped -- a window with the
+Third-party, Libraries, AOS and Update pages and screendumped -- a window with the
 packages listed is the catalogue read through apm-core and drawn.
 
 Screendumps: store-*.screen.png; transcript store.serial.txt."""
@@ -54,8 +54,11 @@ def main():
         if not bt.window_shot(ser, "store-libs", "aos-store", "aos-store libraries"):
             print("!! no window for the libraries page")
             ok = False
-        if not bt.window_shot(ser, "store-updates", "aos-store", "aos-store updates"):
-            print("!! no window for the updates page")
+        if not bt.window_shot(ser, "store-aos", "aos-store", "aos-store aos"):
+            print("!! no window for the AOS page")
+            ok = False
+        if not bt.window_shot(ser, "store-update", "aos-store", "aos-store update"):
+            print("!! no window for the Update page")
             ok = False
         ser.send("poweroff\n")
         ser.read_until(b"reboot: Power down", 90)

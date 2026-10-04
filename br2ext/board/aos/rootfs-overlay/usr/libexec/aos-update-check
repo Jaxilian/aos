@@ -2,15 +2,18 @@
 #
 # aos-update-check -- what updates exist, for the shell to tell the person.
 #
-# Run daily by aos-update-check.timer, as root (apm's index and the OS's
+# Run two minutes after boot and then daily by aos-update-check.timer, as
+# root, and by Software's "Look for updates" through sudo (apm's index and the OS's
 # release live in system places). Looks only: `apm update` refreshes the
 # signed indexes, `apm --dry-run upgrade` lists what an upgrade would do
 # and, through aos-update --check, whether a new AOS is out. Nothing is
 # installed -- that stays the person's choice (docs/policies.md).
 #
-# Writes /var/lib/aos/updates for the shell to read: the first line a
-# count, the rest one line per update. An empty count is 0. The shell
-# shows a toast when the file changes and the count is not 0.
+# Writes /var/lib/aos/updates for the shell and Software to read: the
+# first line a count, the rest one line per update. An empty count is 0.
+# Written on every run, so the shell's toast (once per boot, when the
+# file is new since the boot and the count is not 0) comes back the next
+# day a person leaves the updates waiting.
 
 OUT=/var/lib/aos/updates
 mkdir -p /var/lib/aos
@@ -24,9 +27,5 @@ n=$(printf '%s\n' "$lines" | grep -c .)
 tmp=$OUT.new
 { echo "$n"; printf '%s\n' "$lines" | grep .; } > "$tmp"
 chmod 644 "$tmp"
-# Only a real change touches the file, so the shell's toast is once per news.
-if ! cmp -s "$tmp" "$OUT"; then
-	mv "$tmp" "$OUT"
-else
-	rm -f "$tmp"
-fi
+mv "$tmp" "$OUT"
+printf '%s\n' "$lines" | grep . || echo "everything is up to date"

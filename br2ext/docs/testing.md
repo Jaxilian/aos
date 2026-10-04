@@ -130,7 +130,14 @@ session is locked (it comes back locked, the toast says so) and the
 compositor five times in a row (the unit stops, tty1 gets a login
 prompt under an explanation, `systemctl restart ade` recovers).
 `store-test.py` fetches the index on the installed disk and screendumps
-the store's pages. `shot-test.py` copies the working tree's compositor
+the store's pages. `upgrade-ui-test.py` is the update pipeline as a
+person meets it, on the installed disk with the working tree's binaries
+copied in: `aos-update-check` run as the two-minute timer would, the
+shell's toast, a click on it opening Software's Update page, and -- with
+`UPD_BX`/`UPD_BY` naming the Upgrade system button's place on the
+maximised window's screendump -- the upgrade itself against a fake
+release served from the host, with a screendump every few seconds while
+apm runs and the `::os` progress lines checked in the update log. `shot-test.py` copies the working tree's compositor
 and shell onto the installed disk, presses Print and Shift+Print through
 QEMU's monitor, and copies the two PNGs back to look at. `sec-test.py`
 is the security round on the live ISO: the sysctls applied, the kernel's

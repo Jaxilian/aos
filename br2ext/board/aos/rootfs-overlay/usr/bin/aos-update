@@ -18,6 +18,9 @@ usage() {
 	cat <<USAGE
 Usage: aos-update [--url URL]        fetch the newest release into the idle slot
        aos-update --check [--url URL] say whether there is a newer release
+       aos-update --progress          with the fetch: "::os VER downloading 40",
+                                      "::os VER installing", "::os VER done" lines
+                                      for a program driving it (apm --progress)
        aos-update --rollback          boot the other slot at the next restart
        aos-update --confirm           make the running slot the default (a service runs this)
 USAGE
@@ -26,9 +29,11 @@ USAGE
 
 URL=$(sed -n 's/^URL=//p' /usr/lib/aos/update.conf)
 MODE=install
+PROG=no
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--check)    MODE=check ;;
+		--progress) PROG=yes ;;
 		--confirm)  MODE=confirm ;;
 		--rollback) MODE=rollback ;;
 		--url)      URL="$2"; shift ;;
@@ -121,18 +126,56 @@ if [ "$(printf '%s\n%s\n' "$CUR_VER" "$NEW_VER" | sort -V | tail -1)" = "$CUR_VE
 	echo "AOS $CUR_VER is the newest release; nothing to do"
 	exit 0
 fi
+OTHER=$(slot_other)
+DEV=$(slot_dev "$OTHER")
+# The release already written and waiting for the restart: Upgrade system
+# pressed again, or the check run before the reboot, must not write the
+# slot a second time or call the update outstanding. The idle slot is
+# looked into read-only; the mark says the write completed.
+slot_version() {
+	P=/run/aos-update-peek
+	mkdir -p "$P"
+	mount -o ro "$1" "$P" 2>/dev/null || return 0
+	if [ -f "$P/.aos-slot-ok" ]; then sed -n 's/^VERSION_ID=//p' "$P/usr/lib/os-release"; fi
+	umount "$P" 2>/dev/null || true
+}
+# The lines the Software application reads for its Update page; a person
+# at a terminal sees the >>> lines alone.
+prog() {
+	if [ "$PROG" = yes ]; then echo "::os $NEW_VER $*"; fi
+}
+if [ "$(slot_version "$DEV")" = "$NEW_VER" ] && [ "$(grubenv_get next)" = "$OTHER" ]; then
+	echo "AOS $NEW_VER is already in slot $OTHER and boots at the next restart"
+	prog done
+	exit 0
+fi
 if [ "$MODE" = check ]; then
 	echo "AOS $NEW_VER is available (this is $CUR_VER)"
 	exit 0
 fi
 
-OTHER=$(slot_other)
-DEV=$(slot_dev "$OTHER")
 echo ">>> Downloading AOS $NEW_VER"
-curl -fsSL -o "$WORK/$TAR" "$URL/$TAR"
+prog downloading 0
+if [ "$PROG" = yes ]; then
+	# The percentage is the file growing against the size the server
+	# states; curl is silent, so it is measured from outside.
+	size=$(curl -fsSLI "$URL/$TAR" | tr -d '\r' | awk 'tolower($1) == "content-length:" { n = $2 } END { print n }')
+	curl -fsSL -o "$WORK/$TAR" "$URL/$TAR" &
+	pid=$!
+	while kill -0 "$pid" 2>/dev/null; do
+		if [ -n "$size" ] && [ "$size" -gt 0 ] && [ -f "$WORK/$TAR" ]; then
+			prog downloading $(( $(stat -c %s "$WORK/$TAR") * 100 / size ))
+		fi
+		sleep 1
+	done
+	wait "$pid"
+else
+	curl -fsSL -o "$WORK/$TAR" "$URL/$TAR"
+fi
 ( cd "$WORK" && sha256sum -c --ignore-missing --quiet SHA256SUMS )
 
 echo ">>> Writing slot $OTHER ($DEV)"
+prog installing
 M=/run/aos-update
 mkdir -p "$M"
 # GRUB must not be pointed at this slot while it is being written: a run
@@ -192,3 +235,4 @@ umount "$M"
 # kernel. `apm remove kernel && apm install kernel` brings it back there.
 grub-editenv "$GRUBENV" set "next=$OTHER"
 echo "AOS $NEW_VER is installed in slot $OTHER and boots at the next restart"
+prog done
