@@ -16,7 +16,7 @@ per item, with its number.
    ```
    grep VERSION_ID /etc/os-release
    ```
-   Expect `0.1.22`.
+   Expect `0.1.23`.
 4. Software → Update → **Upgrade system** once more, if lines are
    left: runtime/gtk3 release 7 (libpulse) is one. Each line ends in
    done or failed; note any failed one with its reason.
@@ -37,39 +37,47 @@ per item, with its number.
 
 ## 1. Sleep
 
-The keyboard and touchpad died after a resume because the compositor
-never re-opened the input devices logind had revoked; 0.1.22 does.
+Round 15 came back from sleep with the keyboard and touchpad dead;
+0.1.22 resumes the input devices with the session.
 
 1. Close the lid, wait 30 s, open it. Expect the lock screen (if you
    removed the live marks in step 0.5), then the desktop, with the
    keyboard and touchpad working and the windows as they were.
-2. Then `systemctl suspend` from a terminal, power button to wake.
-   Same expectations.
-3. If anything is off:
+2. If anything is off:
    ```
    journalctl -b -u ade --no-pager | grep -i -E "session|input|resume" | tail -10 > ~/sleep.txt
    ```
 
 ## 2. The installer sees the NVMe
 
-The G14's drive sits behind Intel VMD; the kernel has the driver now.
 ```
 lsblk -d -o NAME,SIZE,MODEL,TRAN
 ```
-Expect the KIOXIA NVMe beside the stick. Then open **Install AOS**
-from the launcher: the drive must be offered. Do not install.
+Expect the KIOXIA NVMe beside the stick; **Install AOS** from the
+launcher must offer it. Do not install.
 
-## 3. Bluetooth
+## 3. Windows: minimize, the dock, the question
 
-1. Settings → Bluetooth → Scan: only devices with a name are listed
-   now (the nameless addresses were noise), plus anything paired.
-2. Pair your headphones; expect "Paired and connected" and the
-   headphones in Settings → Sound.
+1. Open Notepad, type something, press its close dot (the red one).
+   Expect the question in the window: Save, Don't Save, Cancel. Cancel
+   keeps it open; the close dot again and Don't Save closes it.
+2. Open Notepad and Terminal. Press Notepad's minimize dot (the
+   leftmost): it leaves the screen. Super: the dock at the bottom shows
+   an icon per running program, the name when the pointer rests on one,
+   a count when one has several windows. Click Notepad's icon: it is
+   back where it was.
+3. Super, right-click Terminal's icon: its windows listed with a close
+   mark each and "Close all" beneath. The mark closes the window; on a
+   program that ignores the request the mark reads "kill" and a second
+   press ends it.
+4. Open the File menu in Notepad, type, click back into the text, then
+   close with the dot: it must close (or ask, with unsaved text).
 
-## 4. Software
+## 4. Bluetooth
 
-After step 0's restart, Software → AOS and → Update must not say
-"installed and boots at the next restart" for the running release.
+Settings → Bluetooth → Scan lists named devices only, plus anything
+paired. Pair your headphones: "Paired and connected", and they appear
+in Settings → Sound.
 
 ## When done
 

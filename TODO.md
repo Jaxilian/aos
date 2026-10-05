@@ -1,7 +1,7 @@
 # TODO
 
-Updated 2026-10-05 midday. The newest release is 0.1.21; 0.1.22 (the
-round-15 fixes below) is in the works. The stick round is in
+Updated 2026-10-05 afternoon. The newest release is 0.1.22; 0.1.23
+(the desktop round below) is in the works. The stick round is in
 [TEST.md](TEST.md).
 
 Anything that needs a second machine, a second stick or a permanent
@@ -27,6 +27,18 @@ installation is postponed (see the end).
   the file is new since boot, and a click on the toast opens
   `aos-store update` (ade v0.1.34).
 - Test: `upgrade-ui-test.py` (docs/testing.md).
+
+## Desktop round (2026-10-05 midday, asked after round 15)
+
+Done for 0.1.23: windows minimize from the decoration and come back
+from the overview's dock (ade v0.1.38); the dock is icons (initials
+without one, the name on hover, a count), with a right-click menu
+listing the windows with close marks and "Close all", a program that
+ignores the request ended on the second press; a question dialog in
+the window itself (tgn ui::dialog, aos-sdk v0.4.12) -- the Notepad
+close that "couldn't" was the old external dialog needing zenity, which
+the image lacks, so the guard failed silently (notepad v0.1.6).
+desk-test.py drives the three in QEMU.
 
 ## Round 15 (stick on 0.1.21, 2026-10-05, free testing): what came back
 
