@@ -6,7 +6,8 @@
 #   primary=#rrggbb     the accent
 #   secondary=#rrggbb   the selected row
 #   effects=full        glass: translucent windows over the blurred desktop
+#   effects=chrome      glass on the bar and panels only; windows solid
 #   effects=light       opaque, no blur: for a slow GPU
 primary=#5865f2
 secondary=#264f78
-effects=full
+effects=chrome

@@ -5,7 +5,7 @@
 ################################################################################
 
 # A commit, not a tag -- see ade.mk. This one is v0.1.7.
-FILES_VERSION = cd8f819afc3284b72aebf437a5bce1749f1f0973
+FILES_VERSION = 45e3a6173160ac85f7f40b7932b53afe4228b629
 FILES_SITE = ssh://git@github.com/Jaxilian/files
 FILES_SITE_METHOD = git
 FILES_LICENSE = MIT

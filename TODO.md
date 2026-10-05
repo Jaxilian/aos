@@ -28,6 +28,17 @@ installation is postponed (see the end).
   `aos-store update` (ade v0.1.34).
 - Test: `upgrade-ui-test.py` (docs/testing.md).
 
+## Evening round (2026-10-05, for the big validation)
+
+Done for 0.1.25: the theme's third setting, `effects=chrome` -- glass on
+the bar and panels, windows solid -- as the default (aos-sdk v0.4.13;
+every application re-pinned, since an older SDK reads it as full
+glass); Settings → Display arranges two displays (left or right of the
+first, each on or off) through the file's order= and off= lines, which
+the compositor follows (ade v0.1.40, settings v0.1.26); GRUB's menu
+waits 2 s instead of 5 on an installed disk. disp-test.py drives the
+two-display part in QEMU.
+
 ## Desktop round (2026-10-05 midday, asked after round 15)
 
 Done for 0.1.23: windows minimize from the decoration and come back
@@ -103,8 +114,8 @@ Open, in priority order:
    DRM device (the Intel one) and never sees the other's connectors.
    Multi-GPU output: scan the second device's connectors and copy
    frames across (smithay's GpuManager). Big.
-5. **Glass only on the chrome**: the user wants the bar, the quick
-   panel and the overview translucent and windows solid (awin theme).
+5. ~~**Glass only on the chrome**~~: done 2026-10-05 evening
+   (effects=chrome, the default).
 6. **Camera and microphone permissions**: the sandbox binds /dev/snd
    and the session's PipeWire socket for everyone; a per-app switch
    needs the socket (and /dev/video*) withheld, which PipeWire's access
@@ -149,7 +160,9 @@ runner is installed on this laptop.
    measured change, with perf-test.py run before and after.
 4. **Steam's sandbox declaration.** It already runs in `aos-sandbox`;
    the store still says "everything, undeclared".
-5. **Display arrangement** and per-display on/off in Settings → Display.
+5. ~~**Display arrangement** and per-display on/off in Settings → Display.~~
+   Done 2026-10-05 evening (order= and off= lines; left/right of the
+   first display; QEMU-tested, hardware untested).
 6. **A file dialog the desktop draws** for sandboxed programs, so they
    reach one chosen file outside their home.
 6b. ~~**Programs page as a list.**~~ Gone: each program's permissions

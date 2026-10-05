@@ -5,7 +5,7 @@
 ################################################################################
 
 # A commit, not a tag -- see ade.mk. This one is v0.1.4.
-IMAGES_VERSION = a619cd6fb35aadf7b03fd0df3d5988fdff47f816
+IMAGES_VERSION = 994bba6367d96de404f66037b5c8239808d5c363
 IMAGES_SITE = ssh://git@github.com/Jaxilian/images
 IMAGES_SITE_METHOD = git
 IMAGES_LICENSE = MIT

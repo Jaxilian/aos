@@ -73,13 +73,39 @@ launcher must offer it. Do not install.
 4. Open the File menu in Notepad, type, click back into the text, then
    close with the dot: it must close (or ask, with unsaved text).
 
-## 4. Bluetooth
+## 4. Appearance
+
+The theme's default is now glass on the chrome only.
+1. After the restart into 0.1.25: windows are solid; the bar, the
+   quick panel (top right) and the launcher (Super) are translucent
+   over the blurred desktop.
+2. Settings → Display → Appearance → **Glass everywhere**: a Notepad
+   started afterwards is translucent again. **Glass on the bar and
+   panels** back: a new Notepad is solid.
+3. **Light**: the bar turns opaque within seconds.
+
+## 4b. Two displays (the USB-C monitor, which goes through the Intel GPU)
+
+1. Plug it in. Settings → Display lists both, each with an **On**
+   switch, and the second with **Right of eDP-1** / **Left of eDP-1**.
+2. Left of: the pointer crosses to the monitor at the laptop's left
+   edge within seconds. Right of: at the right edge.
+3. Switch the monitor **On** off: it goes dark, its windows come back
+   to the laptop. On again: it lights up.
+4. Mirror still works as before.
+
+## 4c. Boot
+
+The GRUB menu waits 2 seconds now instead of 5; "AOS (previous
+version)" is still there if you press a key in time.
+
+## 5. Bluetooth
 
 Settings → Bluetooth → Scan lists named devices only, plus anything
 paired. Pair your headphones: "Paired and connected", and they appear
 in Settings → Sound.
 
-## 5. A stick for someone else (optional, needs a second stick)
+## 6. A stick for someone else (optional, needs a second stick)
 
 ```
 ./usb.sh --oobe /dev/sdX

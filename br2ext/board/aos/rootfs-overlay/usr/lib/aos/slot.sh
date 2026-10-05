@@ -144,7 +144,7 @@ terminal_input console serial
 terminal_output console serial
 
 set default="0"
-set timeout="5"
+set timeout="2"
 
 set a_uuid=$a_uuid
 set b_uuid=$b_uuid
