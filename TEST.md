@@ -16,7 +16,7 @@ per item, with its number.
    ```
    grep VERSION_ID /etc/os-release
    ```
-   Expect `0.1.21`.
+   Expect `0.1.22`.
 4. Software → Update → **Upgrade system** once more, if lines are
    left: runtime/gtk3 release 7 (libpulse) is one. Each line ends in
    done or failed; note any failed one with its reason.
@@ -35,78 +35,45 @@ per item, with its number.
    stick): Software → AOS → Compatibility → **XWayland** off, then on
    again. After a few seconds `pgrep -a Xwayland` must show it.
 
-## 1. Sound
+## 1. Sleep
 
-libpulse was on the stick at the end of the last round (runtime/gtk3
-release 7 installed at 08:36); a Firefox started before that could not
-have it. So: close every Firefox window, start it again, play a video.
-```
-wpctl status | sed -n '/Streams/,$p'
-grep -c libpulse /proc/$(pgrep -f -o firefox/firefox)/maps
-```
-Expect a Firefox line under Streams and a count above 0. If the count
-is 0, Firefox is not loading the library; if it is above 0 and there is
-still no stream, put the last lines of this in `~/issues.md`:
-```
-journalctl --user -b --no-pager | grep -i -E "pulse|pipewire" | tail -5
-```
+The keyboard and touchpad died after a resume because the compositor
+never re-opened the input devices logind had revoked; 0.1.22 does.
 
-## 2. Bluetooth
-
-Settings → Bluetooth talks to BlueZ directly now (no bluetoothctl).
-1. The page must show the adapter on. Switch it off and on.
-2. **Scan** with a device in pairing mode; it appears in the list.
-3. Pick it, **Pair**: expect "Paired and connected". Headphones should
-   then show up in Settings → Sound. If anything fails, the page's
-   message at the bottom is what I need, word for word.
-
-## 3. Suspend and lid
-
-The windows go blank after a resume while Firefox stays fine, and no
-error reaches the journal. This narrows it:
-
-1. Open Notepad with some text. Open a terminal and in it:
+1. Close the lid, wait 30 s, open it. Expect the lock screen (if you
+   removed the live marks in step 0.5), then the desktop, with the
+   keyboard and touchpad working and the windows as they were.
+2. Then `systemctl suspend` from a terminal, power button to wake.
+   Same expectations.
+3. If anything is off:
    ```
-   settings 2>&1 | tee ~/settings-after-sleep.txt
+   journalctl -b -u ade --no-pager | grep -i -E "session|input|resume" | tail -10 > ~/sleep.txt
    ```
-   (the Settings window opens from the terminal; leave both open).
-2. Close the lid, wait 30 s, open it. Expect the lock screen (after
-   step 0.5), then the desktop.
-3. Click into Notepad and into the Settings window; use them. Note what
-   each shows. Press **Print** for a screenshot (it lands in
-   Pictures/Screenshots).
-4. Then:
-   ```
-   journalctl -b -u ade --no-pager | tail -40 > ~/suspend.txt
-   ```
-   and close the Settings window, so `~/settings-after-sleep.txt` holds
-   whatever it printed.
 
-## 3b. Brightness
+## 2. The installer sees the NVMe
 
-The slider writes `/sys/class/backlight/intel_backlight/brightness`,
-range 0 to 38400, and 0 went black, so the writes arrive. Whether the
-panel follows other values is a kernel question; this answers it:
+The G14's drive sits behind Intel VMD; the kernel has the driver now.
 ```
-echo 19200 | sudo tee /sys/class/backlight/intel_backlight/brightness
-echo 38400 | sudo tee /sys/class/backlight/intel_backlight/brightness
-echo 50 | sudo tee /sys/class/backlight/nvidia_0/brightness
+lsblk -d -o NAME,SIZE,MODEL,TRAN
 ```
-Say for each line whether the panel changed.
+Expect the KIOXIA NVMe beside the stick. Then open **Install AOS**
+from the launcher: the drive must be offered. Do not install.
+
+## 3. Bluetooth
+
+1. Settings → Bluetooth → Scan: only devices with a name are listed
+   now (the nameless addresses were noise), plus anything paired.
+2. Pair your headphones; expect "Paired and connected" and the
+   headphones in Settings → Sound.
 
 ## 4. Software
 
-1. Software → Third-party → Firefox: **Back** is the first row, above
-   the title.
-2. Software → Update after an upgrade: no "apm said" section; the
-   steps' own lines only.
-3. The updates toast says what waits, without "Click to open", and
-   comes once per session.
+After step 0's restart, Software → AOS and → Update must not say
+"installed and boots at the next restart" for the running release.
 
 ## When done
 
 1. Settings → About → **Save Report**. It lands in your home folder.
 2. Plug the stick into the Fedora laptop, open the `aos-data` partition
-   in Files, and tell me. I read the report, `~/issues.md`,
-   `~/suspend.txt`, `~/settings-after-sleep.txt` and the screenshot
-   from there.
+   in Files, and tell me. I read the report, `~/issues.md` and
+   `~/sleep.txt` from there.

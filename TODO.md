@@ -1,7 +1,7 @@
 # TODO
 
-Updated 2026-10-05. The newest release is 0.1.20; 0.1.21 (the round-14
-fixes below) is in the works. The stick round is in
+Updated 2026-10-05 midday. The newest release is 0.1.21; 0.1.22 (the
+round-15 fixes below) is in the works. The stick round is in
 [TEST.md](TEST.md).
 
 Anything that needs a second machine, a second stick or a permanent
@@ -27,6 +27,22 @@ installation is postponed (see the end).
   the file is new since boot, and a click on the toast opens
   `aos-store update` (ade v0.1.34).
 - Test: `upgrade-ui-test.py` (docs/testing.md).
+
+## Round 15 (stick on 0.1.21, 2026-10-05, free testing): what came back
+
+Works: Bluetooth (adapter, scan, a long list), sound in Firefox, Steam
+installed. Found: after a resume every input was dead -- logind had
+revoked the devices during the pause, and the compositor re-activated
+DRM only; it suspends and resumes libinput with the session now (ade
+v0.1.37). The installer offered no disk because the kernel never saw
+the NVMe: it sits behind Intel VMD (PCI domain 10000) and CONFIG_VMD
+was off (fixed in the fragment). Software said "installed; restart to
+finish" of the running release (the store now ignores the file for the
+running version, v0.2.3). The Bluetooth list showed dozens of nameless
+addresses (hidden unless paired, settings v0.1.25).
+Asked: an account made at first boot instead of the demo account, so a
+stick can be handed to someone -- the first-boot setup of roadmap
+Phase 2; now item 2 below.
 
 ## Round 14 (stick on 0.1.20, 2026-10-05 morning): what came back
 
@@ -62,11 +78,10 @@ libpulse in runtime/gtk3 release 7, which is why Firefox was silent
 (pipewire-pulse listened, nothing could speak to it).
 Open, in priority order:
 
-1. **Resume.** s2idle goes in and out cleanly (the journal); afterwards
-   the windows' contents are gone, and the second time the desktop
-   froze. Nothing in the journal names it. TEST.md step 3 captures the
-   lines after a resume; suspect the clients' GPU textures, or the
-   compositor's. [[qemu-suspend-limits]]: QEMU cannot stand in.
+1. ~~**Resume.**~~ The input death is explained and fixed (round 15,
+   libinput never resumed); whether the blank windows of rounds 13-14
+   were the same thing (a window that cannot be clicked looks dead) is
+   what round 16 tells.
 2. ~~**Bluetooth: a client that talks to BlueZ.**~~ Done 2026-10-05
    (settings v0.1.24, zbus); pairing without an agent, so a keyboard
    that wants a passkey typed is still out. Untested on the stick.
@@ -103,6 +118,11 @@ runner is installed on this laptop.
    apm v0.1.9, store v0.2.0, settings v0.1.22, ade v0.1.34 pushed and
    pinned; ISO on aos-releases, tarball on the index, the three system
    apps published. Untested on the stick: TEST.md step 0.
+1c. **First-boot setup.** A stick or an image handed to someone should
+   ask for the account at its first boot (name, password, keyboard,
+   time zone) and drop the demo account, instead of the demo install
+   keeping admin forever. aos-setup's pages are most of it; a systemd
+   unit before the session decides. Asked for in round 15.
 2. **CI's first real run.** `systemctl --user enable --now aos-runner`,
    then watch the v0.1.17 tag build at
    https://github.com/Jaxilian/aos/actions; fix what differs from a
