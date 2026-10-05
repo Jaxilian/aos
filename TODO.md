@@ -1,7 +1,7 @@
 # TODO
 
-Updated 2026-10-05 afternoon. The newest release is 0.1.22; 0.1.23
-(the desktop round below) is in the works. The stick round is in
+Updated 2026-10-05 evening. The newest release is 0.1.24 (0.1.23: the
+desktop round; 0.1.24: the first-boot setup). Both untested on the stick. The stick round is in
 [TEST.md](TEST.md).
 
 Anything that needs a second machine, a second stick or a permanent
