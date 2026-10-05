@@ -16,125 +16,97 @@ per item, with its number.
    ```
    grep VERSION_ID /etc/os-release
    ```
-   Expect `0.1.20`.
+   Expect `0.1.21`.
 4. Software → Update → **Upgrade system** once more, if lines are
    left: runtime/gtk3 release 7 (libpulse) is one. Each line ends in
    done or failed; note any failed one with its reason.
 4b. About two minutes after a boot a toast says what updates wait (if
    any). Click it: Software must open on its Update page.
-5. Once only, for the brightness slider:
+5. The stick was installed with the demo account, which keeps the live
+   system's marks: no lock screen ever, sudo without a password. You
+   set a password since, so take them away once (an update does not
+   bring them back from 0.1.21 on):
    ```
-   sudo usermod -aG video admin
+   sudo rm -f /etc/aos/live /etc/sudoers.d/20-aos-live
    ```
-   Then log out and in.
+   From then on sudo asks your password, and the lock screen is real.
+6. XWayland lost its libraries to the runtime upgrade of the last
+   round (an apm bug, fixed in 0.1.21, but the links are gone on this
+   stick): Software → AOS → Compatibility → **XWayland** off, then on
+   again. After a few seconds `pgrep -a Xwayland` must show it.
 
 ## 1. Sound
 
-Firefox and Discord play through PulseAudio's API, and 0.1.19 had no
-libpulse at all; runtime/gtk3 release 7 carries it. So first:
-Software → Update → **Upgrade system** (or `sudo apm upgrade`), which
-rebuilds Firefox on the new runtime, then start Firefox again.
-
-1. Play any YouTube video. While it plays:
-   ```
-   wpctl status | sed -n '/Streams/,$p'
-   ```
-   Expect a Firefox line under Streams, and sound from the chosen output.
-2. If still silent, from the terminal:
-   ```
-   ls /opt/apm/packages/runtime/gtk3/current/lib/ | grep pulse
-   journalctl --user -b | grep -i -E "pulse|pipewire" | tail -5
-   ```
-3. The speaker: the card's components say `spk:cs35l56+cs42l43-spk`,
-   the same as Fedora on this machine. This lists what UCM offers:
-   ```
-   alsaucm -c sof-soundwire list _verbs
-   alsaucm -c sof-soundwire set _verb HiFi list _devices
-   ```
-   Put both outputs in `~/issues.md`.
+libpulse was on the stick at the end of the last round (runtime/gtk3
+release 7 installed at 08:36); a Firefox started before that could not
+have it. So: close every Firefox window, start it again, play a video.
+```
+wpctl status | sed -n '/Streams/,$p'
+grep -c libpulse /proc/$(pgrep -f -o firefox/firefox)/maps
+```
+Expect a Firefox line under Streams and a count above 0. If the count
+is 0, Firefox is not loading the library; if it is above 0 and there is
+still no stream, put the last lines of this in `~/issues.md`:
+```
+journalctl --user -b --no-pager | grep -i -E "pulse|pipewire" | tail -5
+```
 
 ## 2. Bluetooth
 
-The journal of your last round shows the adapter working (hci0 with its
-firmware loaded, bluetoothd managing it); what prints nothing is the
-bluetoothctl client. Put the output of these in `~/issues.md`:
-```
-busctl --no-pager tree org.bluez
-busctl --no-pager --json=short call org.bluez / org.freedesktop.DBus.ObjectManager GetManagedObjects | cut -c1-600
-bluetoothctl show | cat; echo rc=$?
-```
-Settings → Bluetooth stays as it was; a client that talks to BlueZ
-directly is the next step and these lines tell me the shape of the data.
+Settings → Bluetooth talks to BlueZ directly now (no bluetoothctl).
+1. The page must show the adapter on. Switch it off and on.
+2. **Scan** with a device in pairing mode; it appears in the list.
+3. Pick it, **Pair**: expect "Paired and connected". Headphones should
+   then show up in Settings → Sound. If anything fails, the page's
+   message at the bottom is what I need, word for word.
 
 ## 3. Suspend and lid
 
-Last round: the windows' contents vanished after the first resume and
-the machine froze after the second; no lock screen. The shell now locks
-the screen when the machine is about to sleep.
+The windows go blank after a resume while Firefox stays fine, and no
+error reaches the journal. This narrows it:
 
-1. Open Notepad with some text and a terminal. Then, before closing
-   the lid, so the journal survives a freeze:
+1. Open Notepad with some text. Open a terminal and in it:
    ```
-   sudo journalctl --flush; sync
+   settings 2>&1 | tee ~/settings-after-sleep.txt
    ```
-2. Close the lid, wait 30 seconds, open it. Expect the lock screen,
-   then your desktop with the windows' contents intact. Note which of
-   the three you got.
-3. If it came back, at once:
+   (the Settings window opens from the terminal; leave both open).
+2. Close the lid, wait 30 s, open it. Expect the lock screen (after
+   step 0.5), then the desktop.
+3. Click into Notepad and into the Settings window; use them. Note what
+   each shows. Press **Print** for a screenshot (it lands in
+   Pictures/Screenshots).
+4. Then:
    ```
-   journalctl -b --no-pager | grep -i -E "resume|vulkan|device lost|awin|ade:" | tail -30 > ~/suspend.txt
+   journalctl -b -u ade --no-pager | tail -40 > ~/suspend.txt
    ```
-   If it froze, after the reboot:
-   ```
-   journalctl -b -1 --no-pager | tail -150 > ~/suspend.txt
-   ```
-4. Only if 2 went well: `systemctl suspend` from a terminal, power
-   button to wake, same expectations.
+   and close the Settings window, so `~/settings-after-sleep.txt` holds
+   whatever it printed.
 
 ## 3b. Brightness
 
-The slider writes the panel's backlight as your user, which needs the
-`video` group and the udev rule's permissions. Put the output in
-`~/issues.md`:
+The slider writes `/sys/class/backlight/intel_backlight/brightness`,
+range 0 to 38400, and 0 went black, so the writes arrive. Whether the
+panel follows other values is a kernel question; this answers it:
 ```
-id | tr ' ' '\n' | grep -c video
-ls -l /sys/class/backlight/*/brightness
-for b in /sys/class/backlight/*; do echo "$b -> $(readlink $b/device)"; done
+echo 19200 | sudo tee /sys/class/backlight/intel_backlight/brightness
+echo 38400 | sudo tee /sys/class/backlight/intel_backlight/brightness
+echo 50 | sudo tee /sys/class/backlight/nvidia_0/brightness
 ```
-Then the quick panel's slider: expect the panel to follow. If not,
-```
-journalctl -b --no-pager _COMM=ade-shell | grep -i bright | tail -3
-```
+Say for each line whether the panel changed.
 
-## 4. Software: the system applications and the permissions
+## 4. Software
 
-1. Software → Official: Files, Images, Notepad, Terminal, Settings,
-   Software, System Monitor, every one marked **Installed**.
-2. Software → Third-party → Firefox. Expect, below the details, a
-   **Permissions** section: "Its own files" chosen, the folders with
-   Downloads on, Network on.
-3. Give it **Pictures**, start Firefox, File → Open File: the dialog
-   reaches `~/Pictures`. Switch Pictures off again.
-4. Settings has no Programs page any more; About's **Open Software**
-   button opens Software on Update.
-
-## 5. Update, after the upgrade
-
-1. Right after step 0's upgrade, before the restart: Software → Update
-   must say "AOS 0.1.20 is installed and boots at the next restart"
-   with a **Restart** button, and no second Upgrade system for the OS.
-2. Software → AOS says the same at the top.
-
-## 6. The HDMI port
-
-On this laptop the HDMI port is wired to the NVIDIA GPU, and the
-desktop renders on the Intel one only, so an HDMI monitor stays black
-for now; the USB-C port goes through the Intel GPU and works. Nothing
-to test; it is on the list.
+1. Software → Third-party → Firefox: **Back** is the first row, above
+   the title.
+2. Software → Update after an upgrade: no "apm said" section; the
+   steps' own lines only.
+3. The updates toast says what waits, without "Click to open", and
+   comes once per session.
 
 ## When done
 
 1. Settings → About → **Save Report**. It lands in your home folder.
 2. Plug the stick into the Fedora laptop, open the `aos-data` partition
    in Files, and tell me. I read the report, `~/issues.md`,
-   `~/suspend.txt` and `/var/log/aos-update.log` from there.
+   `~/suspend.txt`, `~/settings-after-sleep.txt` and the screenshot
+   from there.

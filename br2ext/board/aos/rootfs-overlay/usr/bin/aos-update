@@ -218,6 +218,16 @@ slot_write_fstab "$M/etc" "UUID=$(blkid -s UUID -o value "$DEV")" \
 	"$(awk '$3 == "swap" || /^# no swap/' /etc/fstab)"
 rm -f /var/etc/upper/fstab
 
+# The release tarball is the live image's root, with the live account's
+# leave in it: no password, sudo without one, no lock screen
+# (/etc/sudoers.d/20-aos-live, /etc/aos/live). aos-install drops them on
+# an installed machine; a slot written here must not bring them back
+# (the first update of 0.1.16 or later did, until 0.1.21). A machine
+# that runs with them -- a demo install -- keeps them.
+if [ ! -e /etc/aos/live ]; then
+	rm -f "$M/etc/sudoers.d/20-aos-live" "$M/etc/aos/live"
+fi
+
 # Accounts the new release adds -- a system user for a new service, say --
 # would be hidden by the copies of passwd and group the overlay holds once
 # anything on this machine changed them. Append what is new by name.

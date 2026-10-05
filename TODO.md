@@ -1,7 +1,7 @@
 # TODO
 
-Updated 2026-10-04 evening. The newest release is 0.1.19; 0.1.20 (the
-round-13 fixes below) is in the works. The stick round is in
+Updated 2026-10-05. The newest release is 0.1.20; 0.1.21 (the round-14
+fixes below) is in the works. The stick round is in
 [TEST.md](TEST.md).
 
 Anything that needs a second machine, a second stick or a permanent
@@ -28,6 +28,28 @@ installation is postponed (see the end).
   `aos-store update` (ade v0.1.34).
 - Test: `upgrade-ui-test.py` (docs/testing.md).
 
+## Round 14 (stick on 0.1.20, 2026-10-05 morning): what came back
+
+Works: the upgrade and restart, the Permissions section, the restart
+state, Open Software. Found: XWayland lost libpixman -- apm's unexpose
+unlinked every soname a package names, so the gtk3 upgrade took the X
+runtime's shared links (fixed: only the package's own entries go, apm
+v0.1.10; the stick needs XWayland off/on once). Firefox still silent,
+but libpulse was there -- Firefox was older than the runtime; the next
+round restarts it. Bluetooth: the bus answered with the adapter powered,
+so Settings talks to BlueZ over zbus now (v0.1.24; scan and read proven
+on the host). Resume: windows blank after a redraw, Firefox fine, no
+error logged; TEST.md 3 runs Settings from a terminal across a sleep.
+Brightness: 0 went black, other values did nothing; TEST.md 3b writes
+the sysfs values by hand. The user's four extras done: toast text,
+once per session, no "apm said", Back first. Also found: the update
+tarball carries /etc/aos/live and sudoers.d/20-aos-live (the live
+account's leave), and aos-update wrote them into every slot -- an
+installed machine got passwordless sudo and no lock back with its
+first update. Fixed: aos-update drops them unless the running system
+has them. The stick is a demo install and has them by design, which is
+why no lock screen ever showed; TEST.md 0.5 removes them once.
+
 ## Round 13 (stick on 0.1.19, 2026-10-04 afternoon): what came back
 
 Works: boot, Upgrade system, restart into 0.1.19, XWayland, Firefox
@@ -45,12 +67,9 @@ Open, in priority order:
    froze. Nothing in the journal names it. TEST.md step 3 captures the
    lines after a resume; suspect the clients' GPU textures, or the
    compositor's. [[qemu-suspend-limits]]: QEMU cannot stand in.
-2. **Bluetooth: a client that talks to BlueZ.** The adapter works
-   (hci0, firmware, bluetoothd, pipewire's endpoints registered);
-   bluetoothctl prints nothing. Settings' Bluetooth page should use
-   zbus on the system bus (power, discovery held open for the scan,
-   devices, pair, connect); the host Fedora has BlueZ to develop against.
-   TEST.md step 2 asks for the object tree first.
+2. ~~**Bluetooth: a client that talks to BlueZ.**~~ Done 2026-10-05
+   (settings v0.1.24, zbus); pairing without an agent, so a keyboard
+   that wants a passkey typed is still out. Untested on the stick.
 3. **Brightness slider on the G14**: untested after the group change;
    TEST.md step 3b.
 4. **The HDMI port is the NVIDIA GPU's**: the compositor renders on one
