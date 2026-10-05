@@ -79,6 +79,16 @@ Settings → Bluetooth → Scan lists named devices only, plus anything
 paired. Pair your headphones: "Paired and connected", and they appear
 in Settings → Sound.
 
+## 5. A stick for someone else (optional, needs a second stick)
+
+```
+./usb.sh --oobe /dev/sdX
+```
+Boot it: no account on it; the desktop comes up as a locked setup user
+with "Welcome to AOS" (keyboard, time zone, account, Finish). Finish
+makes the account, restarts the desktop as it, and sudo asks its
+password from then on. `id setup` afterwards must say no such user.
+
 ## When done
 
 1. Settings → About → **Save Report**. It lands in your home folder.

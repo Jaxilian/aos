@@ -113,9 +113,12 @@ CHECKS = [
 PAM_CHECK = (r"""su admin -s /bin/sh -c 'printf "%s\0" nope | unix_chkpwd admin nullok && w=accepted || w=refused; """
              r"""sudo -n true && s=free || s=asks; echo wrong=$w sudo=$s'""")
 
+# INSTALL_MODE=oobe installs with no account: the disk's first boot runs
+# the setup (oobe-test.py drives it); the default keeps the demo account
+# every other disk test logs in as.
 INSTALL = [
     "lsblk -o NAME,SIZE,TYPE /dev/vda",
-    "printf 'YES\\n' | aos-install --demo /dev/vda 2>&1 | tail -20",
+    "printf 'YES\\n' | aos-install --%s /dev/vda 2>&1 | tail -20" % os.environ.get("INSTALL_MODE", "demo"),
 ]
 
 # The desktop session, checked from the serial login -- which is the only way
@@ -1173,7 +1176,7 @@ def main():
                 # wrong and a locked session could not be unlocked.
                 out = ser.run(PAM_CHECK)
                 print("\n$ %s\n%s" % (PAM_CHECK, out))
-                if "right=0 wrong=refused" not in out:
+                if "wrong=refused sudo=free" not in out:
                     print("!! the demo account's own password is not accepted as that account")
                     ok = False
                 if MODE in ("live", "usb"):

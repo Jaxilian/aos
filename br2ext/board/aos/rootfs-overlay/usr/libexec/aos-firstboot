@@ -1,0 +1,110 @@
+#!/bin/sh
+#
+# aos-firstboot -- make the machine's owner, at its first boot.
+#
+# An installation made with `aos-install --oobe` has no account: its
+# session belongs to a locked "setup" user, whose desktop runs
+# `aos-setup --first-boot` (keyboard, time zone, account), and that
+# program runs this, as root through the one sudoers line the setup user
+# has. It creates the owner the way aos-install does on a release install,
+# puts the keyboard and the zone where the desktop and the console read
+# them, hands the session to the owner and restarts the desktop as them.
+# Once an owner exists the marker is gone, the sudoers line with it, and
+# this refuses to run again: there is no second owner by this road.
+#
+#   aos-firstboot --user NAME --password-file FILE [--keymap CODE] [--zone ZONE]
+#
+# Prints a ">>>" line per stage and "AOS is yours, NAME" at the end,
+# which aos-setup shows as a bar; a failure under set -e ends the output
+# with the error and a non-zero exit.
+
+set -e
+
+MARK=/etc/aos/oobe
+SUDOERS=/etc/sudoers.d/30-aos-oobe
+USERCONF=/etc/systemd/system/ade.service.d/10-aos-user.conf
+
+NEWUSER=""
+PASSFILE=""
+KEYMAP=""
+ZONE=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--user)          NEWUSER="$2"; shift ;;
+		--password-file) PASSFILE="$2"; shift ;;
+		--keymap)        KEYMAP="$2"; shift ;;
+		--zone)          ZONE="$2"; shift ;;
+		*) echo "aos-firstboot: unknown option $1" >&2; exit 64 ;;
+	esac
+	shift
+done
+[ "$(id -u)" = 0 ] || { echo "aos-firstboot: needs root" >&2; exit 1; }
+[ -f "$MARK" ] || { echo "aos-firstboot: this machine has an owner already" >&2; exit 1; }
+[ -n "$NEWUSER" ] || { echo "aos-firstboot: --user NAME is needed" >&2; exit 64; }
+echo "$NEWUSER" | grep -qE '^[a-z_][a-z0-9_-]{0,31}$' || { echo "aos-firstboot: '$NEWUSER' is not a usable user name" >&2; exit 1; }
+case "$NEWUSER" in root|admin|setup|ade) echo "aos-firstboot: $NEWUSER is taken; pick another" >&2; exit 1 ;; esac
+! id "$NEWUSER" >/dev/null 2>&1 || { echo "aos-firstboot: $NEWUSER exists" >&2; exit 1; }
+[ -n "$PASSFILE" ] && [ -r "$PASSFILE" ] || { echo "aos-firstboot: --password-file FILE is needed" >&2; exit 64; }
+NEWPASS=$(head -n 1 "$PASSFILE")
+rm -f "$PASSFILE"
+[ -n "$NEWPASS" ] || { echo "aos-firstboot: the password is empty" >&2; exit 1; }
+if [ -n "$KEYMAP" ]; then
+	echo "$KEYMAP" | grep -qE '^[a-z]{2,8}$' || { echo "aos-firstboot: '$KEYMAP' is not a keyboard layout code" >&2; exit 1; }
+fi
+if [ -n "$ZONE" ]; then
+	case "$ZONE" in *..*) echo "aos-firstboot: bad zone" >&2; exit 1 ;; esac
+	[ -f "/usr/share/zoneinfo/$ZONE" ] || { echo "aos-firstboot: no time zone '$ZONE'" >&2; exit 1; }
+fi
+
+# The same account aos-install makes: wheel for sudo and polkit, pipewire
+# for real-time audio, video for the backlight. /etc is the overlay on the
+# data partition, so this outlives every system update.
+echo ">>> Account: $NEWUSER owns this machine"
+useradd -m -G wheel,pipewire,video -s /bin/bash "$NEWUSER"
+printf '%s:%s\n' "$NEWUSER" "$NEWPASS" | chpasswd
+unset NEWPASS
+# A locked password refuses the console and nothing else (sshd's key
+# login goes through pam account, which a lock does not touch).
+usermod -p '!' root
+
+# The keyboard and the zone, as aos-install writes them: the desktop reads
+# its layout from /etc/ade/environment, the console from vconsole.conf.
+if [ -n "$KEYMAP" ]; then
+	echo ">>> Keyboard: $KEYMAP"
+	env=/etc/ade/environment
+	grep -v '^XKB_DEFAULT_LAYOUT=' "$env" > "$env.new" 2>/dev/null || true
+	echo "XKB_DEFAULT_LAYOUT=$KEYMAP" >> "$env.new"
+	mv "$env.new" "$env"
+	console=$KEYMAP
+	case "$KEYMAP" in
+		se) console=sv-latin1 ;; de) console=de-latin1 ;; fr) console=fr-latin1 ;;
+		es) console=es ;; it) console=it ;; no) console=no-latin1 ;; dk) console=dk-latin1 ;;
+		fi) console=fi ;; gb) console=uk ;; us) console=us ;; pl) console=pl ;; ru) console=ru ;;
+		ch) console=de_CH-latin1 ;; pt) console=pt-latin1 ;; nl) console=nl ;; cz) console=cz-lat2 ;;
+	esac
+	if ls /usr/share/keymaps/i386/*/"$console".map.gz >/dev/null 2>&1; then
+		grep -v '^KEYMAP=' /etc/vconsole.conf > /etc/vconsole.conf.new 2>/dev/null || true
+		echo "KEYMAP=$console" >> /etc/vconsole.conf.new
+		mv /etc/vconsole.conf.new /etc/vconsole.conf
+	fi
+fi
+if [ -n "$ZONE" ]; then
+	echo ">>> Time zone: $ZONE"
+	ln -sfn "../usr/share/zoneinfo/$ZONE" /etc/localtime
+fi
+
+# The session is the owner's from the next start of the desktop; the
+# setup user's road ends here: no marker, no sudoers line, and the account
+# itself goes once its session is over.
+echo ">>> Desktop: the session becomes $NEWUSER's"
+cat > "$USERCONF" <<USERCONF
+# Written by aos-firstboot: the desktop session is this account's.
+[Service]
+User=$NEWUSER
+USERCONF
+rm -f "$MARK" "$SUDOERS"
+systemctl daemon-reload
+# After this program has returned to aos-setup, which shows the last line.
+systemd-run --quiet --on-active=3 --unit=aos-firstboot-restart systemctl restart ade
+systemd-run --quiet --on-active=30 --unit=aos-firstboot-cleanup userdel -r setup
+echo "AOS is yours, $NEWUSER. The desktop restarts as you in a moment."

@@ -130,11 +130,13 @@ runner is installed on this laptop.
    apm v0.1.9, store v0.2.0, settings v0.1.22, ade v0.1.34 pushed and
    pinned; ISO on aos-releases, tarball on the index, the three system
    apps published. Untested on the stick: TEST.md step 0.
-1c. **First-boot setup.** A stick or an image handed to someone should
-   ask for the account at its first boot (name, password, keyboard,
-   time zone) and drop the demo account, instead of the demo install
-   keeping admin forever. aos-setup's pages are most of it; a systemd
-   unit before the session decides. Asked for in round 15.
+1c. ~~**First-boot setup.**~~ Done 2026-10-05: `aos-install --oobe`
+   (`./usb.sh --oobe`) leaves no account; a locked `setup` user's
+   session runs `aos-setup --first-boot` (keyboard, time zone,
+   account, Finish), which runs `/usr/libexec/aos-firstboot` through
+   its one sudoers line: the owner is made, the session rewritten,
+   the desktop restarted as them, the road closed. oobe-test.py in
+   QEMU. Untested on hardware.
 2. **CI's first real run.** `systemctl --user enable --now aos-runner`,
    then watch the v0.1.17 tag build at
    https://github.com/Jaxilian/aos/actions; fix what differs from a

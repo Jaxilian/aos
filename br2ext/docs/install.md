@@ -90,6 +90,10 @@ AOS**:
 5. **Install**: a progress bar, then **Restart**. Remove the stick when the
    machine turns off.
 
+A machine installed for someone else (`aos-install --oobe`, or a stick
+made with `./usb.sh --oobe`) asks the same questions at its first boot
+instead, without the disk, and the desktop restarts as the new owner.
+
 ## 5. After the install
 
 - **Wi-Fi, sound, displays, Bluetooth, users, updates**: the Settings

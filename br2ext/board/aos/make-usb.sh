@@ -6,6 +6,9 @@
 #   ./usb.sh /dev/sdX         the same, onto that stick
 #   ./usb.sh --no-build       skip make; install the image already built
 #   ./usb.sh --test           afterwards boot the stick in QEMU to prove it
+#   ./usb.sh --oobe           a stick for someone else: no account on it; its
+#                             first boot asks for one (keyboard, time zone,
+#                             name and password) and makes it the owner
 #   ./usb.sh --release        a machine of your own: asks for a user name and
 #                             password, and the install creates that account
 #                             instead of the demo one (admin / 123321) and
@@ -45,6 +48,7 @@ DEV=""
 BUILD=yes
 TEST=no
 RELEASE=no
+OOBE=no
 ACCOUNT=""
 SEED=""
 for a in "$@"; do
@@ -52,6 +56,7 @@ for a in "$@"; do
 		--no-build) BUILD=no ;;
 		--test)     TEST=yes ;;
 		--release)  RELEASE=yes ;;
+		--oobe)     OOBE=yes ;;
 		--seed=*)   SEED=$(realpath "${a#--seed=}") ;;
 		--help|-h)  sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 		/dev/*)     DEV="$a" ;;
@@ -117,6 +122,9 @@ cleanup() {
 	kill "${KEEPALIVE:-}" 2>/dev/null
 }
 trap cleanup EXIT
+if [ "$RELEASE" = yes ] && [ "$OOBE" = yes ]; then
+	echo "make-usb.sh: --release and --oobe exclude each other" >&2; exit 1
+fi
 if [ "$RELEASE" = yes ]; then
 	echo ">>> Release install: your own account replaces the demo one."
 	printf "User name: "
@@ -179,7 +187,7 @@ echo
 # The stick was confirmed above; write-usb.sh asks the same question once
 # more, and the answer travels down the pipe.
 # shellcheck disable=SC2086
-printf 'YES\n' | sudo "$WRITE" "$DEV" --install --auto ${ACCOUNT:+--account "$ACCOUNT"}
+printf 'YES\n' | sudo "$WRITE" "$DEV" --install --auto ${ACCOUNT:+--account "$ACCOUNT"} $([ "$OOBE" = yes ] && echo --oobe)
 
 # --seed=DIR: DIR's contents into the account's home on the installed
 # stick -- notes and scripts for the next test round. After the install,
@@ -215,6 +223,7 @@ fi
 
 cat <<EOF
 
+$([ "$OOBE" = yes ] && echo "No account on it: the first boot asks for one and makes it the owner.")
 $([ "$RELEASE" = yes ] && echo "Log in as $NEWUSER; the demo account is gone and root's console login is locked." \
                          || echo "The live account is admin, with no password; sudo asks for none.")
 

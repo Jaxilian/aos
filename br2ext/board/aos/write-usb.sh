@@ -84,14 +84,15 @@ while [ $# -gt 0 ]; do
 		--test|--verify-only|--install|--boot) MODE="$1" ;;
 		--auto) AUTO=yes ;;
 		--account) ACCOUNT="$2"; shift ;;
+		--oobe) ACCOUNT="--oobe" ;;
 		*) echo "$0: unknown option '$1'" >&2; usage ;;
 	esac
 	shift
 done
 if [ -n "$ACCOUNT" ]; then
 	[ "$MODE" = "--install" ] && [ "$AUTO" = yes ] || {
-		echo "$0: --account only makes sense with --install --auto" >&2; exit 1; }
-	[ -r "$ACCOUNT" ] || { echo "$0: cannot read account file $ACCOUNT" >&2; exit 1; }
+		echo "$0: --account and --oobe only make sense with --install --auto" >&2; exit 1; }
+	[ "$ACCOUNT" = "--oobe" ] || [ -r "$ACCOUNT" ] || { echo "$0: cannot read account file $ACCOUNT" >&2; exit 1; }
 fi
 
 HERE=$(cd "$(dirname "$0")" && pwd)

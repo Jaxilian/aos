@@ -261,6 +261,15 @@ stays reachable over SSH with your key, and `sudo` covers the rest. The
 password is hashed on the host and only the hash reaches the guest, typed
 with echo off, so it is in no transcript.
 
+**For someone else (`./usb.sh --oobe`).** No account on the stick at
+all. Its first boot comes up as a locked `setup` user whose only program
+is the welcome: keyboard, time zone, a name and a password, **Finish**.
+That makes the owner (the same account a release install makes), locks
+root's console login, restarts the desktop as the owner and closes the
+road -- the helper behind Finish refuses once an owner exists, and the
+`setup` account is removed. Until then the stick has no password at
+all, so hand it over rather than leave it lying around.
+
 There is no login screen yet: the session starts as its owner at boot.
 Which account that is lives in
 `/etc/systemd/system/ade.service.d/10-aos-user.conf`, and a release

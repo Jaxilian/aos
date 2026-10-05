@@ -10,7 +10,7 @@ set -e
 
 usage() {
 	cat <<USAGE
-Usage: aos-install [--demo | --user NAME [--hash HASH | --password-file FILE]]
+Usage: aos-install [--demo | --oobe | --user NAME [--hash HASH | --password-file FILE]]
                    [--keymap CODE] [--zone AREA/CITY] <disk>
 
   <disk>  the whole disk to install onto, e.g. /dev/sda or /dev/nvme0n1
@@ -31,6 +31,10 @@ Usage: aos-install [--demo | --user NAME [--hash HASH | --password-file FILE]]
                             desktop and the console of the installed system
   --zone AREA/CITY          its time zone ("Europe/Stockholm")
   --demo                    keep the demo account. For a test machine.
+  --oobe                    no account yet: the machine's first boot asks
+                            for one (a locked "setup" user runs aos-setup
+                            --first-boot, and aos-firstboot makes the owner).
+                            For a stick or a machine handed to someone.
 
 This ERASES the target disk completely.
 USAGE
@@ -38,6 +42,7 @@ USAGE
 }
 
 DEMO=no
+OOBE=no
 NEWUSER=""
 NEWHASH=""
 NEWPASS=""
@@ -47,6 +52,7 @@ while [ $# -gt 1 ]; do
 	case "$1" in
 		--release) ;;
 		--demo)    DEMO=yes ;;
+		--oobe)    OOBE=yes ;;
 		--user)    NEWUSER="$2"; shift ;;
 		--hash)    NEWHASH="$2"; shift ;;
 		--password-file) NEWPASS=$(head -n 1 "$2") || exit 1; shift ;;
@@ -70,7 +76,7 @@ DISK="$1"
 # The account. Asked for up front, before anything is erased, so a typo
 # costs nothing. The password is hashed by chpasswd inside the installed
 # tree later; the image has no openssl or mkpasswd to do it here.
-if [ "$DEMO" = no ] && [ -z "$NEWUSER" ]; then
+if [ "$DEMO" = no ] && [ "$OOBE" = no ] && [ -z "$NEWUSER" ]; then
 	[ -t 0 ] || { echo "aos-install: no terminal to ask for an account; pass --user and --hash, or --demo" >&2; exit 1; }
 	echo "The account that owns this machine (lowercase letters, digits, - and _):"
 	printf "User name: "
@@ -82,7 +88,7 @@ if [ "$DEMO" = no ] && [ -z "$NEWUSER" ]; then
 	[ "$NEWPASS" = "$PW2" ] || { echo "aos-install: passwords differ" >&2; exit 1; }
 	[ -n "$NEWPASS" ] || { echo "aos-install: empty password" >&2; exit 1; }
 fi
-if [ "$DEMO" = no ]; then
+if [ "$DEMO" = no ] && [ "$OOBE" = no ]; then
 	[ -n "$NEWUSER" ] || { echo "aos-install: --user needs a name" >&2; exit 1; }
 	[ -n "$NEWHASH" ] || [ -n "$NEWPASS" ] || {
 		echo "aos-install: --user needs --hash when there is no terminal" >&2; exit 1; }
@@ -260,7 +266,30 @@ systemd-machine-id-setup --root="$TARGET" >/dev/null 2>&1
 
 # Accounts, inside the installed tree so its own passwd, shadow and home
 # are what change -- the live system running this stays as it was.
-if [ "$DEMO" = no ]; then
+if [ "$OOBE" = yes ]; then
+	echo ">>> Account: none yet; the first boot asks for one"
+	chroot "$TARGET" userdel -r admin 2>/dev/null || true
+	rm -f "$TARGET/etc/sudoers.d/20-aos-live" "$TARGET/etc/aos/live"
+	# The session until then belongs to a locked system user with
+	# nothing but the setup program; the one root helper it may run makes
+	# the owner and refuses once there is one. The marker tells the shell
+	# (no lock screen: the account could never unlock it) and the helper.
+	chroot "$TARGET" useradd -r -m -d /var/lib/aos-setup -G video -s /bin/false setup
+	mkdir -p "$TARGET/etc/aos"
+	: > "$TARGET/etc/aos/oobe"
+	printf '%s\n' 'setup ALL=(root) NOPASSWD: /usr/libexec/aos-firstboot' > "$TARGET/etc/sudoers.d/30-aos-oobe"
+	chmod 440 "$TARGET/etc/sudoers.d/30-aos-oobe"
+	# root's console login stays until the owner exists: nothing else can
+	# log in to the machine meanwhile; aos-firstboot locks it.
+	cat > "$TARGET/etc/systemd/system/ade.service.d/10-aos-user.conf" <<USERCONF
+# Written by aos-install --oobe: the first boot's session, until an owner
+# exists (aos-firstboot rewrites this).
+[Service]
+User=setup
+Environment="ADE_AUTOSTART=ade-shell;aos-setup --first-boot"
+USERCONF
+fi
+if [ "$DEMO" = no ] && [ "$OOBE" = no ]; then
 	echo ">>> Account: $NEWUSER replaces the demo account; root's console login is locked"
 	chroot "$TARGET" userdel -r admin 2>/dev/null || true
 	# The live system's leave: passwordless sudo for that account, and

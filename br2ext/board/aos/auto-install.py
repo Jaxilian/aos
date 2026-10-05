@@ -159,7 +159,11 @@ def install(ser):
     # the flag aos-install asks for an account, and there is no one here to
     # answer.
     opts = "--demo "
-    if ACCOUNT:
+    if ACCOUNT == "--oobe":
+        # No account at all: the stick's first boot asks for one.
+        opts = "--oobe "
+        say("running aos-install --oobe /dev/vda -- several minutes, two of them silent")
+    elif ACCOUNT:
         with open(ACCOUNT) as f:
             name, hash_ = [l.strip() for l in f.read().split("\n")[:2]]
         # The hash is $6$...: single quotes keep the shell off it, and a
