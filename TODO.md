@@ -1,7 +1,9 @@
 # TODO
 
-Updated 2026-10-05 evening. The newest release is 0.1.24 (0.1.23: the
-desktop round; 0.1.24: the first-boot setup). Both untested on the stick. The stick round is in
+Updated 2026-10-05 night. The newest release is 0.1.26 (0.1.23: the
+desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
+chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
+bar's glass). All untested on the stick. The stick round is in
 [TEST.md](TEST.md).
 
 Anything that needs a second machine, a second stick or a permanent
@@ -27,6 +29,20 @@ installation is postponed (see the end).
   the file is new since boot, and a click on the toast opens
   `aos-store update` (ade v0.1.34).
 - Test: `upgrade-ui-test.py` (docs/testing.md).
+
+## Night round (2026-10-05, more of the list)
+
+Done for 0.1.26: the image trimmed of what a desktop never loads
+(board/aos/trim-target.sh from post-build: Intel Wi-Fi firmware
+revisions the driver cannot pick, 230 -> ~60 MB; libclc's OpenCL
+bitcode, libclang-cpp and diagtool, ~125 MB); Steam declares its
+sandbox (apm v0.1.11 `lib32 =` in [sandbox], recipe release 7) so
+Software shows what it sees and its Permissions; the Camera permission
+(`camera =`, ";cam", aos-sandbox --camera binds /dev/video*), a switch
+on a program's page (store v0.2.5); the bar paints the theme's panel
+instead of its own opaque colour, so it is glass under chrome (ade
+v0.1.43; in 0.1.25 it was the one solid thing). steam-test.py checks
+the farm entry and the 32-bit loader inside the sandbox in QEMU.
 
 ## Evening round (2026-10-05, for the big validation)
 
@@ -116,11 +132,10 @@ Open, in priority order:
    frames across (smithay's GpuManager). Big.
 5. ~~**Glass only on the chrome**~~: done 2026-10-05 evening
    (effects=chrome, the default).
-6. **Camera and microphone permissions**: the sandbox binds /dev/snd
-   and the session's PipeWire socket for everyone; a per-app switch
-   needs the socket (and /dev/video*) withheld, which PipeWire's access
-   module could then grant on request. The Permissions section is where
-   they go.
+6. **Camera** done 2026-10-05 night (withheld unless the switch is on).
+   **Microphone** still needs the PipeWire socket withheld or
+   restricted, which also carries the sound output; PipeWire's access
+   module is the road.
 
 ## Next, in priority order
 
@@ -158,8 +173,8 @@ runner is installed on this laptop.
    stick); the ISO is 1057 MB and the root tarball 520 MB, and
    `output/target` 2.7 GB: list what a desktop needs none of. Each a
    measured change, with perf-test.py run before and after.
-4. **Steam's sandbox declaration.** It already runs in `aos-sandbox`;
-   the store still says "everything, undeclared".
+4. ~~**Steam's sandbox declaration.**~~ Done 2026-10-05 night (apm
+   `lib32 =`, recipe release 7); Steam itself untested since.
 5. ~~**Display arrangement** and per-display on/off in Settings → Display.~~
    Done 2026-10-05 evening (order= and off= lines; left/right of the
    first display; QEMU-tested, hardware untested).

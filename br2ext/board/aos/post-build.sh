@@ -191,6 +191,10 @@ if [ -n "${PACKAGES}" ]; then
 	unset APM_DESTDIR APM_NO_HOOKS
 fi
 
+# What a desktop never loads, out of the tree before the image is made
+# (board/aos/trim-target.sh says what and why).
+"${BR2_EXTERNAL_AOS_PATH}/board/aos/trim-target.sh" "${TARGET_DIR}"
+
 # The commits the image's own packages were built from, appended to the
 # repository index so a patch can start from exactly what is running.
 : "${BR2_EXTERNAL_AOS_PATH:?post-build.sh: BR2_EXTERNAL_AOS_PATH not set}"

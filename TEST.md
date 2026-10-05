@@ -16,7 +16,7 @@ per item, with its number.
    ```
    grep VERSION_ID /etc/os-release
    ```
-   Expect `0.1.23`.
+   Expect `0.1.26`.
 4. Software → Update → **Upgrade system** once more, if lines are
    left: runtime/gtk3 release 7 (libpulse) is one. Each line ends in
    done or failed; note any failed one with its reason.
@@ -75,10 +75,11 @@ launcher must offer it. Do not install.
 
 ## 4. Appearance
 
-The theme's default is now glass on the chrome only.
-1. After the restart into 0.1.25: windows are solid; the bar, the
+The theme's default is now glass on the chrome only. In 0.1.25 the
+bar stayed solid (it painted its own colour); 0.1.26 fixes that.
+1. After the restart into 0.1.26: windows are solid; the bar, the
    quick panel (top right) and the launcher (Super) are translucent
-   over the blurred desktop.
+   over the blurred desktop. The bar's glass is the one to look at.
 2. Settings → Display → Appearance → **Glass everywhere**: a Notepad
    started afterwards is translucent again. **Glass on the bar and
    panels** back: a new Notepad is solid.
@@ -98,6 +99,25 @@ The theme's default is now glass on the chrome only.
 
 The GRUB menu waits 2 seconds now instead of 5; "AOS (previous
 version)" is still there if you press a key in time.
+
+## 4d. Wi-Fi after the firmware trim
+
+The image lost 170 MB of Intel Wi-Fi firmware revisions the driver
+never loads; the one it loads stayed. After the restart into 0.1.26:
+```
+journalctl -k --no-pager | grep -i "iwlwifi.*loaded firmware"
+```
+Expect a "loaded firmware version ... sc-a0-wh-b0-c106.ucode" line and
+Wi-Fi connected as before. If Wi-Fi is gone, that line (or its absence)
+is what I need.
+
+## 4e. Steam in its declared sandbox
+
+Software → Third-party → Steam: its page shows "Sees: everything in
+your home" from the index, and once installed (or upgraded to release
+7) a Permissions section. Start Steam: it must come up as before.
+Software → Third-party → Discord → Permissions: a **Camera** switch;
+leave it off unless you want to try a video call.
 
 ## 5. Bluetooth
 
