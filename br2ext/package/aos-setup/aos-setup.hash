@@ -1,3 +1,3 @@
 # Locally computed from the vendored tarball; the commit pins the content,
 # this guards the download.
-sha256  9c694467953bb448de116a26ca2d5c3d8a0c3d8467bbe8586673bce014dc6117  aos-setup-53831ac2b452a61c29030f431a80f6c5a05d2688-git4-cargo6.tar.gz
+sha256  e1b3905e476704bc68a8f86676e02eb0e99f0175d2937905693b2843a4da4513  aos-setup-88e7a54554c61413100f0678117aeb10a4195356-git4-cargo6.tar.gz

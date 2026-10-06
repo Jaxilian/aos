@@ -82,6 +82,23 @@ if [ -n "$ENCRYPT" ]; then
 fi
 DISK="$1"
 [ -b "$DISK" ] || { echo "aos-install: $DISK is not a block device" >&2; exit 1; }
+# Never the disk this system runs from: the live medium under
+# /run/aos/live, or an installed system's own slot and aos partition.
+own_disk() {
+	local dev name parent
+	dev=$(readlink -f "$1" 2>/dev/null) || return 1
+	name=$(basename "$dev")
+	parent=$(readlink -f "/sys/class/block/$name/.." 2>/dev/null)
+	case "$parent" in */block) echo "/dev/$name" ;; *) echo "/dev/$(basename "$parent")" ;; esac
+}
+for src in "$(findmnt -n -o SOURCE /run/aos/live 2>/dev/null)" \
+	"$(sed -n 's/.*aos\.core=PARTUUID=\([^ ]*\).*/\/dev\/disk\/by-partuuid\/\1/p' /proc/cmdline)" \
+	"$(sed -n 's/.*aos\.data=PARTUUID=\([^ ]*\).*/\/dev\/disk\/by-partuuid\/\1/p' /proc/cmdline)"; do
+	[ -n "$src" ] && [ -e "$src" ] || continue
+	if [ "$(own_disk "$src")" = "$(readlink -f "$DISK")" ]; then
+		echo "aos-install: $DISK is the disk this system runs from; pick another" >&2; exit 1
+	fi
+done
 
 # The account. Asked for up front, before anything is erased, so a typo
 # costs nothing. The password is hashed by chpasswd inside the installed

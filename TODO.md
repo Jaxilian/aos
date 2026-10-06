@@ -1,6 +1,6 @@
 # TODO
 
-Updated 2026-10-06 afternoon. The newest release is 0.2.5 (the cores and
+Updated 2026-10-06 afternoon. The newest release is 0.2.6 (the cores and
 the aos partition: a reinstall; 0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
@@ -21,6 +21,14 @@ and after in docs/performance.md, with the G14's own numbers from your
 report of 2026-10-05. Left there: resolved's 1.4 s on the live ISO,
 nvidia-devices before the desktop on the G14, and tgn programs' memory,
 to be read from your next report (TEST.md 4h).
+
+## 0.2.6: the installer hides the disk it runs from
+
+The root is a device-mapper device now, so the installer app's walk
+from "/" to a disk found nothing and the live stick was offered as a
+target. It now excludes the disks under /run/aos/live and the slot and
+aos partitions the command line names (setup 88e7a54); aos-install
+refuses them too.
 
 ## 0.2.5: the installer releases the target disk first
 
