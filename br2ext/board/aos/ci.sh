@@ -24,6 +24,13 @@ fi
 # there after the toolchain (2026-10-04). The git command reads ~/.ssh
 # itself, so cargo is told to use it.
 export CARGO_NET_GIT_FETCH_WITH_CLI=true
+# The desk build's download cache, when this runner is the desk (the G14):
+# every tarball is already there, and a mirror that is down for one of
+# them (grep 3.12 on sources.buildroot.net, the v0.1.27 run) does not
+# fail the build. Elsewhere Buildroot downloads into its own dl/.
+if [ -z "$BR2_DL_DIR" ] && [ -d "$HOME/Projects/OS/aos/dl" ]; then
+	export BR2_DL_DIR="$HOME/Projects/OS/aos/dl"
+fi
 
 make BR2_EXTERNAL="$BASE/br2ext" aos_x86_64_defconfig >/dev/null
 
