@@ -24,6 +24,11 @@
 #   --no-net           no network at all.
 #   --camera           the cameras, /dev/video*; without it a program
 #                      has none (Software's Permissions, "Camera").
+#   --microphone       the microphone. Without it the program's PipeWire
+#                      and PulseAudio sockets are the "nomic" ones
+#                      (pipewire.conf.d/10-aos-nomic.conf), on which
+#                      WirePlumber refuses every capture stream: sound
+#                      plays, nothing records (Permissions, "Microphone").
 #
 # bubblewrap does the namespaces, unprivileged: user namespaces are on in
 # the kernel and bwrap is not setuid here (external.mk). The view inside:
@@ -78,6 +83,7 @@ HOMEMODE=full
 SHARES=""
 NET=""
 CAM=no
+MIC=no
 LIB="--symlink usr/lib /lib"
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -96,6 +102,7 @@ while [ $# -gt 0 ]; do
 			shift ;;
 		--no-net) NET="--unshare-net" ;;
 		--camera) CAM=yes ;;
+		--microphone) MIC=yes ;;
 		--lib32)
 			d="/opt/apm/packages/$2/current/lib"
 			[ -f "$d/ld-linux.so.2" ] || { echo "aos-sandbox: $2 has no lib/ld-linux.so.2" >&2; exit 66; }
@@ -117,7 +124,7 @@ done
 
 # This person's say over the declaration: Settings -> Programs writes
 # ~/.config/aos/sandbox/ORG.NAME, one line in apm's compact form
-# (`private:Downloads,Pictures`, `full`, `...;nonet`, `...;cam`), and it
+# (`private:Downloads,Pictures`, `full`, `...;nonet`, `...;cam`, `...;mic`), and it
 # replaces the flags apm wrote. Anything malformed is ignored, not
 # half-applied.
 if [ -n "$APP" ]; then
@@ -126,11 +133,13 @@ if [ -n "$APP" ]; then
 		line=$(head -n 1 "$OVR" | tr -d ' \t\r')
 		onet=""
 		ocam=no
+		omic=no
 		# The suffixes, in any order.
 		while :; do
 			case "$line" in
 				*';nonet') onet="--unshare-net"; line=${line%;nonet} ;;
 				*';cam') ocam=yes; line=${line%;cam} ;;
+				*';mic') omic=yes; line=${line%;mic} ;;
 				*) break ;;
 			esac
 		done
@@ -147,6 +156,7 @@ if [ -n "$APP" ]; then
 			SHARES=$oshare
 			NET=$onet
 			CAM=$ocam
+			MIC=$omic
 		else
 			echo "aos-sandbox: $OVR is not a declaration; using the package's" >&2
 		fi
@@ -186,6 +196,15 @@ for n in /dev/nvidiactl /dev/nvidia[0-9]* /dev/nvidia-uvm /dev/nvidia-uvm-tools 
 done
 RUN_BIND=""
 [ -n "$XDG_RUNTIME_DIR" ] && [ -d "$XDG_RUNTIME_DIR" ] && RUN_BIND="--bind $XDG_RUNTIME_DIR $XDG_RUNTIME_DIR"
+# Without the microphone: the nomic sockets over the real ones, after the
+# bind of the whole directory. A session without them (an older image)
+# keeps the real sockets: there is nothing to refuse on.
+if [ "$MIC" = no ] && [ -n "$RUN_BIND" ]; then
+	[ -S "$XDG_RUNTIME_DIR/pipewire-0-nomic" ] && [ -S "$XDG_RUNTIME_DIR/pipewire-0" ] \
+		&& RUN_BIND="$RUN_BIND --bind $XDG_RUNTIME_DIR/pipewire-0-nomic $XDG_RUNTIME_DIR/pipewire-0"
+	[ -S "$XDG_RUNTIME_DIR/pulse/native-nomic" ] && [ -S "$XDG_RUNTIME_DIR/pulse/native" ] \
+		&& RUN_BIND="$RUN_BIND --bind $XDG_RUNTIME_DIR/pulse/native-nomic $XDG_RUNTIME_DIR/pulse/native"
+fi
 
 # shellcheck disable=SC2086
 exec bwrap \

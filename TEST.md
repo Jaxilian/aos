@@ -16,7 +16,7 @@ per item, with its number.
    ```
    grep VERSION_ID /etc/os-release
    ```
-   Expect `0.1.28`.
+   Expect `0.1.29`.
 4. Software → Update → **Upgrade system** once more, if lines are
    left: runtime/gtk3 release 7 (libpulse) is one. Each line ends in
    done or failed; note any failed one with its reason.
@@ -157,6 +157,23 @@ leave it off unless you want to try a video call.
 7. **Notepad undo.** Type a few words, Ctrl+Z: the last run of typing
    goes; Ctrl+Shift+Z (or Ctrl+Y): it is back. Paste, Ctrl+Z: the
    paste alone goes. Edit menu: Undo, Redo.
+
+## 4g. The microphone permission (0.1.29)
+
+Third-party programs get the microphone only when their package asks
+for it or you switch it on; sound still plays without it. Firefox,
+Discord and Steam ask for it (their new releases), VS Code does not.
+1. Software → Third-party → Firefox → Update (release 6), then its
+   page: "Sees: ... the microphone", and Permissions has a
+   **Microphone** switch, on. Open a mic test page (e.g. a search for
+   "mic test"): the browser asks, allow, the meter moves.
+2. Switch Microphone off, restart Firefox, the same page: the site gets
+   no sound (Firefox may say the device cannot be opened). Sound from
+   a video still plays. Back on, restart: it works again.
+3. `journalctl --no-pager _COMM=wireplumber | grep "microphone is off"`
+   lists the refused streams from step 2.
+4. A terminal outside any sandbox: `pw-loopback` keeps working
+   (Ctrl+C to stop): the desktop itself is untouched.
 
 ## 5. Bluetooth
 

@@ -1,10 +1,33 @@
 # TODO
 
-Updated 2026-10-06 midday. The newest release is 0.1.28 (0.1.23: the
+Updated 2026-10-06 afternoon. The newest release is 0.1.29 (0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
 bar's glass; 0.1.27: the shell follows the theme at once; 0.1.28: the
-morning list below). The stick round is in [TEST.md](TEST.md).
+morning list; 0.1.29: the microphone permission). The stick round is
+in [TEST.md](TEST.md).
+
+Anything that needs a second machine, a second stick or a permanent
+installation is postponed (see the end).
+
+## Afternoon (2026-10-06): the microphone permission, for 0.1.29
+
+Done: a program in the sandbox has no microphone unless its package
+declares `microphone = true` ([sandbox], ";mic", --microphone; apm
+v0.1.12) or Software's Permissions switch it on (store v0.2.6). How:
+PipeWire listens on a second socket, pipewire-0-nomic, and
+pipewire-pulse on pulse/native-nomic, whose clients are tagged access
+"nomic" (pipewire.conf.d and pipewire-pulse.conf.d); WirePlumber gives
+them a sandboxed client's permissions and a linking hook of ours
+(scripts/linking/find-nomic-target.lua) refuses every capture stream
+with an error to the client and a warning in the journal. aos-sandbox
+binds the nomic sockets over the real ones unless --microphone. Sound
+plays either way. Firefox r6, Discord r4 and Steam r8 declare it.
+mic-test.py drives it in QEMU (pw-loopback refused on the nomic
+socket and in the sandbox, linked on the plain one and with the flag).
+Not done: a prompt when a program first asks (PipeWire has no portal
+here); the switch is the answer. The desktop's own programs are
+outside the sandbox and keep the microphone.
 
 ## Morning list (2026-10-06, "to keep you at work while I am gone")
 
