@@ -16,7 +16,7 @@ per item, with its number.
    ```
    grep VERSION_ID /etc/os-release
    ```
-   Expect `0.1.26`.
+   Expect `0.1.27`.
 4. Software → Update → **Upgrade system** once more, if lines are
    left: runtime/gtk3 release 7 (libpulse) is one. Each line ends in
    done or failed; note any failed one with its reason.
@@ -30,10 +30,14 @@ per item, with its number.
    sudo rm -f /etc/aos/live /etc/sudoers.d/20-aos-live
    ```
    From then on sudo asks your password, and the lock screen is real.
-6. XWayland lost its libraries to the runtime upgrade of the last
+6. XWayland lost its libraries to the runtime upgrade of an earlier
    round (an apm bug, fixed in 0.1.21, but the links are gone on this
-   stick): Software → AOS → Compatibility → **XWayland** off, then on
-   again. After a few seconds `pgrep -a Xwayland` must show it.
+   stick; the journal of 2026-10-06 still says "Xwayland: error while
+   loading shared libraries: libpixman-1.so.0"). This is why Steam says
+   "no X11 display" and VS Code (Electron, X11) shows no window.
+   Software → AOS → Compatibility → **XWayland** off, then on again.
+   After a few seconds `pgrep -a Xwayland` must show it; then Steam and
+   VS Code start.
 
 ## 1. Sleep
 
@@ -76,14 +80,18 @@ launcher must offer it. Do not install.
 ## 4. Appearance
 
 The theme's default is now glass on the chrome only. In 0.1.25 the
-bar stayed solid (it painted its own colour); 0.1.26 fixes that.
-1. After the restart into 0.1.26: windows are solid; the bar, the
+bar stayed solid (it painted its own colour); in 0.1.26 the bar and
+the panels took a theme change only at the next login (your issue 3).
+1. After the restart into 0.1.27: windows are solid; the bar, the
    quick panel (top right) and the launcher (Super) are translucent
-   over the blurred desktop. The bar's glass is the one to look at.
-2. Settings → Display → Appearance → **Glass everywhere**: a Notepad
-   started afterwards is translucent again. **Glass on the bar and
-   panels** back: a new Notepad is solid.
-3. **Light**: the bar turns opaque within seconds.
+   over the blurred desktop.
+2. Settings → Display → Appearance → **Light**: within a few seconds
+   the bar is opaque and the desktop unblurred, no restart. **Glass on
+   the bar and panels** back: the bar is glass again within seconds.
+3. **Glass everywhere**: a Notepad started afterwards is translucent;
+   one already open stays solid (a window keeps what it started with,
+   as the page says). **Glass on the bar and panels** back: a new
+   Notepad is solid.
 
 ## 4b. Two displays (the USB-C monitor, which goes through the Intel GPU)
 

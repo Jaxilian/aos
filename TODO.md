@@ -1,10 +1,22 @@
 # TODO
 
-Updated 2026-10-05 night. The newest release is 0.1.26 (0.1.23: the
+Updated 2026-10-06 morning. The newest release is 0.1.27 (0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
-bar's glass). All untested on the stick. The stick round is in
-[TEST.md](TEST.md).
+bar's glass; 0.1.27: the shell follows the theme at once). The stick
+round is in [TEST.md](TEST.md).
+
+## Morning (2026-10-06): the stick on 0.1.26, three issues
+
+1. Steam "no X11 display" and 2. VS Code without a window: the same
+   cause, XWayland on that stick still has no libpixman link (the apm
+   bug of round 14; the links never came back). TEST.md 0.6 has the
+   toggle. Nothing to fix in the OS; a fresh install never sees it.
+3. "Glass theme isn't applied, probably need to reboot": the shell
+   read the theme once at its start, so Settings' promise ("the
+   desktop follows at once") held for the compositor's blur only.
+   Fixed in ade v0.1.44 (the shell polls the files, sdk v0.4.14);
+   theme-test.py drives it in QEMU. Released as 0.1.27.
 
 Anything that needs a second machine, a second stick or a permanent
 installation is postponed (see the end).
