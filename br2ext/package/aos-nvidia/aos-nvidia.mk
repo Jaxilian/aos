@@ -139,6 +139,28 @@ define AOS_NVIDIA_INSTALL_DEVICES
 	$(INSTALL) -D -m 0755 $(AOS_NVIDIA_PKGDIR)/nvidia-nodes $(TARGET_DIR)/usr/bin/nvidia-nodes
 endef
 
+# Suspend. The driver keeps what is in video memory across a sleep only
+# when told to (NVreg_PreserveVideoMemoryAllocations in nvidia.conf) and
+# when its sleep script runs around it; without both every texture a
+# program had on the GPU is noise after a resume (the G14, 2026-10-06).
+# NVIDIA's units call /usr/bin/logger first, which the image lacks, so
+# the units are ours; the script and the system-sleep hook are NVIDIA's.
+define AOS_NVIDIA_INSTALL_SLEEP
+	$(INSTALL) -D -m 0755 $(@D)/systemd/nvidia-sleep.sh $(TARGET_DIR)/usr/bin/nvidia-sleep.sh
+	$(INSTALL) -D -m 0755 $(@D)/systemd/system-sleep/nvidia $(TARGET_DIR)/usr/lib/systemd/system-sleep/nvidia
+	$(foreach u,nvidia-suspend nvidia-resume nvidia-hibernate, \
+		$(INSTALL) -D -m 0644 $(AOS_NVIDIA_PKGDIR)/$(u).service \
+			$(TARGET_DIR)/usr/lib/systemd/system/$(u).service$(sep))
+	$(INSTALL) -D -m 0644 $(@D)/systemd/system/systemd-suspend.service.d/nvidia-suspend-nofreeze.conf \
+		$(TARGET_DIR)/usr/lib/systemd/system/systemd-suspend.service.d/nvidia-suspend-nofreeze.conf
+	$(INSTALL) -d $(TARGET_DIR)/usr/lib/systemd/system/systemd-suspend.service.wants
+	$(INSTALL) -d $(TARGET_DIR)/usr/lib/systemd/system/systemd-hibernate.service.wants
+	ln -sf ../nvidia-suspend.service $(TARGET_DIR)/usr/lib/systemd/system/systemd-suspend.service.wants/nvidia-suspend.service
+	ln -sf ../nvidia-resume.service $(TARGET_DIR)/usr/lib/systemd/system/systemd-suspend.service.wants/nvidia-resume.service
+	ln -sf ../nvidia-hibernate.service $(TARGET_DIR)/usr/lib/systemd/system/systemd-hibernate.service.wants/nvidia-hibernate.service
+	ln -sf ../nvidia-resume.service $(TARGET_DIR)/usr/lib/systemd/system/systemd-hibernate.service.wants/nvidia-resume.service
+endef
+
 define AOS_NVIDIA_INSTALL_TARGET_CMDS
 	$(foreach lib,$(AOS_NVIDIA_LIBS), \
 		$(call AOS_NVIDIA_INSTALL_LIB,$(lib))$(sep))
@@ -149,6 +171,7 @@ define AOS_NVIDIA_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/lib/firmware/nvidia/$(AOS_NVIDIA_VERSION)/$(f)$(sep))
 	$(AOS_NVIDIA_INSTALL_MANIFESTS)
 	$(AOS_NVIDIA_INSTALL_DEVICES)
+	$(AOS_NVIDIA_INSTALL_SLEEP)
 	$(INSTALL) -D -m 0644 $(@D)/LICENSE \
 		$(TARGET_DIR)/usr/share/licenses/nvidia/LICENSE
 endef

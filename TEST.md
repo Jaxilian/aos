@@ -16,7 +16,7 @@ per item, with its number.
    ```
    grep VERSION_ID /etc/os-release
    ```
-   Expect `0.1.27`.
+   Expect `0.1.28`.
 4. Software → Update → **Upgrade system** once more, if lines are
    left: runtime/gtk3 release 7 (libpulse) is one. Each line ends in
    done or failed; note any failed one with its reason.
@@ -126,6 +126,37 @@ your home" from the index, and once installed (or upgraded to release
 7) a Permissions section. Start Steam: it must come up as before.
 Software → Third-party → Discord → Permissions: a **Camera** switch;
 leave it off unless you want to try a video call.
+
+## 4f. The morning list (0.1.28)
+
+1. **Fonts after sleep.** Open Notepad and Settings, suspend (lid or
+   the quick panel), wake. Every label must still read; the journal
+   says what ran:
+   ```
+   journalctl -b -u nvidia-suspend -u nvidia-resume --no-pager | tail -4
+   ```
+   Expect both units "Finished". AOS programs now run on the Intel GPU
+   (check: `cat /proc/driver/nvidia/gpus/*/information` is untouched by
+   opening Notepad; `nvidia-smi` lists no aos process). If text still
+   breaks, say which program and whether it was open across the sleep.
+2. **Quick panel** (click the bar's right end): glass like the bar,
+   its buttons translucent, nothing solid in it.
+3. **Snap ghost.** Drag a window by its header toward the left edge
+   and hold: a pale wash over the left half shows where it will land;
+   release: it snaps there. The same at the right edge and the top
+   (the whole zone).
+4. **Minimize animation.** Minimize a window from its decoration: it
+   shrinks and fades toward the bottom centre in a fifth of a second;
+   bring it back from the dock: it grows back. Settings → Display →
+   Appearance → **Animations** off: the window just disappears.
+5. **Screenshot toast.** Print: the toast; click it within a minute:
+   Images opens on the screenshot. Shift+Print the same.
+6. **Images Ctrl+C.** In Images, Ctrl+C, then paste into Firefox (a
+   chat or an image upload field) or into another program: the picture
+   arrives as a PNG. Rotate first: the pasted picture is rotated.
+7. **Notepad undo.** Type a few words, Ctrl+Z: the last run of typing
+   goes; Ctrl+Shift+Z (or Ctrl+Y): it is back. Paste, Ctrl+Z: the
+   paste alone goes. Edit menu: Undo, Redo.
 
 ## 5. Bluetooth
 

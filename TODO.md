@@ -1,10 +1,42 @@
 # TODO
 
-Updated 2026-10-06 morning. The newest release is 0.1.27 (0.1.23: the
+Updated 2026-10-06 midday. The newest release is 0.1.28 (0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
-bar's glass; 0.1.27: the shell follows the theme at once). The stick
-round is in [TEST.md](TEST.md).
+bar's glass; 0.1.27: the shell follows the theme at once; 0.1.28: the
+morning list below). The stick round is in [TEST.md](TEST.md).
+
+## Morning list (2026-10-06, "to keep you at work while I am gone")
+
+Done for 0.1.28:
+1. Quick panel glass: it painted Color::Background with opaque
+   controls; now the theme's panel, and the SDK's glass palette has
+   translucent controls and borders (sdk v0.4.15).
+2. Screenshot toast clickable: the compositor sends the path after
+   "s1"/"s2", the shell's toast runs `images <path>` on a click.
+3. Images Ctrl+C: the picture as shown, rotated, as image/png on the
+   clipboard (awin win_clipboard_set_data: one mime with its bytes).
+4. Fonts after suspend, two bugs: (a) every AOS program ran on the
+   discrete GPU -- awin's VkConf defaulted to Balanced, only the shell
+   asked for Low -- now Low (the integrated GPU) by default; (b) the
+   NVIDIA driver drops video memory over a sleep unless told to keep it:
+   NVreg_PreserveVideoMemoryAllocations=1 + TemporaryFilePath=/var/tmp
+   in nvidia.conf, nvidia-suspend/resume/hibernate units (ours, NVIDIA's
+   call /usr/bin/logger which the image lacks) and nvidia-sleep.sh. And
+   tgn's Gui counts suspends (CLOCK_BOOTTIME against CLOCK_MONOTONIC)
+   and re-uploads its atlas, labels and pictures after one, so a
+   program on the discrete GPU survives even without the driver's help.
+   Hardware only: TEST.md 4f.1.
+5. Snap ghost: a pale wash (premultiplied solid element, under the
+   windows) over the slot a release would fill, from the move grab.
+6. Minimize animation: the window's surface tree rescaled and faded
+   toward the bottom centre of its display in 220 ms, and back on a
+   restore (comp anim.rs); `animations=off` in the theme file turns it
+   off, Settings → Appearance has the switch. No open/close fades.
+7. Notepad undo/redo: whole-text snapshots, typing runs coalesced
+   within 0.8 s; Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y, the Edit menu.
+fx-test.py drives 1, 2, 5 and 6 in QEMU (the ghost's brightness, a
+mid-animation frame, the toast click starting Images).
 
 ## Morning (2026-10-06): the stick on 0.1.26, three issues
 

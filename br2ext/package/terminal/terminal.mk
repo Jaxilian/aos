@@ -5,7 +5,7 @@
 ################################################################################
 
 # A commit, not a tag -- see ade.mk. This one is v0.1.7.
-TERMINAL_VERSION = 72f7cfd9e6a78ecc1b6717ad75184dd80ab69215
+TERMINAL_VERSION = a39a93a65f33ebd3bfa163a886c29361bf7bd1be
 TERMINAL_SITE = ssh://git@github.com/Jaxilian/terminal
 TERMINAL_SITE_METHOD = git
 TERMINAL_LICENSE = MIT, OFL-1.1 (Liberation Mono)
