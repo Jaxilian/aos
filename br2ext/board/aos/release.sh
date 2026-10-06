@@ -64,7 +64,7 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 NAME="aos-$VERSION-x86_64"
 cp "$ISO" "$OUT/$NAME.iso"
-xz -T0 -c "$CORE" > "$OUT/$NAME-core.img.xz"
+cp "$CORE" "$OUT/$NAME-core.img"
 cp "$VERITY" "$OUT/$NAME-core.verity"
 
 make legal-info >/dev/null
@@ -77,7 +77,7 @@ make pkg-stats >/dev/null
 cp output/pkg-stats.html "$OUT/$NAME-pkg-stats.html"
 cp output/pkg-stats.json "$OUT/$NAME-pkg-stats.json"
 
-( cd "$OUT" && sha256sum "$NAME.iso" "$NAME-core.img.xz" "$NAME-core.verity" "$NAME-legal-info.tar.gz" "$NAME-pkg-stats.html" "$NAME-pkg-stats.json" > SHA256SUMS )
+( cd "$OUT" && sha256sum "$NAME.iso" "$NAME-core.img" "$NAME-core.verity" "$NAME-legal-info.tar.gz" "$NAME-pkg-stats.html" "$NAME-pkg-stats.json" > SHA256SUMS )
 "$APM" sign "$OUT/SHA256SUMS"
 
 echo "release.sh: $VERSION ($BUILD_ID) in $OUT:"
@@ -96,12 +96,12 @@ done
 
 TAG=index
 REPO=Jaxilian/apm-recipes
-for old in $(gh release view "$TAG" -R "$REPO" --json assets -q '.assets[].name' | grep -E '^aos-.*-(root\.tar\.xz|core\.img\.xz|core\.verity)$'); do
-	case "$old" in "$NAME-core.img.xz"|"$NAME-core.verity") ;; *) gh release delete-asset "$TAG" "$old" -R "$REPO" -y ;; esac
+for old in $(gh release view "$TAG" -R "$REPO" --json assets -q '.assets[].name' | grep -E '^aos-.*-(root\.tar\.xz|core\.img\.xz|core\.img|core\.verity)$'); do
+	case "$old" in "$NAME-core.img"|"$NAME-core.verity") ;; *) gh release delete-asset "$TAG" "$old" -R "$REPO" -y ;; esac
 done
 # The upload fails transiently now and then; --clobber makes a retry safe.
 n=0
-until gh release upload "$TAG" -R "$REPO" --clobber "$OUT/$NAME-core.img.xz" "$OUT/$NAME-core.verity" "$OUT/SHA256SUMS" "$OUT/SHA256SUMS.minisig"; do
+until gh release upload "$TAG" -R "$REPO" --clobber "$OUT/$NAME-core.img" "$OUT/$NAME-core.verity" "$OUT/SHA256SUMS" "$OUT/SHA256SUMS.minisig"; do
 	n=$((n + 1)); [ $n -lt 3 ] || exit 1
 	echo "upload failed, retrying ($n)" >&2; sleep 5
 done

@@ -87,7 +87,7 @@ It fetches `SHA256SUMS` and `SHA256SUMS.minisig` from the URL in
 where `release.sh --publish` puts them), checks the signature against the
 keys in `/opt/apm/etc/keys/trusted` -- the same key every machine already
 trusts for apm -- downloads the core image the file names
-(`aos-<version>-x86_64-core.img.xz`) and its verity parameters
+(`aos-<version>-x86_64-core.img`) and its verity parameters
 (`-core.verity`), checks their sha256, writes the image into the idle
 slot and reads it back through its verity (a block that does not match
 its hash is an I/O error), copies the kernel, microcode and initramfs

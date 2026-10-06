@@ -1,6 +1,6 @@
 # TODO
 
-Updated 2026-10-06 afternoon. The newest release is 0.2.0 (the cores and
+Updated 2026-10-06 afternoon. The newest release is 0.2.1 (the cores and
 the aos partition: a reinstall; 0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
@@ -27,8 +27,8 @@ to be read from your next report (TEST.md 4h).
 Done in QEMU: squashfs cores with a dm-verity hash tree in the slots,
 opened by a 13 MB initramfs of the target's own binaries; the `aos`
 partition at /aos with aos/ (etc overlay, var, the swap file), apm/,
-users/; the ISO is /boot plus the core (857 MB with zstd-15; zstd-19
-with 1 MiB blocks is set for the next build); aos-install writes the
+users/; the ISO is /boot plus the core (zstd-19, 1 MiB blocks: core
+709 MB, ISO 784 MB; xz would be 667/742 and read back slower); aos-install writes the
 core from the live medium and verifies it; aos-update fetches
 core.img.xz + core.verity, writes, verifies, stages the ESP, sets
 next; release.sh ships those; Files shows "AOS"; the setup app knows

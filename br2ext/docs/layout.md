@@ -64,7 +64,8 @@ Buildroot makes `rootfs.squashfs` (zstd) inside its fakeroot; post-image.sh
 appends the hash tree (`veritysetup format`) and writes `core.img` with
 `core.verity` beside it (`blocks=`, `hash=`), then assembles the ISO from
 `/boot` and that image. A release ships `aos-X-x86_64.iso`,
-`aos-X-x86_64-core.img.xz` and `aos-X-x86_64-core.verity`, named in the
+`aos-X-x86_64-core.img` (a squashfs is compressed already) and
+`aos-X-x86_64-core.verity`, named in the
 signed SHA256SUMS. aos-update writes the image into the idle slot with dd,
 checks it by opening its verity, copies the kernel, microcode and
 initramfs out of it onto the ESP, writes `verity.cfg`, and sets `next`.

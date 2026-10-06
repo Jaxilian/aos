@@ -110,11 +110,12 @@ for k in /opt/apm/etc/keys/trusted/*.pub; do
 done
 [ "$ok" = yes ] || { echo "aos-update: SHA256SUMS from $URL is not signed by a trusted key" >&2; exit 1; }
 
-# The release: the core image and its verity parameters (docs/layout.md).
-TAR=$(awk '$2 ~ /^aos-.*-x86_64-core\.img\.xz$/ { print $2; exit }' "$WORK/SHA256SUMS")
+# The release: the core image (a squashfs, compressed as it is) and its
+# verity parameters (docs/layout.md).
+TAR=$(awk '$2 ~ /^aos-.*-x86_64-core\.img$/ { print $2; exit }' "$WORK/SHA256SUMS")
 [ -n "$TAR" ] || { echo "aos-update: no core image in $URL/SHA256SUMS" >&2; exit 1; }
 NEW_VER=${TAR#aos-}
-NEW_VER=${NEW_VER%-x86_64-core.img.xz}
+NEW_VER=${NEW_VER%-x86_64-core.img}
 VERITY="aos-$NEW_VER-x86_64-core.verity"
 if [ "$(printf '%s\n%s\n' "$CUR_VER" "$NEW_VER" | sort -V | tail -1)" = "$CUR_VER" ]; then
 	echo "AOS $CUR_VER is the newest release; nothing to do"

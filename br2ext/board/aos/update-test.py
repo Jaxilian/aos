@@ -50,7 +50,7 @@ if USB:
 
 APM = bt.APM_BIN
 RELEASE = os.path.join(bt.OUT, "update-release")
-IMG = "aos-9.9.9-x86_64-core.img.xz"
+IMG = "aos-9.9.9-x86_64-core.img"
 VERITY = "aos-9.9.9-x86_64-core.verity"
 PORT = 8765
 URL = "http://10.0.2.2:%d" % PORT
@@ -74,14 +74,11 @@ CHECKS = [
 
 
 def make_release():
-    """A fake release 9.9.9 from this build: the core image compressed the
-    way release.sh ships it (xz, fastest preset: this is a test), its
-    verity file, and SHA256SUMS signed with the local key."""
+    """A fake release 9.9.9 from this build: the core image as release.sh
+    ships it, its verity file, and SHA256SUMS signed with the local key."""
     shutil.rmtree(RELEASE, ignore_errors=True)
     os.makedirs(RELEASE)
-    core = os.path.join(bt.IMG, "core.img")
-    with open(os.path.join(RELEASE, IMG), "wb") as f:
-        subprocess.run(["xz", "-0", "-T0", "-c", core], stdout=f, check=True)
+    os.link(os.path.join(bt.IMG, "core.img"), os.path.join(RELEASE, IMG))
     shutil.copy(os.path.join(bt.IMG, "core.verity"), os.path.join(RELEASE, VERITY))
     with open(os.path.join(RELEASE, "SHA256SUMS"), "w") as f:
         subprocess.run(["sha256sum", IMG, VERITY], cwd=RELEASE, stdout=f, check=True)

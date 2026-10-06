@@ -142,9 +142,11 @@ BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
 BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
 
 # Filesystem. M5 replaces this with the hybrid BIOS+UEFI ISO.
-# The root core: a squashfs (zstd: fast to read back) that post-image.sh
-# wraps in a dm-verity hash tree -- what a slot holds and what the ISO
-# carries. See docs/layout.md.
+# The root core: a squashfs that post-image.sh wraps in a dm-verity hash
+# tree -- what a slot holds, what the ISO carries and what an update
+# downloads. zstd: at its top level with 1 MiB blocks (external.mk) the
+# core is 709 MB against xz's 667, and reads back several times faster,
+# which is every program's start. See docs/layout.md.
 BR2_TARGET_ROOTFS_SQUASHFS=y
 BR2_TARGET_ROOTFS_SQUASHFS4_ZSTD=y
 # rootfs.tar.xz is what a release ships for aos-update: a root slot is

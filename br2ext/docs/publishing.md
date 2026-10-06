@@ -9,7 +9,7 @@
 
 `release.sh` takes a tagged, clean build and writes `output/release/`: the
 ISO renamed `aos-<version>-x86_64.iso`, the core image
-`aos-<version>-x86_64-core.img.xz` with its verity parameters
+`aos-<version>-x86_64-core.img` with its verity parameters
 `aos-<version>-x86_64-core.verity` (what `aos-update` writes into a root
 slot and checks it by), the legal-info manifest, the CVE report from `make pkg-stats`, and
 `SHA256SUMS` over all of them signed with `apm sign` -- the same key that

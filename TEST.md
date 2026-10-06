@@ -24,7 +24,7 @@ want to keep first.
    findmnt / /aos /home /opt/apm /var /etc /boot/efi
    journalctl -b -t aos-init --no-pager
    ```
-   Expect `VERSION_ID=0.2.0`.
+   Expect `VERSION_ID=0.2.1`.
    `/` is `/dev/mapper/core`, squashfs, read-only; `/aos` is the fifth
    partition, ext4; `/home` and `/opt/apm` come from it; the command
    line carries `aos.core=PARTUUID=... aos.hash=...`.
@@ -34,9 +34,8 @@ want to keep first.
 3. `touch /usr/x` as root fails ("Read-only file system"). The core
    cannot be written, by anyone.
 4. Software → Update → **Upgrade system** when a newer release is out:
-   each line as before, the AOS line downloads a core image (about
-   500 MB), writes it, verifies it, and says "boots at the next
-   restart". Restart: the new version; `aos-update --rollback` and a
+   each line as before, the AOS line downloads the core (about 700 MB),
+   writes it, verifies it, and says "boots at the next restart". Restart: the new version; `aos-update --rollback` and a
    restart: the old one again. GRUB's "AOS (previous version)" does
    the same from the menu.
 5. The kernel is part of the core now: Software's AOS page no longer
