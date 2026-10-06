@@ -25,9 +25,10 @@ BASE=$(cd "$(dirname "$0")/../../.." && pwd)
 cd "$BASE"
 
 ISO=output/images/rootfs.iso9660
-ROOT=output/images/rootfs.tar.xz
+CORE=output/images/core.img
+VERITY=output/images/core.verity
 [ -f "$ISO" ] || { echo "release.sh: no $ISO; build first" >&2; exit 1; }
-[ -f "$ROOT" ] || { echo "release.sh: no $ROOT; build first" >&2; exit 1; }
+[ -f "$CORE" ] && [ -f "$VERITY" ] || { echo "release.sh: no $CORE; build first" >&2; exit 1; }
 
 OSREL=output/target/usr/lib/os-release
 VERSION=$(sed -n 's/^VERSION_ID=//p' "$OSREL")
@@ -49,8 +50,8 @@ if [ -s output/target/root/.ssh/authorized_keys ] || [ -e output/target/usr/lib/
 	exit 1
 fi
 # The tarball is what aos-update installs: sshd must not be enabled in it.
-if tar -tJf "$ROOT" | grep -q 'multi-user.target.wants/sshd.service'; then
-	echo "release.sh: sshd is enabled in $ROOT; see board/aos/rootfs-overlay/usr/lib/systemd/system-preset" >&2
+if [ -e output/target/etc/systemd/system/multi-user.target.wants/sshd.service ]; then
+	echo "release.sh: sshd is enabled in the image; see board/aos/rootfs-overlay/usr/lib/systemd/system-preset" >&2
 	exit 1
 fi
 
@@ -63,7 +64,8 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 NAME="aos-$VERSION-x86_64"
 cp "$ISO" "$OUT/$NAME.iso"
-cp "$ROOT" "$OUT/$NAME-root.tar.xz"
+xz -T0 -c "$CORE" > "$OUT/$NAME-core.img.xz"
+cp "$VERITY" "$OUT/$NAME-core.verity"
 
 make legal-info >/dev/null
 tar -C output -czf "$OUT/$NAME-legal-info.tar.gz" legal-info
@@ -75,7 +77,7 @@ make pkg-stats >/dev/null
 cp output/pkg-stats.html "$OUT/$NAME-pkg-stats.html"
 cp output/pkg-stats.json "$OUT/$NAME-pkg-stats.json"
 
-( cd "$OUT" && sha256sum "$NAME.iso" "$NAME-root.tar.xz" "$NAME-legal-info.tar.gz" "$NAME-pkg-stats.html" "$NAME-pkg-stats.json" > SHA256SUMS )
+( cd "$OUT" && sha256sum "$NAME.iso" "$NAME-core.img.xz" "$NAME-core.verity" "$NAME-legal-info.tar.gz" "$NAME-pkg-stats.html" "$NAME-pkg-stats.json" > SHA256SUMS )
 "$APM" sign "$OUT/SHA256SUMS"
 
 echo "release.sh: $VERSION ($BUILD_ID) in $OUT:"
@@ -94,12 +96,12 @@ done
 
 TAG=index
 REPO=Jaxilian/apm-recipes
-for old in $(gh release view "$TAG" -R "$REPO" --json assets -q '.assets[].name' | grep '^aos-.*-root\.tar\.xz$'); do
-	[ "$old" = "$NAME-root.tar.xz" ] || gh release delete-asset "$TAG" "$old" -R "$REPO" -y
+for old in $(gh release view "$TAG" -R "$REPO" --json assets -q '.assets[].name' | grep -E '^aos-.*-(root\.tar\.xz|core\.img\.xz|core\.verity)$'); do
+	case "$old" in "$NAME-core.img.xz"|"$NAME-core.verity") ;; *) gh release delete-asset "$TAG" "$old" -R "$REPO" -y ;; esac
 done
 # The upload fails transiently now and then; --clobber makes a retry safe.
 n=0
-until gh release upload "$TAG" -R "$REPO" --clobber "$OUT/$NAME-root.tar.xz" "$OUT/SHA256SUMS" "$OUT/SHA256SUMS.minisig"; do
+until gh release upload "$TAG" -R "$REPO" --clobber "$OUT/$NAME-core.img.xz" "$OUT/$NAME-core.verity" "$OUT/SHA256SUMS" "$OUT/SHA256SUMS.minisig"; do
 	n=$((n + 1)); [ $n -lt 3 ] || exit 1
 	echo "upload failed, retrying ($n)" >&2; sleep 5
 done

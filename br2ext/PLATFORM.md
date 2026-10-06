@@ -58,34 +58,34 @@ the staging sysroot by `board/aos/post-build.sh`.
 
 **An installed disk** has five partitions: a BIOS boot partition, the EFI
 system partition, two root slots (`aos-a`, partition 3, and `aos-b`,
-partition 4, 6 GiB each) and the data partition (`aos-data`, the rest).
-A base-OS update writes a release's root tarball into the idle slot and
-GRUB boots it once; a boot that reaches the desktop confirms the slot, one
+partition 4, 6 GiB each) and the `aos` partition (the rest). A slot
+holds a core: a squashfs image with its dm-verity hash tree, written
+whole by an update and never changed; the kernel checks every block it
+reads against the hash tree, whose root hash GRUB passes from the ESP.
+A base-OS update writes a release's core into the idle slot and GRUB
+boots it once; a boot that reaches the desktop confirms the slot, one
 that does not falls back at the next reset ([docs/upgrading.md](docs/upgrading.md)).
-The data partition is mounted at `/var` and holds everything that must
-outlive a slot: `/home` and the apm store `/opt/apm` are bind mounts out of
-it, the swap file is `/var/swapfile`, and `/etc` is an overlayfs whose
-lower half is the slot's own `/etc` and whose upper half is
-`/var/etc/upper`, so accounts, hostname, the session's user and every
-setting written on the machine belong to both slots while a new release's
-`/etc` shows through wherever nothing was changed. The kernel runs
-`/usr/lib/aos/init` as PID 1, which mounts `/var` and the overlay and then
-starts systemd -- PID 1 reads `/etc` before it mounts anything from
-`/etc/fstab`. GRUB's menu and its `grubenv` (`slot`, the confirmed slot;
-`next`, a slot to try once) are on the ESP under `/boot/efi/grub`, since
-they belong to neither slot. `/usr/lib/aos/slot.sh` is the layout in code.
+The `aos` partition is mounted at `/aos` and is the OS a person sees
+([docs/layout.md](docs/layout.md)): `aos/` holds what the OS writes --
+`etc/` is the upper half of an overlayfs over the core's `/etc`, `var/`
+is bound on `/var`, and the swap file -- `apm/` is the store, bound on
+`/opt/apm`, and `users/` the homes, bound on `/home`; so accounts,
+hostname, the session's user and every setting written on the machine
+belong to both slots while a new release's `/etc` shows through wherever
+nothing was changed. A small initramfs built from the target's own
+binaries (`board/aos/initramfs`) opens the core, mounts the partition and
+assembles that tree before systemd starts. GRUB's menu, its `grubenv`
+(`slot`, the confirmed slot; `next`, a slot to try once) and each slot's
+kernel, microcode, initramfs and verity parameters are on the ESP under
+`/boot/efi/grub` and `/boot/efi/aos/<slot>`, since they belong to
+neither slot. `/usr/lib/aos/slot.sh` is the layout in code.
 
-On an installed system the kernel mounts the root **read-only** from
-`root=PARTUUID=`, `systemd-fsck-root` checks it, and `systemd-remount-fs`
-makes it writable from its `/etc/fstab` line. That is how the root gets an
-fsck without an initramfs; do not change the `ro` on the kernel command
-line. `/boot/efi` is listed by `UUID=` with `nofail`; systemd waits for
-udev to create the `/dev/disk/by-uuid` link before mounting it, and entries
-you add by UUID work the same way.
-
-There is no initramfs. The `initrd` GRUB passes is `/boot/microcode.img`,
-CPU microcode only; the kernel applies it and, finding no `/init`, mounts
-the root itself. That is also why the root cannot live on LVM, RAID or LUKS.
+The initramfs is small and ours: `board/aos/initramfs/init`, with bash,
+util-linux, veritysetup, cryptsetup and e2fsck from the target tree,
+packed by post-build.sh into `/boot/initramfs.img` beside the kernel. GRUB
+passes `/boot/microcode.img` (CPU microcode) and it as the initrd. The
+live ISO boots the same way: the medium holds `/aos/core.img`, the same
+image a slot gets, and the initramfs loop-mounts it.
 
 On the live ISO the root is read-only and `/var` is a tmpfs, seeded at boot
 from `/usr/share/factory/var`. An installed system's `/etc/fstab` names the
@@ -349,8 +349,8 @@ The step-by-step procedure, with the mistakes it prevents, is
 *Install AOS onto the stick* with `board/aos/write-usb.sh /dev/sdX
 --install`. It boots the live ISO in QEMU with the physical stick attached
 as a disk and runs `aos-install` on it, so the stick ends up an ordinary
-installed system: GPT, a FAT32 EFI system partition at the front, two ext4
-root slots and a data partition, GRUB for UEFI and BIOS. That is the same shape as any installed OS,
+installed system: GPT, a FAT32 EFI system partition at the front, two
+root slots holding cores and the `aos` partition, GRUB for UEFI and BIOS. That is the same shape as any installed OS,
 which is why every firmware boots it, and it is persistent and writable —
 what a machine you SSH into to build on needs.
 

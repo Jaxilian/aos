@@ -7,7 +7,7 @@ per package, and the OS written to the idle slot with a percentage.
 The working tree's binaries (ade-comp, ade-shell, settings, aos-store,
 apm) and the overlay's aos-update, aos-update-check and timer are copied
 in over ssh and the session restarted on them, so this tests a build
-without an ISO. A fake release 9.9.9 -- this build's rootfs.tar.xz, its
+without an ISO. A fake release 9.9.9 -- this build's core.img, its
 SHA256SUMS signed with the local apm key -- is served from the host, and
 update.conf in the guest is pointed at it. The package part uses the
 public index over the network: whatever the disk has that is older.
@@ -45,7 +45,8 @@ spec.loader.exec_module(dt)
 TARGET = os.path.join(bt.BASE, "output", "target")
 OVERLAY = os.path.join(HERE, "rootfs-overlay")
 RELEASE = os.path.join(bt.OUT, "update-release")
-TAR = "aos-9.9.9-x86_64-root.tar.xz"
+IMG = "aos-9.9.9-x86_64-core.img.xz"
+VERITY = "aos-9.9.9-x86_64-core.verity"
 PORT = 8765
 URL = "http://10.0.2.2:%d" % PORT
 W, H = dt.W, dt.H
@@ -55,11 +56,17 @@ PASS = "aostest"
 
 
 def make_release():
+    """A fake release 9.9.9 from this build: the core image compressed the
+    way release.sh ships it (xz, fastest preset: this is a test), its
+    verity file, and SHA256SUMS signed with the local key."""
     shutil.rmtree(RELEASE, ignore_errors=True)
     os.makedirs(RELEASE)
-    os.link(os.path.join(bt.IMG, "rootfs.tar.xz"), os.path.join(RELEASE, TAR))
+    core = os.path.join(bt.IMG, "core.img")
+    with open(os.path.join(RELEASE, IMG), "wb") as f:
+        subprocess.run(["xz", "-0", "-T0", "-c", core], stdout=f, check=True)
+    shutil.copy(os.path.join(bt.IMG, "core.verity"), os.path.join(RELEASE, VERITY))
     with open(os.path.join(RELEASE, "SHA256SUMS"), "w") as f:
-        subprocess.run(["sha256sum", TAR], cwd=RELEASE, stdout=f, check=True)
+        subprocess.run(["sha256sum", IMG, VERITY], cwd=RELEASE, stdout=f, check=True)
     subprocess.run([bt.APM_BIN, "sign", os.path.join(RELEASE, "SHA256SUMS")], check=True, stdout=subprocess.DEVNULL)
 
 

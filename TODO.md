@@ -1,6 +1,7 @@
 # TODO
 
-Updated 2026-10-06 afternoon. The newest release is 0.1.30 (0.1.23: the
+Updated 2026-10-06 afternoon. The newest release is 0.2.0 (the cores and
+the aos partition: a reinstall; 0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
 bar's glass; 0.1.27: the shell follows the theme at once; 0.1.28: the
@@ -20,6 +21,25 @@ and after in docs/performance.md, with the G14's own numbers from your
 report of 2026-10-05. Left there: resolved's 1.4 s on the live ISO,
 nvidia-devices before the desktop on the G14, and tgn programs' memory,
 to be read from your next report (TEST.md 4h).
+
+## The cores and the aos partition (2026-10-06 afternoon, agreed; 0.2.0)
+
+Done in QEMU: squashfs cores with a dm-verity hash tree in the slots,
+opened by a 13 MB initramfs of the target's own binaries; the `aos`
+partition at /aos with aos/ (etc overlay, var, the swap file), apm/,
+users/; the ISO is /boot plus the core (857 MB with zstd-15; zstd-19
+with 1 MiB blocks is set for the next build); aos-install writes the
+core from the live medium and verifies it; aos-update fetches
+core.img.xz + core.verity, writes, verifies, stages the ESP, sets
+next; release.sh ships those; Files shows "AOS"; the setup app knows
+the live medium by its core. The live home is writable now (a tmpfs
+aos partition). The kernel is no longer an apm package. docs/layout.md.
+Open: the kernel packages still in the apm index (remove at release);
+docs/upgrading, publishing, usb, security-model to rewrite; the G14
+round (TEST.md 0: a reinstall).
+Next in this line: LUKS2 on the aos partition (the initramfs already
+asks for a passphrase when it finds LUKS; the installer's option and
+the test are to do), systemd-homed per user, the greeter repo.
 
 ## Decisions I need from you before the next big items
 

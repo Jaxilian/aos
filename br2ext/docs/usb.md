@@ -173,9 +173,9 @@ NAME    SIZE PARTLABEL PARTTYPENAME     FSTYPE LABEL
 sda    28.7G
 ├─sda1    1M bios_grub BIOS boot
 ├─sda2  512M ESP       EFI System       vfat   AOS_ESP
-├─sda3    6G aos-a     Linux filesystem ext4   aos-a
-├─sda4    6G aos-b     Linux filesystem ext4   aos-b
-└─sda5 16.2G aos-data  Linux filesystem ext4   aos-data
+├─sda3    6G aos-a     Linux filesystem               (a core: squashfs + verity, raw)
+├─sda4    6G aos-b     Linux filesystem               (empty until the first update)
+└─sda5 16.2G aos       Linux filesystem ext4   aos
 >>> EFI system partition /dev/sda2 is FAT32    with:
 bootx64  efi ...
 Done. /dev/sda is ready.

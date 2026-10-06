@@ -142,12 +142,17 @@ BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
 BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
 
 # Filesystem. M5 replaces this with the hybrid BIOS+UEFI ISO.
-BR2_TARGET_ROOTFS_EXT2=y
-BR2_TARGET_ROOTFS_EXT2_4=y
-BR2_TARGET_ROOTFS_EXT2_SIZE="4G"
+# The root core: a squashfs (zstd: fast to read back) that post-image.sh
+# wraps in a dm-verity hash tree -- what a slot holds and what the ISO
+# carries. See docs/layout.md.
+BR2_TARGET_ROOTFS_SQUASHFS=y
+BR2_TARGET_ROOTFS_SQUASHFS4_ZSTD=y
+# zstd at its top level with 1 MiB blocks reads back far faster than xz
+# and lands within a few percent of its size (the default level 15 with
+# 128 KiB blocks made a 782 MB core of a 491 MB xz tarball).
+BR2_TARGET_ROOTFS_SQUASHFS_COMP_OPTS="-Xcompression-level 19 -b 1M"
 # rootfs.tar.xz is what a release ships for aos-update: a root slot is
 # written from it (release.sh, docs/upgrading.md).
-BR2_TARGET_ROOTFS_TAR_XZ=y
 
 ################################################################################
 # M1 -- GNU userland.
@@ -202,6 +207,10 @@ BR2_PACKAGE_UTIL_LINUX_BINARIES=y
 # mount/umount: systemd selects them anyway, and the fstab that aos-install
 # writes uses UUID= entries, which util-linux mount resolves.
 BR2_PACKAGE_UTIL_LINUX_MOUNT=y
+# For the initramfs: the loop device under the live medium's core, and
+# the hand-over to systemd (board/aos/initramfs).
+BR2_PACKAGE_UTIL_LINUX_LOSETUP=y
+BR2_PACKAGE_UTIL_LINUX_SWITCH_ROOT=y
 # su, with PAM. shadow below is deliberately built without its own.
 BR2_PACKAGE_UTIL_LINUX_SU=y
 # zramctl configures the compressed swap device (see board/aos/rootfs-overlay
@@ -225,6 +234,10 @@ BR2_PACKAGE_SUDO=y
 
 # Needed by aos-install: partitioning, filesystems, EFI boot entries.
 BR2_PACKAGE_E2FSPROGS=y
+# veritysetup (the cores) and cryptsetup (the data partition), in the
+# initramfs and on the system; the host one makes the hash trees.
+BR2_PACKAGE_CRYPTSETUP=y
+BR2_PACKAGE_HOST_CRYPTSETUP=y
 BR2_PACKAGE_DOSFSTOOLS=y
 # The sub-options are not implied by the package. Without MKFS_FAT there
 # is no mkfs.fat and aos-install cannot format the EFI system partition.
@@ -574,11 +587,6 @@ BR2_PACKAGE_AOS_NVIDIA_SMI=y
 #
 # /var is a tmpfs seeded from a factory copy -- see the System section.
 ################################################################################
-BR2_TARGET_ROOTFS_ISO9660=y
-BR2_TARGET_ROOTFS_ISO9660_GRUB2=y
-# BR2_TARGET_ROOTFS_ISO9660_INITRD is not set
-BR2_TARGET_ROOTFS_ISO9660_TRANSPARENT_COMPRESSION=y
-BR2_TARGET_ROOTFS_ISO9660_BOOT_MENU="$(BR2_EXTERNAL_AOS_PATH)/board/aos/iso-grub.cfg"
 
 BR2_TARGET_GRUB2=y
 BR2_TARGET_GRUB2_I386_PC=y
@@ -602,14 +610,8 @@ BR2_TARGET_GRUB2_BUILTIN_CONFIG_EFI="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-emb
 BR2_TARGET_GRUB2_BUILTIN_CONFIG_PC="$(BR2_EXTERNAL_AOS_PATH)/board/aos/grub-embedded.cfg"
 # aos-install runs grub-install and grub-mkconfig on the installed system.
 BR2_TARGET_GRUB2_INSTALL_TOOLS=y
-# NOTE: there is deliberately no POST_IMAGE script here.
-#
-# An earlier attempt made the ISO USB-bootable by re-running xorriso over the
-# staging tree from a post-image script. That is wrong: Buildroot generates
-# filesystem images inside a fakeroot session so that everything is owned by
-# root, and post-image scripts run outside it. The rebuilt ISO came out owned
-# by the build user, which left the booted system unable to open /dev/console
-# or write to /run, so the network and getty both failed.
-#
-# Making the ISO hybrid has to preserve that ownership -- see the note on USB
-# booting in PLATFORM.md.
+# post-image.sh runs outside Buildroot's fakeroot, which once broke an ISO
+# rebuilt from the staging tree (files owned by the build user). It never
+# touches the tree now: it wraps rootfs.squashfs (made inside fakeroot) in
+# its verity hash tree and assembles the ISO from that image and /boot.
+BR2_ROOTFS_POST_IMAGE_SCRIPT="$(BR2_EXTERNAL_AOS_PATH)/board/aos/post-image.sh"

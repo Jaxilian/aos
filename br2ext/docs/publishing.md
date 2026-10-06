@@ -8,9 +8,10 @@
 ```
 
 `release.sh` takes a tagged, clean build and writes `output/release/`: the
-ISO renamed `aos-<version>-x86_64.iso`, the root tarball
-`aos-<version>-x86_64-root.tar.xz` (what `aos-update` writes into a root
-slot), the legal-info manifest, the CVE report from `make pkg-stats`, and
+ISO renamed `aos-<version>-x86_64.iso`, the core image
+`aos-<version>-x86_64-core.img.xz` with its verity parameters
+`aos-<version>-x86_64-core.verity` (what `aos-update` writes into a root
+slot and checks it by), the legal-info manifest, the CVE report from `make pkg-stats`, and
 `SHA256SUMS` over all of them signed with `apm sign` -- the same key that
 signs the apm repositories, the one `apm key new` made, whose public half
 is `keys/apm.pub` in [apm-recipes](https://github.com/Jaxilian/apm-recipes)

@@ -1,0 +1,144 @@
+#!/bin/sh
+#
+# The initramfs: the one program between the kernel and systemd. It opens
+# the core (a squashfs checked by dm-verity), mounts the aos partition,
+# assembles the tree a program expects out of the two, and hands over.
+# docs/layout.md says what the pieces are; this says what happens, in
+# the order it happens.
+#
+# Command line:
+#   aos.core=PARTUUID=<uuid>   the slot that holds the core
+#   aos.core=live              the core is /aos/core.img on the live medium,
+#                              which aos.live= names (a device or PARTUUID=)
+#   aos.hash=<root hash>       the core's verity root hash, from GRUB
+#   aos.data=PARTUUID=<uuid>   the aos partition; none on the live medium
+#
+# Anything wrong drops to a shell on the console with the reason: a
+# machine that cannot boot must at least say why.
+
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+export PATH
+
+# Through the kernel's log: it reaches every console (serial and screen),
+# and the journal keeps it once systemd runs.
+say() { echo "aos-init: $*" > /dev/kmsg 2>/dev/null || echo "aos-init: $*" > /dev/console; }
+fail() {
+	say "$*"
+	say "a shell follows; 'exit' tries to carry on"
+	exec sh < /dev/console > /dev/console 2>&1
+}
+
+mount -t devtmpfs devtmpfs /dev 2>/dev/null
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+say "starting"
+mkdir -p /dev/pts /run /sysroot
+mount -t devpts devpts /dev/pts 2>/dev/null
+mount -t tmpfs tmpfs /run
+# The live medium stays mounted under /run, which moves to the real root:
+# the installer reads /run/aos/live/aos/core.img from there.
+mkdir -p /run/aos/live
+
+CORE=""; HASH=""; DATA=""; LIVE=""; SERIAL=no
+for arg in $(cat /proc/cmdline); do
+	case "$arg" in
+		aos.core=*) CORE=${arg#aos.core=} ;;
+		aos.hash=*) HASH=${arg#aos.hash=} ;;
+		aos.data=*) DATA=${arg#aos.data=} ;;
+		aos.live=*) LIVE=${arg#aos.live=} ;;
+	esac
+done
+[ -n "$CORE" ] || fail "no aos.core= on the command line"
+[ -n "$HASH" ] || fail "no aos.hash= on the command line"
+
+# A block device from a spec: a path, or PARTUUID=/UUID=/LABEL= through
+# blkid. Waits for it: a USB stick enumerates seconds after the kernel
+# first looks.
+device() {
+	local spec="$1" dev i
+	for i in $(seq 1 60); do
+		case "$spec" in
+			/dev/*) dev=$spec; [ -b "$dev" ] && { echo "$dev"; return 0; } ;;
+			*=*) dev=$(blkid -l -t "$spec" -o device 2>/dev/null); [ -n "$dev" ] && { echo "$dev"; return 0; } ;;
+		esac
+		sleep 0.5
+	done
+	return 1
+}
+
+# --- the core ----------------------------------------------------------------
+if [ "$CORE" = live ]; then
+	[ -n "$LIVE" ] || fail "aos.core=live without aos.live="
+	MEDIUM=$(device "$LIVE") || fail "the live medium $LIVE never appeared"
+	mount -t iso9660 -o ro "$MEDIUM" /run/aos/live || fail "cannot mount the live medium $MEDIUM"
+	[ -f /run/aos/live/aos/core.img ] || fail "no /aos/core.img on the live medium"
+	COREDEV=$(losetup -f --show -r /run/aos/live/aos/core.img) || fail "losetup failed"
+else
+	COREDEV=$(device "$CORE") || fail "the core $CORE never appeared"
+fi
+
+# The hash tree sits behind the squashfs, at the offset the superblock
+# in core.verity names; veritysetup finds it from the superblock when told
+# where the superblock is. The offset is passed as aos.offset=, else read
+# from the squashfs: its size, padded to 4 KiB.
+OFFSET=""
+for arg in $(cat /proc/cmdline); do
+	case "$arg" in aos.offset=*) OFFSET=${arg#aos.offset=} ;; esac
+done
+[ -n "$OFFSET" ] || fail "no aos.offset= on the command line"
+veritysetup open "$COREDEV" core "$COREDEV" "$HASH" --hash-offset="$OFFSET" \
+	|| fail "the core $COREDEV does not match its hash: tampered with, or written half way"
+mount -t squashfs -o ro /dev/mapper/core /sysroot || fail "the core does not mount"
+
+# --- the aos partition -------------------------------------------------------
+if [ -n "$DATA" ]; then
+	DATADEV=$(device "$DATA") || fail "the aos partition $DATA never appeared"
+	# LUKS2: the installer's choice. The passphrase is asked on the console.
+	if cryptsetup isLuks "$DATADEV" 2>/dev/null; then
+		cryptsetup open --tries 5 "$DATADEV" aos < /dev/console > /dev/console 2>&1 \
+			|| fail "the aos partition stays locked"
+		DATADEV=/dev/mapper/aos
+	fi
+	e2fsck -p "$DATADEV" > /dev/null 2>&1 || say "e2fsck on $DATADEV returned $?"
+	mount -t ext4 "$DATADEV" /sysroot/aos || fail "cannot mount the aos partition $DATADEV"
+else
+	# The live medium: a tmpfs in the partition's place. Everything of the
+	# session is lost at power-off, as a live medium is meant to be.
+	mount -t tmpfs -o mode=755 tmpfs /sysroot/aos
+fi
+A=/sysroot/aos
+mkdir -p "$A/aos/etc/upper" "$A/aos/etc/work" "$A/aos/var" "$A/apm" "$A/users"
+# A fresh partition (or the live tmpfs): /var from the core's factory copy,
+# the store from the core's own, the live home from skel.
+if [ ! -d "$A/aos/var/lib" ]; then
+	cp -a /sysroot/usr/share/factory/var/. "$A/aos/var/" 2>/dev/null || true
+	mkdir -p "$A/aos/var/log/journal" "$A/aos/var/tmp"
+	chmod 1777 "$A/aos/var/tmp"
+fi
+if [ ! -d "$A/apm/packages" ] && [ -d /sysroot/opt/apm ]; then
+	cp -a /sysroot/opt/apm/. "$A/apm/"
+fi
+if [ -z "$DATA" ] && [ ! -d "$A/users/admin" ] && [ -d /sysroot/home/admin ]; then
+	cp -a /sysroot/home/admin "$A/users/admin"
+fi
+
+# --- the tree ----------------------------------------------------------------
+mount --bind "$A/aos/var" /sysroot/var || fail "bind of var failed"
+mount -t overlay overlay -o "lowerdir=/sysroot/etc,upperdir=$A/aos/etc/upper,workdir=$A/aos/etc/work" /sysroot/etc \
+	|| fail "the /etc overlay failed"
+mount --bind "$A/apm" /sysroot/opt/apm || fail "bind of apm failed"
+mount --bind "$A/users" /sysroot/home || fail "bind of users failed"
+# The ESP, for grubenv and the next update; only on a disk, and never a
+# reason not to boot.
+if [ -n "$DATA" ]; then
+	ESP=$(blkid -l -t LABEL=AOS_ESP -o device 2>/dev/null)
+	if [ -n "$ESP" ]; then
+		mkdir -p /sysroot/boot/efi
+		mount -t vfat -o noatime "$ESP" /sysroot/boot/efi 2>/dev/null || say "the ESP $ESP did not mount"
+	fi
+fi
+
+mount --move /dev /sysroot/dev
+mount --move /run /sysroot/run
+umount /proc /sys 2>/dev/null
+exec switch_root /sysroot /sbin/init

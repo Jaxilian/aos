@@ -37,30 +37,14 @@ against the version it ships, so a hand-picked kernel is less well tested. And
 the NVIDIA modules must support it -- 610.57.04 builds against 7.x, but a much
 newer kernel may need a newer driver.
 
-### Shipping it without a new ISO
+### Shipping it
 
-An installed system takes a kernel from apm. After `make`:
-
-```sh
-./br2ext/board/aos/kernel-apkg.sh            # -> apm-recipes/index/aos-kernel-<ver>-1.x86_64.apkg
-```
-
-lifts `/boot/bzImage` and the whole `/usr/lib/modules/<ver>` (depmod's files
-and the NVIDIA modules included) out of `output/target` into a signed
-package. Publish it, or `apm install` the file, then reboot. The package's
-hooks copy `/usr/lib/modules/<ver>` (marked with a `.apm` file) and the
-kernel, as `/boot/bzImage.apm`, into the root slot. Copies, not links into
-the store: on an installed disk the store is on the data partition, which
-GRUB cannot read and which is not mounted yet when the firewall, zram and
-udev load their modules at boot (release 2 linked the modules; a 7.2.9
-package on a 7.1.13 image booted with no firewall). The kernel there
-before becomes `/boot/bzImage.prev`. The grub.cfg
-`aos-install` writes boots `.apm` when it exists, offers "AOS (previous
-kernel)" and "AOS (image kernel)", and never touches the image's own
-`/boot/bzImage`. Because the NVIDIA modules ride in the package, build it
-from the same tree as the image's NVIDIA userspace. The copy stays with
-the slot it was made in: after a base-OS update the new slot boots the
-release's kernel until `apm remove kernel && apm install kernel`.
+The kernel is part of the core (docs/layout.md): a core is an immutable
+image checked block by block, so nothing can put a kernel or a modules
+directory into it afterwards. A kernel change ships as an OS update --
+`release.sh --publish`, then Software's Upgrade system -- and the
+previous kernel is the previous slot. (0.1.x had the kernel as an apm
+package, `kernel-apkg.sh`; that road is closed.)
 
 ## Base OS updates
 
@@ -86,9 +70,10 @@ still runs; apm then exits 1 with "N package(s) failed".
 An update interrupted at any point -- the power, the lid, Settings
 closed -- leaves the machine booting what it runs now: GRUB's `next` is
 cleared before the idle slot is touched and set only when the slot is
-complete, and a slot without the mark a complete write leaves
-(`/.aos-slot-ok`) is one `aos-update --rollback` refuses to boot. The
-next update simply writes the slot again.
+complete, and a slot without the file a complete write leaves last
+(`/boot/efi/aos/<slot>/verity.cfg`) has no menu entry and is one
+`aos-update --rollback` refuses to boot. The next update simply writes
+the slot again.
 
 One update runs at a time: a second `aos-update` (or an `apm upgrade`
 beside one) says "another update is already running" and leaves, and
@@ -101,9 +86,13 @@ It fetches `SHA256SUMS` and `SHA256SUMS.minisig` from the URL in
 `/usr/lib/aos/update.conf` (the apm package index's release in apm-recipes,
 where `release.sh --publish` puts them), checks the signature against the
 keys in `/opt/apm/etc/keys/trusted` -- the same key every machine already
-trusts for apm -- downloads the root tarball the file names, checks its
-sha256, writes it into the idle slot (`mkfs.ext4`, `tar -x`), gives that
-slot its `fstab`, appends any system account the new release adds to the
+trusts for apm -- downloads the core image the file names
+(`aos-<version>-x86_64-core.img.xz`) and its verity parameters
+(`-core.verity`), checks their sha256, writes the image into the idle
+slot and reads it back through its verity (a block that does not match
+its hash is an I/O error), copies the kernel, microcode and initramfs
+out of it onto the ESP with the root hash in `/boot/efi/aos/<slot>/
+verity.cfg`, appends any system account the new release adds to the
 overlay's `passwd`/`group`, and sets `next=<slot>` in
 `/boot/efi/grub/grubenv`. GRUB boots `next` once and clears it before the
 kernel runs; `aos-update-confirm.service`, twenty seconds after the
@@ -120,8 +109,9 @@ Two minutes after a boot, and daily after that, `aos-update-check.timer`
 refreshes the indexes and writes what waits to `/var/lib/aos/updates`;
 the desktop shows a toast, and a click on it opens that page.
 
-A disk installed before the slots existed (one root partition) cannot be
-updated this way; reinstall it. `aos-install` wipes the disk.
+A disk installed by 0.1.x (ext4 slots, a tarball updater, the data
+partition called aos-data) cannot be updated into the cores; reinstall
+it. `aos-install` wipes the disk.
 
 ## Kernel options
 

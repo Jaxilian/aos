@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A base-OS update on the installed QEMU disk (boot-test.py install first).
 
-A fake release -- this build's rootfs.tar.xz named as version 9.9.9, its
+A fake release -- this build's core.img named as version 9.9.9, its
 SHA256SUMS signed with the local apm key, which the image trusts -- is
 served to the guest from the host. Four boots, because QEMU runs with
 -no-reboot and a restart is a new QEMU:
@@ -50,12 +50,13 @@ if USB:
 
 APM = bt.APM_BIN
 RELEASE = os.path.join(bt.OUT, "update-release")
-TAR = "aos-9.9.9-x86_64-root.tar.xz"
+IMG = "aos-9.9.9-x86_64-core.img.xz"
+VERITY = "aos-9.9.9-x86_64-core.verity"
 PORT = 8765
 URL = "http://10.0.2.2:%d" % PORT
 
-# The partition the root was mounted from: 3 is slot a, 4 is slot b.
-SLOT = "cat /sys/class/block/$(basename $(readlink -f /dev/disk/by-partuuid/$(sed -n 's/.*root=PARTUUID=\\([^ ]*\\).*/\\1/p' /proc/cmdline)))/partition"
+# The partition the core was opened from: 3 is slot a, 4 is slot b.
+SLOT = "cat /sys/class/block/$(basename $(readlink -f /dev/disk/by-partuuid/$(sed -n 's/.*aos\\.core=PARTUUID=\\([^ ]*\\).*/\\1/p' /proc/cmdline)))/partition"
 ENV = "grub-editenv /boot/efi/grub/grubenv list"
 FAILED = "systemctl --failed --no-pager"
 CHECKS = [
@@ -65,7 +66,7 @@ CHECKS = [
     "findmnt -n -o TARGET,SOURCE | grep run/media || echo 'no media'",
     ENV,
     "grep -E 'VERSION_ID|BUILD_ID' /etc/os-release",
-    'for m in / /var /etc /home /opt/apm /boot/efi; do findmnt -n -o TARGET,SOURCE,FSTYPE $m || echo "$m: not mounted"; done',
+    'for m in / /aos /var /etc /home /opt/apm /boot/efi; do findmnt -n -o TARGET,SOURCE,FSTYPE $m || echo "$m: not mounted"; done',
     "id admin; ls /home; cat /etc/machine-id; hostname",
     FAILED,
     "swapon --show --noheadings",
@@ -73,11 +74,17 @@ CHECKS = [
 
 
 def make_release():
+    """A fake release 9.9.9 from this build: the core image compressed the
+    way release.sh ships it (xz, fastest preset: this is a test), its
+    verity file, and SHA256SUMS signed with the local key."""
     shutil.rmtree(RELEASE, ignore_errors=True)
     os.makedirs(RELEASE)
-    os.link(os.path.join(bt.IMG, "rootfs.tar.xz"), os.path.join(RELEASE, TAR))
+    core = os.path.join(bt.IMG, "core.img")
+    with open(os.path.join(RELEASE, IMG), "wb") as f:
+        subprocess.run(["xz", "-0", "-T0", "-c", core], stdout=f, check=True)
+    shutil.copy(os.path.join(bt.IMG, "core.verity"), os.path.join(RELEASE, VERITY))
     with open(os.path.join(RELEASE, "SHA256SUMS"), "w") as f:
-        subprocess.run(["sha256sum", TAR], cwd=RELEASE, stdout=f, check=True)
+        subprocess.run(["sha256sum", IMG, VERITY], cwd=RELEASE, stdout=f, check=True)
     subprocess.run([APM, "sign", os.path.join(RELEASE, "SHA256SUMS")], check=True, stdout=subprocess.DEVNULL)
 
 

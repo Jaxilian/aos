@@ -73,10 +73,6 @@ grubenv_get() {
 case "$MODE" in
 confirm)
 	[ -f "$GRUBENV" ] || exit 0
-	# A slot that booted to the desktop is complete whatever wrote it:
-	# the mark --rollback asks for, also on a machine installed before
-	# the mark existed.
-	: > /.aos-slot-ok 2>/dev/null || true
 	if [ "$(grubenv_get slot)" != "$CUR" ]; then
 		grub-editenv "$GRUBENV" set "slot=$CUR"
 		echo "aos-update: slot $CUR confirmed"
@@ -84,15 +80,11 @@ confirm)
 	exit 0
 	;;
 rollback)
+	# A slot is complete when its verity parameters are on the ESP: that
+	# file is the last thing a write puts there.
 	OTHER=$(slot_other)
-	M=/run/aos-update-rollback
-	mkdir -p "$M"
-	mount -o ro "$(slot_dev "$OTHER")" "$M" 2>/dev/null || { echo "aos-update: slot $OTHER holds no system" >&2; exit 1; }
-	# The marker is the last thing a write puts there: a slot without it
-	# was interrupted, and is no system to boot however much of one it holds.
-	[ -f "$M/boot/bzImage" ] && [ -f "$M/.aos-slot-ok" ] || { umount "$M"; echo "aos-update: slot $OTHER holds no system" >&2; exit 1; }
-	ver=$(sed -n 's/^PRETTY_NAME="\(.*\)"/\1/p' "$M/usr/lib/os-release")
-	umount "$M"
+	[ -f "$ESPAOS/$OTHER/verity.cfg" ] || { echo "aos-update: slot $OTHER holds no system" >&2; exit 1; }
+	ver=$(sed -n 's/^PRETTY_NAME="\(.*\)"/\1/p' "$ESPAOS/$OTHER/os-release")
 	grub-editenv "$GRUBENV" set "next=$OTHER"
 	echo "$ver (slot $OTHER) boots at the next restart"
 	exit 0
@@ -118,10 +110,12 @@ for k in /opt/apm/etc/keys/trusted/*.pub; do
 done
 [ "$ok" = yes ] || { echo "aos-update: SHA256SUMS from $URL is not signed by a trusted key" >&2; exit 1; }
 
-TAR=$(awk '$2 ~ /^aos-.*-x86_64-root\.tar\.xz$/ { print $2; exit }' "$WORK/SHA256SUMS")
-[ -n "$TAR" ] || { echo "aos-update: no root image in $URL/SHA256SUMS" >&2; exit 1; }
+# The release: the core image and its verity parameters (docs/layout.md).
+TAR=$(awk '$2 ~ /^aos-.*-x86_64-core\.img\.xz$/ { print $2; exit }' "$WORK/SHA256SUMS")
+[ -n "$TAR" ] || { echo "aos-update: no core image in $URL/SHA256SUMS" >&2; exit 1; }
 NEW_VER=${TAR#aos-}
-NEW_VER=${NEW_VER%-x86_64-root.tar.xz}
+NEW_VER=${NEW_VER%-x86_64-core.img.xz}
+VERITY="aos-$NEW_VER-x86_64-core.verity"
 if [ "$(printf '%s\n%s\n' "$CUR_VER" "$NEW_VER" | sort -V | tail -1)" = "$CUR_VER" ]; then
 	echo "AOS $CUR_VER is the newest release; nothing to do"
 	exit 0
@@ -130,21 +124,14 @@ OTHER=$(slot_other)
 DEV=$(slot_dev "$OTHER")
 # The release already written and waiting for the restart: Upgrade system
 # pressed again, or the check run before the reboot, must not write the
-# slot a second time or call the update outstanding. The idle slot is
-# looked into read-only; the mark says the write completed.
-slot_version() {
-	P=/run/aos-update-peek
-	mkdir -p "$P"
-	mount -o ro "$1" "$P" 2>/dev/null || return 0
-	if [ -f "$P/.aos-slot-ok" ]; then sed -n 's/^VERSION_ID=//p' "$P/usr/lib/os-release"; fi
-	umount "$P" 2>/dev/null || true
-}
+# slot a second time or call the update outstanding. The ESP's copy of
+# the slot's os-release says what is there (slot.sh).
 # The lines the Software application reads for its Update page; a person
 # at a terminal sees the >>> lines alone.
 prog() {
 	if [ "$PROG" = yes ]; then echo "::os $NEW_VER $*"; fi
 }
-if [ "$(slot_version "$DEV")" = "$NEW_VER" ] && [ "$(grubenv_get next)" = "$OTHER" ]; then
+if [ "$(slot_version "$OTHER")" = "$NEW_VER" ] && [ "$(grubenv_get next)" = "$OTHER" ]; then
 	echo "AOS $NEW_VER is already in slot $OTHER and boots at the next restart"
 	prog done
 	exit 0
@@ -172,60 +159,39 @@ if [ "$PROG" = yes ]; then
 else
 	curl -fsSL -o "$WORK/$TAR" "$URL/$TAR"
 fi
+curl -fsSL -o "$WORK/$VERITY" "$URL/$VERITY"
 ( cd "$WORK" && sha256sum -c --ignore-missing --quiet SHA256SUMS )
 
 echo ">>> Writing slot $OTHER ($DEV)"
 prog installing
 M=/run/aos-update
-mkdir -p "$M"
-# GRUB must not be pointed at this slot while it is being written: a run
-# that completed set next=$OTHER, and a later run that is interrupted (a
-# power-off, Settings closed, the lid) would otherwise leave next naming
-# a half-written slot. Cleared first, set last; in between the machine
-# boots what it runs now, whatever happens to the slot.
+# GRUB must not be pointed at this slot while it is being written, and
+# the slot's menu entry goes with its ESP directory: cleared first, set
+# last; in between the machine boots what it runs now, whatever happens
+# to the slot. A run that dies mid-way (a power-off, an error under
+# set -e) must not leave the core open; every command in the trap is
+# allowed to fail, or a completed update would report umount's status.
 grub-editenv "$GRUBENV" unset next
-# A run that dies mid-write (a power-off, an error under set -e) must not
-# leave the slot mounted, or the next run's mkfs refuses the device. The
-# trap replaces the one above, so the work directory goes here too; and
-# every command in it is allowed to fail: under set -e a failing umount
-# (the slot already unmounted, the normal case) ended the script with
-# umount's status, and a completed update reported "failed with exit 32".
-trap 'umount "$M" 2>/dev/null || true; rm -rf "$WORK" || true' EXIT
+rm -rf "$ESPAOS/$OTHER"
+trap 'slot_umount_core "$M" aos-update 2>/dev/null || true; rm -rf "$WORK" || true' EXIT
 # An idle slot is nobody's to mount, but a stick's partitions are USB
 # media to udev, and the removable-media rule has mounted one under
-# /run/media before (the G14, 2026-10-01); mkfs refuses a mounted device.
+# /run/media before (the G14, 2026-10-01).
 while m=$(findmnt -n -o TARGET --first-only "$DEV"); do
 	echo "    unmounting $m first"
 	umount "$m"
 done
-mkfs.ext4 -q -F -L "aos-$OTHER" "$DEV"
-mount "$DEV" "$M"
-# /home and /opt/apm are mount points for the data partition; what the
-# image carries there would only be hidden. GRUB's own files live on the
-# ESP, not in a slot.
-tar -xJf "$WORK/$TAR" -C "$M" --exclude=./opt/apm --exclude=./home
-mkdir -p "$M/proc" "$M/sys" "$M/dev" "$M/run" "$M/tmp" "$M/home" "$M/opt/apm"
-chmod 1777 "$M/tmp"
-rm -rf "$M/boot/grub"
+slot_write_core "$DEV" "$WORK/$TAR" "$WORK/$VERITY" || { echo "aos-update: the core did not verify on $DEV" >&2; exit 1; }
 rm -f "$WORK/$TAR"
+slot_read_verity "$WORK/$VERITY"
+slot_mount_core "$DEV" "$VHASH" "$VOFFSET" "$M" aos-update || { echo "aos-update: cannot open the new core" >&2; exit 1; }
 
-# The slot's own fstab, from this one's: the data partition, the ESP and
-# the swap line are the same; only the root changes. A copy of fstab a
-# person left in the overlay would shadow it on the next boot.
-slot_write_fstab "$M/etc" "UUID=$(blkid -s UUID -o value "$DEV")" \
-	"$(awk '$2 == "/var" { print $1 }' /etc/fstab)" \
-	"$(awk '$2 == "/boot/efi" { print $1 }' /etc/fstab)" \
-	"$(awk '$3 == "swap" || /^# no swap/' /etc/fstab)"
-rm -f /var/etc/upper/fstab
-
-# The release tarball is the live image's root, with the live account's
-# leave in it: no password, sudo without one, no lock screen
-# (/etc/sudoers.d/20-aos-live, /etc/aos/live). aos-install drops them on
-# an installed machine; a slot written here must not bring them back
-# (the first update of 0.1.16 or later did, until 0.1.21). A machine
-# that runs with them -- a demo install -- keeps them.
+# The core is the live image's: the live account's leave is in its /etc
+# (/etc/sudoers.d/20-aos-live, /etc/aos/live), and the overlay's upper
+# copy is what counts on an installed machine; aos-install dropped them
+# there. A machine that runs with them -- a demo install -- keeps them.
 if [ ! -e /etc/aos/live ]; then
-	rm -f "$M/etc/sudoers.d/20-aos-live" "$M/etc/aos/live"
+	rm -f /etc/sudoers.d/20-aos-live /etc/aos/live
 fi
 
 # Accounts the new release adds -- a system user for a new service, say --
@@ -236,13 +202,11 @@ for f in passwd group shadow gshadow; do
 	[ -f "$M/etc/$f" ] && [ -f "/etc/$f" ] || continue
 	awk -F: 'NR == FNR { have[$1] = 1; next } !($1 in have)' "/etc/$f" "$M/etc/$f" >> "/etc/$f"
 done
-# Last: the mark a complete write leaves, which --rollback looks for.
-: > "$M/.aos-slot-ok"
-umount "$M"
-
-# ponytail: a kernel installed by apm lives in the slot it was installed
-# into (bzImage.apm, the modules copy); the new slot boots the release's
-# kernel. `apm remove kernel && apm install kernel` brings it back there.
+# Last: the ESP's share of the slot, verity.cfg at its end, which is what
+# --rollback and GRUB's menu look for.
+slot_stage_esp "$OTHER" "$M" "$VHASH" "$VOFFSET"
+slot_umount_core "$M" aos-update
+trap 'rm -rf "$WORK" || true' EXIT
 grub-editenv "$GRUBENV" set "next=$OTHER"
 echo "AOS $NEW_VER is installed in slot $OTHER and boots at the next restart"
 prog done

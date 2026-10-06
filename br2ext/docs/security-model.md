@@ -53,9 +53,17 @@ gets.
 
 **Updates and software come signed, or not at all.** apm refuses an
 index that no trusted key verifies; the image ships the official key.
-`aos-update` writes a release's root tarball into the idle slot only
-when `SHA256SUMS` carries that key's signature, and GRUB boots the new
-slot once before the desktop confirms it ([upgrading.md](upgrading.md)).
+`aos-update` writes a release's core image into the idle slot only
+when `SHA256SUMS` carries that key's signature, reads it back through
+its verity hash tree, and GRUB boots the new slot once before the
+desktop confirms it ([upgrading.md](upgrading.md)).
+
+**The cores cannot be changed.** A root slot is a squashfs image under
+dm-verity: every block the kernel reads is checked against a hash tree
+whose root hash GRUB passes from the ESP, so a block altered on the disk
+is an I/O error and a core written half way does not mount
+([layout.md](layout.md)). A root compromise does not outlive a restart;
+a disk altered in another computer does not boot that slot.
 A tampered download, mirror or publisher is a refused download.
 
 **The network is closed.** nftables drops everything inbound that is
@@ -121,13 +129,10 @@ undeclared".
    declaration, once every recipe has one; and AOS's own programs in it
    too. The declaration is what answers the child with the download: a
    "free RAM" package that asks for the whole home says so on its page.
-2. **Verified root slots.** Each A/B slot is one image, written once and
-   never changed, which is what dm-verity is for: a hash tree over the
-   slot, its root hash in the signed `SHA256SUMS`, checked by the kernel
-   on every read, set up from the kernel command line so no initramfs is
-   needed. A root compromise then does not survive a restart, and a
-   disk altered in another computer does not boot. It changes the release
-   from a tarball extracted into a partition to an image written to one.
+2. ~~**Verified root slots.**~~ Done 2026-10-06 (0.2.0): the cores, above.
+   The root hash is on the ESP, named by the signed `SHA256SUMS` of the
+   release that wrote it; a signed root hash checked by the firmware is
+   Secure Boot's job, which is after stable.
 3. **`/home` encrypted**, LUKS, unlocked by the account's own password at
    login, as decided in [policies.md](policies.md). A stolen laptop is
    then a stolen laptop and nothing more. The root slots stay in the

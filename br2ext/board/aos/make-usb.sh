@@ -203,10 +203,12 @@ if [ -n "$SEED" ]; then
 	# see flush_dev in write-usb.sh.
 	sudo blockdev --flushbufs "$part" "$DEV" 2>/dev/null || true
 	sudo mount "$part" "$mnt"
-	uid=$(awk -F: -v u="$who" '$1 == u { print $3 ":" $4 }' "$mnt/etc/passwd")
-	if [ -n "$uid" ] && [ -d "$mnt/home/$who" ]; then
-		sudo cp -r "$SEED"/. "$mnt/home/$who/"
-		sudo chown -R "$uid" "$mnt/home/$who"
+	# The aos partition (docs/layout.md): the account is in the /etc
+	# overlay's upper copy of passwd, the home under users/.
+	uid=$(awk -F: -v u="$who" '$1 == u { print $3 ":" $4 }' "$mnt/aos/etc/upper/passwd")
+	if [ -n "$uid" ] && [ -d "$mnt/users/$who" ]; then
+		sudo cp -r "$SEED"/. "$mnt/users/$who/"
+		sudo chown -R "$uid" "$mnt/users/$who"
 		echo "    $(ls "$SEED" | tr '\n' ' ')-> /home/$who"
 	else
 		echo "make-usb.sh: no account $who on the stick; not seeded" >&2

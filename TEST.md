@@ -4,40 +4,43 @@ On the G14, booted from the stick. Each step says what to do and what
 you should see. Write anything that differs into `~/issues.md`, one line
 per item, with its number.
 
-## 0. Get onto the newest release
+## 0. A new disk layout: reinstall the stick (0.2.0)
 
-1. Boot the stick. If it does not reach the desktop, hold the power
-   button, start it again: it falls back to the old version by itself.
-2. Software → Update → **Upgrade system**. Press it **once**: every
-   line says what its package is doing (downloading with a percentage,
-   installing, done or failed with the reason), the AOS line last. Wait
-   for "done; boots at the next restart" and press **Restart** there.
-3. Restart. About 20 seconds after the desktop appears, check:
+0.2.0 changes what a disk holds (docs/layout.md): the two root slots are
+now immutable cores checked block by block (dm-verity), the data
+partition is called `aos` and shows in Files as "AOS" with `aos/`,
+`apm/` and `users/`, and a small initramfs assembles the system before
+systemd. The updater of 0.1.x knows nothing of this, so the stick is
+rewritten once:
+```
+./usb.sh --release
+```
+(or `./usb.sh --oobe` for a stick that asks for its owner at the first
+boot.) Your files on the old stick are gone with it; copy out what you
+want to keep first.
+1. Boot the stick. Expect the desktop as before. Then:
    ```
-   grep VERSION_ID /etc/os-release
+   grep VERSION_ID /etc/os-release; cat /proc/cmdline
+   findmnt / /aos /home /opt/apm /var /etc /boot/efi
+   journalctl -b -t aos-init --no-pager
    ```
-   Expect `0.1.30`.
-4. Software → Update → **Upgrade system** once more, if lines are
-   left: runtime/gtk3 release 7 (libpulse) is one. Each line ends in
-   done or failed; note any failed one with its reason.
-4b. About two minutes after a boot a toast says what updates wait (if
-   any). Click it: Software must open on its Update page.
-5. The stick was installed with the demo account, which keeps the live
-   system's marks: no lock screen ever, sudo without a password. You
-   set a password since, so take them away once (an update does not
-   bring them back from 0.1.21 on):
-   ```
-   sudo rm -f /etc/aos/live /etc/sudoers.d/20-aos-live
-   ```
-   From then on sudo asks your password, and the lock screen is real.
-6. XWayland lost its libraries to the runtime upgrade of an earlier
-   round (an apm bug, fixed in 0.1.21, but the links are gone on this
-   stick; the journal of 2026-10-06 still says "Xwayland: error while
-   loading shared libraries: libpixman-1.so.0"). This is why Steam says
-   "no X11 display" and VS Code (Electron, X11) shows no window.
-   Software → AOS → Compatibility → **XWayland** off, then on again.
-   After a few seconds `pgrep -a Xwayland` must show it; then Steam and
-   VS Code start.
+   Expect `VERSION_ID=0.2.0`.
+   `/` is `/dev/mapper/core`, squashfs, read-only; `/aos` is the fifth
+   partition, ext4; `/home` and `/opt/apm` come from it; the command
+   line carries `aos.core=PARTUUID=... aos.hash=...`.
+2. Files: the sidebar says **AOS** (no "Root"); inside it `aos`,
+   `apm`, `users`, and your home is `users/<you>`. Nothing else of the
+   Unix tree is shown there.
+3. `touch /usr/x` as root fails ("Read-only file system"). The core
+   cannot be written, by anyone.
+4. Software → Update → **Upgrade system** when a newer release is out:
+   each line as before, the AOS line downloads a core image (about
+   500 MB), writes it, verifies it, and says "boots at the next
+   restart". Restart: the new version; `aos-update --rollback` and a
+   restart: the old one again. GRUB's "AOS (previous version)" does
+   the same from the menu.
+5. The kernel is part of the core now: Software's AOS page no longer
+   lists a kernel package, and `uname -r` matches the release notes.
 
 ## 1. Sleep
 

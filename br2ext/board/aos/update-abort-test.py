@@ -129,7 +129,7 @@ def main():
             ok = False
 
         print("\n== boot 3: slot %s boots and is confirmed" % other_slot)
-        out = ut.boot(3, ["sleep 35; " + ut.ENV, "ls -la /.aos-slot-ok"])
+        out = ut.boot(3, ["sleep 35; " + ut.ENV, "ls /boot/efi/aos/*/verity.cfg"])
         if out is None:
             return False
         # expect() reads the grubenv taken at login; the confirm comes 20 s

@@ -109,6 +109,16 @@ mkdir -p "${TARGET_DIR}/boot"
 	> "${TARGET_DIR}/boot/microcode.img"
 rm -rf "${ucode}"
 
+# Mount points the initramfs needs in the read-only core (docs/layout.md):
+# the aos partition, the ESP, and what is bound from the partition.
+mkdir -p "${TARGET_DIR}/aos" "${TARGET_DIR}/boot/efi" "${TARGET_DIR}/opt/apm" "${TARGET_DIR}/home"
+
+# The initramfs, from the target's own binaries (board/aos/initramfs): what
+# opens the core and mounts the aos partition before systemd. In /boot
+# beside the kernel, so an update copies the three to the ESP together.
+python3 "${BR2_EXTERNAL_AOS_PATH}/board/aos/initramfs/mkinitramfs.py" \
+	"${TARGET_DIR}" "${HOST_DIR}" "${TARGET_DIR}/boot/initramfs.img"
+
 # Per-user defaults (the wallpaper, ...) live in /etc/skel. useradd -m
 # copies them for accounts made by aos-install; the prebuilt admin account
 # is made by Buildroot's mkusers, which does not, so copy them here. mkusers

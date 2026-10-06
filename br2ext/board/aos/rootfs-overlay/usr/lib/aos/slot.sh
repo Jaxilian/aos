@@ -1,17 +1,19 @@
 # slot.sh -- what aos-install and aos-update share about an installed disk.
 #
-# An installed disk has five partitions: a BIOS boot partition, the ESP,
-# two root slots (a = partition 3, b = partition 4) and the data partition
-# (5), which holds everything that must outlive a slot: /var, and through
-# it /home (var/home), the apm store (var/apm), the upper half of the /etc
-# overlay (var/etc) and the swap file. A slot is replaced whole by an
-# update; the data partition is never touched by one.
+# An installed disk has five partitions (docs/layout.md): a BIOS boot
+# partition, the ESP, two root slots (a = partition 3, b = partition 4)
+# that each hold a core -- a squashfs with its dm-verity hash tree, raw --
+# and the aos partition (5), the OS a person sees: aos/ (etc and var),
+# apm/ (the store), users/ (the homes). A slot is replaced whole by an
+# update; the aos partition is never touched by one.
 #
-# GRUB and its grubenv live on the ESP (/boot/efi/grub), so they belong to
+# GRUB, grubenv and per slot the kernel, microcode, initramfs and the
+# verity parameters (aos/a, aos/b) live on the ESP, so they belong to
 # neither slot. grubenv has two variables: slot, the confirmed slot GRUB
 # boots by default, and next, a slot to try exactly once.
 
 GRUBENV=/boot/efi/grub/grubenv
+ESPAOS=/boot/efi/aos
 
 # The partition device for partition N of a disk: /dev/sda3, /dev/nvme0n1p3.
 slot_part() {
@@ -21,7 +23,6 @@ slot_part() {
 	esac
 }
 
-# Partition number -> slot letter, and back.
 slot_of_partnum() {
 	case "$1" in
 		3) echo a ;;
@@ -38,11 +39,11 @@ slot_partnum() {
 	esac
 }
 
-# The block device the running root was mounted from, via the kernel
-# command line: there is no initramfs, so root= is always PARTUUID=.
+# The block device of the running core, from the kernel command line the
+# initramfs read: aos.core=PARTUUID=<uuid>.
 slot_root_dev() {
 	local pu
-	pu=$(sed -n 's/.*root=PARTUUID=\([^ ]*\).*/\1/p' /proc/cmdline)
+	pu=$(sed -n 's/.*aos\.core=PARTUUID=\([^ ]*\).*/\1/p' /proc/cmdline)
 	[ -n "$pu" ] || return 1
 	readlink -f "/dev/disk/by-partuuid/$pu"
 }
@@ -63,7 +64,7 @@ slot_other() {
 	esac
 }
 
-# The whole disk the running root is on: /dev/sda, /dev/nvme0n1.
+# The whole disk the running core is on: /dev/sda, /dev/nvme0n1.
 slot_disk() {
 	local dev
 	dev=$(slot_root_dev) || return 1
@@ -75,69 +76,95 @@ slot_dev() {
 	slot_part "$(slot_disk)" "$(slot_partnum "$1")"
 }
 
-# The fstab of a slot, into its lower /etc. The three devices are written
-# as UUID= specs by the caller. Why it looks the way it does:
-#
-#  - "/" is listed, with fsck pass 1. The kernel mounts the root read-only
-#    from root=PARTUUID= (it cannot resolve UUID= without an initramfs);
-#    systemd-fsck-root then checks it -- which is only possible while it is
-#    still read-only -- and systemd-remount-fs makes it writable using this
-#    line. Without the line the root would never be checked.
-#  - /var and the /etc overlay are mounted by /usr/lib/aos/init before
-#    systemd starts, because PID 1 reads /etc (machine-id, hostname, unit
-#    drop-ins) before it mounts anything from fstab. The lines are here so
-#    systemd knows them as units; it adopts the existing mounts. The
-#    wrapper runs fsck on the data partition itself, hence pass 0.
-#  - /boot/efi is by UUID. systemd waits for udev to create the by-uuid
-#    link before mounting; nofail makes a missing or damaged ESP degrade
-#    the boot rather than stop it.
-#  - /home and /opt/apm are bind mounts out of /var; systemd orders them
-#    after /var by itself. The swap file is pri=10, behind zram at pri=100.
-#  - /proc, /sys, /dev and /run are mounted by systemd itself.
-slot_write_fstab() {
-	local etc="$1" root="$2" data="$3" esp="$4" swap="$5"
-	cat > "$etc/fstab" <<FSTAB
-# <device>			<mount>		<type>		<options>			<dump>	<pass>
-# Written by AOS for this root slot; /usr/lib/aos/slot.sh says why each line
-# is here. User changes to this file do not survive an update.
-$root		/		ext4		defaults			0	1
-$data		/var		ext4		defaults			0	0
-$esp		/boot/efi	vfat		defaults,noatime,nofail		0	2
-overlay				/etc		overlay		lowerdir=/etc,upperdir=/var/etc/upper,workdir=/var/etc/work	0	0
-/var/home			/home		none		bind				0	0
-/var/apm			/opt/apm	none		bind				0	0
-tmpfs				/tmp		tmpfs		defaults			0	0
-$swap
-FSTAB
-}
-
-# The directories on the data partition a slot expects.
+# The directories a core expects on the aos partition, mounted at $1.
 slot_data_dirs() {
-	mkdir -p "$1/home" "$1/apm" "$1/etc/upper" "$1/etc/work" "$1/log/journal"
+	mkdir -p "$1/aos/etc/upper" "$1/aos/etc/work" "$1/aos/var/log/journal" "$1/aos/var/tmp" "$1/apm" "$1/users"
+	chmod 1777 "$1/aos/var/tmp"
 }
 
-# Mount the overlay and the binds over a slot whose /var is already the
-# data partition, so that a chroot into it sees the system as it will run.
+# hash= and offset= of a core.verity file, into VHASH and VOFFSET.
+slot_read_verity() {
+	VHASH=$(sed -n 's/^hash=//p' "$1")
+	VOFFSET=$(sed -n 's/^offset=//p' "$1")
+	[ -n "$VHASH" ] && [ -n "$VOFFSET" ]
+}
+
+# Writes a core image into a slot's partition and reads it back through
+# its verity: a block that does not match its hash is an I/O error, so a
+# read of the whole device proves the write.
+#   slot_write_core DEV IMAGE VERITYFILE   (IMAGE may be .xz)
+slot_write_core() {
+	local dev="$1" img="$2" vf="$3"
+	slot_read_verity "$vf" || { echo "slot: $vf is not a verity file" >&2; return 1; }
+	case "$img" in
+		*.xz) xz -dc "$img" | dd of="$dev" bs=4M conv=fsync status=none ;;
+		*)    dd if="$img" of="$dev" bs=4M conv=fsync status=none ;;
+	esac
+	veritysetup open "$dev" aos-check "$dev" "$VHASH" --hash-offset="$VOFFSET" || return 1
+	local ok=0
+	dd if=/dev/mapper/aos-check of=/dev/null bs=4M status=none || ok=1
+	veritysetup close aos-check
+	[ "$ok" = 0 ] || { echo "slot: the core on $dev does not read back whole" >&2; return 1; }
+}
+
+# Opens a slot's core read-only at a mount point, as the initramfs does.
+#   slot_mount_core DEV HASH OFFSET MNT NAME
+slot_mount_core() {
+	veritysetup open "$1" "$5" "$1" "$2" --hash-offset="$3" || return 1
+	mkdir -p "$4"
+	mount -t squashfs -o ro "/dev/mapper/$5" "$4" || { veritysetup close "$5"; return 1; }
+}
+
+slot_umount_core() {
+	umount "$1"
+	veritysetup close "$2"
+}
+
+# The tree a program sees, assembled over a mounted core whose aos
+# partition is mounted at $1/aos: the overlay on /etc, the binds. What
+# the initramfs does at boot, for a chroot into an installed system.
 slot_mount_tree() {
 	local t="$1"
-	mount -t overlay overlay -o "lowerdir=$t/etc,upperdir=$t/var/etc/upper,workdir=$t/var/etc/work" "$t/etc"
-	mount --bind "$t/var/home" "$t/home"
-	mount --bind "$t/var/apm" "$t/opt/apm"
+	mount -t overlay overlay -o "lowerdir=$t/etc,upperdir=$t/aos/aos/etc/upper,workdir=$t/aos/aos/etc/work" "$t/etc"
+	mount --bind "$t/aos/aos/var" "$t/var"
+	mount --bind "$t/aos/apm" "$t/opt/apm"
+	mount --bind "$t/aos/users" "$t/home"
 }
 
 slot_umount_tree() {
 	local t="$1"
-	umount "$t/opt/apm" "$t/home" "$t/etc"
+	umount "$t/home" "$t/opt/apm" "$t/var" "$t/etc"
 }
 
-# GRUB's menu for an installed disk, on the ESP. The slots are partitions
-# 3 and 4 of the disk the ESP is on, found from \$root (which grub-install
-# pointed at the ESP) rather than by label, so a second AOS disk plugged
-# in -- a stick installed with make-usb.sh -- is never mistaken for this
-# one. The PARTUUIDs are baked in: they never change for the life of the
-# disk.
+# The ESP's share of a slot, from its mounted core: kernel, microcode,
+# initramfs, os-release, and last the verity parameters, whose presence
+# says the slot is complete.
+#   slot_stage_esp SLOT COREMNT HASH OFFSET [ESPDIR]
+slot_stage_esp() {
+	local slot="$1" m="$2" hash="$3" offset="$4" d="${5:-$ESPAOS}/$1"
+	rm -rf "$d"
+	mkdir -p "$d"
+	cp "$m/boot/bzImage" "$d/bzImage"
+	cp "$m/boot/microcode.img" "$d/microcode.img"
+	cp "$m/boot/initramfs.img" "$d/initramfs.img"
+	cp "$m/usr/lib/os-release" "$d/os-release"
+	printf 'set verity_hash=%s\nset verity_offset=%s\n' "$hash" "$offset" > "$d/verity.cfg"
+	sync
+}
+
+# VERSION_ID of the core staged for a slot, by its ESP copy of os-release;
+# empty when the slot is not complete.
+slot_version() {
+	local d="${2:-$ESPAOS}/$1"
+	[ -f "$d/verity.cfg" ] && sed -n 's/^VERSION_ID=//p' "$d/os-release"
+}
+
+# GRUB's menu for an installed disk, on the ESP, where everything it loads
+# is: \$root is the ESP (grub-install pointed the core there). The three
+# PARTUUIDs are baked in: they never change for the life of the disk.
+#   slot_write_grub_cfg FILE A_UUID B_UUID DATA_UUID
 slot_write_grub_cfg() {
-	local file="$1" a_uuid="$2" b_uuid="$3"
+	local file="$1" a_uuid="$2" b_uuid="$3" data_uuid="$4"
 	cat > "$file" <<GRUBCFG
 serial --unit=0 --speed=115200
 terminal_input console serial
@@ -148,6 +175,7 @@ set timeout="2"
 
 set a_uuid=$a_uuid
 set b_uuid=$b_uuid
+set data_uuid=$data_uuid
 
 # slot: the confirmed slot. next: a slot to boot exactly once -- cleared
 # here, before the kernel runs, so a boot that never reaches the desktop
@@ -161,58 +189,38 @@ if [ -n "\$next" ]; then
 	set next=
 	save_env next
 fi
-regexp --set=1:disk '^(hd[0-9]+),' "\$root"
 if [ "\$boot" = b ]; then
-	set cur=4; set other=3; set cur_uuid=\$b_uuid; set other_uuid=\$a_uuid
+	set other=a; set cur_uuid=\$b_uuid; set other_uuid=\$a_uuid
 else
-	set cur=3; set other=4; set cur_uuid=\$a_uuid; set other_uuid=\$b_uuid
+	set other=b; set cur_uuid=\$a_uuid; set other_uuid=\$b_uuid
 fi
+# The core's verity root hash and hash offset, written by whatever put
+# the core in its slot. A slot without them is not offered.
+source /aos/\$boot/verity.cfg
+set args="aos.core=PARTUUID=\$cur_uuid aos.hash=\$verity_hash aos.offset=\$verity_offset aos.data=PARTUUID=\$data_uuid rootwait"
 
-# Each entry sets \$root to the slot it boots so the kernel and modules come
-# from that slot, then prefers the kernel apm installed into it, when there
-# is one: the aos/kernel package copies /boot/bzImage.apm next to the
-# image's /boot/bzImage and keeps the kernel before it as bzImage.prev.
-#
-# "ro": the root is checked by systemd-fsck-root before systemd-remount-fs
-# makes it writable from /etc/fstab. init=: mounts /var and the /etc
-# overlay before systemd. The initrd is CPU microcode only. rootwait: a
-# USB stick enumerates long after the kernel first looks for the root.
-#
 # loglevel=4 on the entries that own the screen: kernel messages of warning
 # severity and below go to the journal only; errors still reach the screen.
-# The serial entry keeps the default 7 -- serial is the channel you watch a
-# boot on.
 menuentry "AOS" {
-	set root=\$disk,gpt\$cur
-	set kernel=/boot/bzImage
-	if [ -f /boot/bzImage.apm ]; then set kernel=/boot/bzImage.apm; fi
-	linux \$kernel root=PARTUUID=\$cur_uuid init=/usr/lib/aos/init ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
-	initrd /boot/microcode.img
+	linux /aos/\$boot/bzImage \$args loglevel=4 console=ttyS0,115200 console=tty1
+	initrd /aos/\$boot/microcode.img /aos/\$boot/initramfs.img
 }
 
 # The other slot: what this machine ran before its last update.
 menuentry "AOS (previous version)" {
-	set root=\$disk,gpt\$other
-	set kernel=/boot/bzImage
-	if [ -f /boot/bzImage.apm ]; then set kernel=/boot/bzImage.apm; fi
-	linux \$kernel root=PARTUUID=\$other_uuid init=/usr/lib/aos/init ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
-	initrd /boot/microcode.img
-}
-
-menuentry "AOS (previous kernel)" {
-	set root=\$disk,gpt\$cur
-	set kernel=/boot/bzImage
-	if [ -f /boot/bzImage.prev ]; then set kernel=/boot/bzImage.prev; fi
-	linux \$kernel root=PARTUUID=\$cur_uuid init=/usr/lib/aos/init ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
-	initrd /boot/microcode.img
+	if [ -f /aos/\$other/verity.cfg ]; then
+		source /aos/\$other/verity.cfg
+		linux /aos/\$other/bzImage aos.core=PARTUUID=\$other_uuid aos.hash=\$verity_hash aos.offset=\$verity_offset aos.data=PARTUUID=\$data_uuid rootwait loglevel=4 console=ttyS0,115200 console=tty1
+		initrd /aos/\$other/microcode.img /aos/\$other/initramfs.img
+	else
+		echo "slot \$other holds no system"
+		sleep 3
+	fi
 }
 
 menuentry "AOS (serial console)" {
-	set root=\$disk,gpt\$cur
-	set kernel=/boot/bzImage
-	if [ -f /boot/bzImage.apm ]; then set kernel=/boot/bzImage.apm; fi
-	linux \$kernel root=PARTUUID=\$cur_uuid init=/usr/lib/aos/init ro rootwait console=ttyS0,115200
-	initrd /boot/microcode.img
+	linux /aos/\$boot/bzImage \$args console=ttyS0,115200
+	initrd /aos/\$boot/microcode.img /aos/\$boot/initramfs.img
 }
 
 # nomodeset keeps every DRM driver off the display, so the console stays on
@@ -220,18 +228,8 @@ menuentry "AOS (serial console)" {
 # way back in when a graphics driver fails: log in, read journalctl -b -1,
 # fix, reboot normally.
 menuentry "AOS (safe graphics, no GPU driver)" {
-	set root=\$disk,gpt\$cur
-	set kernel=/boot/bzImage
-	if [ -f /boot/bzImage.apm ]; then set kernel=/boot/bzImage.apm; fi
-	linux \$kernel root=PARTUUID=\$cur_uuid init=/usr/lib/aos/init ro rootwait nomodeset loglevel=4 console=ttyS0,115200 console=tty1
-	initrd /boot/microcode.img
-}
-
-# The kernel the slot was installed with, whatever apm has done since.
-menuentry "AOS (image kernel)" {
-	set root=\$disk,gpt\$cur
-	linux /boot/bzImage root=PARTUUID=\$cur_uuid init=/usr/lib/aos/init ro rootwait loglevel=4 console=ttyS0,115200 console=tty1
-	initrd /boot/microcode.img
+	linux /aos/\$boot/bzImage \$args nomodeset loglevel=4 console=ttyS0,115200 console=tty1
+	initrd /aos/\$boot/microcode.img /aos/\$boot/initramfs.img
 }
 GRUBCFG
 }
