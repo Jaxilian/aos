@@ -23,6 +23,14 @@ define AOS_CARGO_VENDOR
 	cp -f $(@D)/.cargo-vendor-config $(@D)/.cargo/config.toml
 endef
 
+# The core's squashfs: zstd at its top level with 1 MiB blocks reads back
+# far faster than xz and lands near its size; Buildroot's default (level
+# 15, 128 KiB blocks) made a 782 MB core of a tree whose xz tarball was
+# 491 MB. BR2_TARGET_ROOTFS_SQUASHFS_COMP_OPTS has no prompt, so a
+# defconfig line for it is dropped; the arguments are added here instead,
+# after fs/squashfs/squashfs.mk, where a later -b wins.
+ROOTFS_SQUASHFS_ARGS += -Xcompression-level 19 -b 1M
+
 # The live ISO stores the tree zisofs-compressed, and GRUB does not read a
 # large compressed file back correctly: a compressed /boot/microcode.img
 # reaches the kernel truncated and "Initramfs unpacking failed". Buildroot

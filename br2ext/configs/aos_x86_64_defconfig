@@ -147,10 +147,6 @@ BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
 # carries. See docs/layout.md.
 BR2_TARGET_ROOTFS_SQUASHFS=y
 BR2_TARGET_ROOTFS_SQUASHFS4_ZSTD=y
-# zstd at its top level with 1 MiB blocks reads back far faster than xz
-# and lands within a few percent of its size (the default level 15 with
-# 128 KiB blocks made a 782 MB core of a 491 MB xz tarball).
-BR2_TARGET_ROOTFS_SQUASHFS_COMP_OPTS="-Xcompression-level 19 -b 1M"
 # rootfs.tar.xz is what a release ships for aos-update: a root slot is
 # written from it (release.sh, docs/upgrading.md).
 
