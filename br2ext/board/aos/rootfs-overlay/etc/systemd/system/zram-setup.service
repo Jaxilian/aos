@@ -1,14 +1,19 @@
-# Sets up /dev/zram0 so that dev-zram0.swap can activate it. Together these
-# two units do what systemd's zram-generator would, which Buildroot does not
-# package. Not inside a container: there is no block device to configure.
+# Compressed swap in RAM, on every AOS system including the live ISO.
+# Started once the desktop is up (zram-setup says why), so it is on
+# nobody's critical chain; the on-disk swap file in fstab, if any, is the
+# kernel's until then.
 [Unit]
-Description=Configure compressed swap device /dev/zram0
+Description=Compressed swap on /dev/zram0
 DefaultDependencies=no
-After=systemd-modules-load.service
+After=systemd-modules-load.service ade.service
 ConditionVirtualization=!container
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/lib/aos/zram-setup
+ExecStop=/usr/bin/swapoff /dev/zram0
 ExecStop=/usr/bin/zramctl --reset /dev/zram0
+
+[Install]
+WantedBy=multi-user.target

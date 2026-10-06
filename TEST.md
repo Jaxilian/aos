@@ -16,7 +16,7 @@ per item, with its number.
    ```
    grep VERSION_ID /etc/os-release
    ```
-   Expect `0.1.29`.
+   Expect `0.1.30`.
 4. Software → Update → **Upgrade system** once more, if lines are
    left: runtime/gtk3 release 7 (libpulse) is one. Each line ends in
    done or failed; note any failed one with its reason.
@@ -174,6 +174,19 @@ Discord and Steam ask for it (their new releases), VS Code does not.
    lists the refused streams from step 2.
 4. A terminal outside any sandbox: `pw-loopback` keeps working
    (Ctrl+C to stop): the desktop itself is untouched.
+
+## 4h. Boot time (0.1.30)
+
+After the restart into 0.1.30:
+```
+systemd-analyze; systemd-analyze blame | head -8; swapon --show
+```
+Expect: no systemd-journal-flush.service in the top of blame (it was
+4.5 s on your report of 2026-10-05), zram-setup.service not in the top
+either, /dev/zram0 in swapon with priority 100, and userspace a few
+seconds shorter than the 6.1 s of that report. Then
+Settings → About → Save Report once more: the memory list tells me what
+Notepad and Settings cost on the Intel GPU now.
 
 ## 5. Bluetooth
 

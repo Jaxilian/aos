@@ -1,14 +1,65 @@
 # TODO
 
-Updated 2026-10-06 afternoon. The newest release is 0.1.29 (0.1.23: the
+Updated 2026-10-06 afternoon. The newest release is 0.1.30 (0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
 bar's glass; 0.1.27: the shell follows the theme at once; 0.1.28: the
-morning list; 0.1.29: the microphone permission). The stick round is
+morning list; 0.1.29: the microphone permission; 0.1.30: the boot
+chain). The stick round is
 in [TEST.md](TEST.md).
 
 Anything that needs a second machine, a second stick or a permanent
 installation is postponed (see the end).
+
+## Afternoon (2026-10-06): the performance round, for 0.1.30
+
+Done: the journal persistent from the first line (no 4.5 s flush inside
+sysinit on a USB stick) and zram started after the desktop instead of
+under swap.target (1.3 to 1.7 s off the chain); measured in QEMU before
+and after in docs/performance.md, with the G14's own numbers from your
+report of 2026-10-05. Left there: resolved's 1.4 s on the live ISO,
+nvidia-devices before the desktop on the G14, and tgn programs' memory,
+to be read from your next report (TEST.md 4h).
+
+## Decisions I need from you before the next big items
+
+Each of these changes something you chose earlier, so I have not
+started them; the microphone and the performance round below did not.
+
+1. **dm-verity (item 8) ends the kernel-as-apm-package.** A verity
+   root is a read-only image whose every block is checked against a
+   hash in GRUB's command line; nothing can write /boot/bzImage.apm or
+   /usr/lib/modules into it afterwards. A kernel update would be an OS
+   update (an image flip through Software, which is quick now), and the
+   aos/kernel package would go. The release becomes
+   `aos-X-root.img.xz` (squashfs plus hash tree, ~450 MB) with the root
+   hash signed in SHA256SUMS; aos-update writes it with dd and copies
+   the kernel to the ESP; aos-install the same from the ISO, which then
+   carries the image beside the live root (ISO ~1.5 GB) unless the live
+   root itself moves onto that image. Say yes and I take it as the
+   next week's work; say no and the slots stay ext4 with a signed
+   tarball.
+2. **LUKS (item 9): the whole data partition, unlocked at boot.** A
+   passphrase prompt before the desktop (our init runs before systemd,
+   so the prompt is text on tty1), covering home, the apm store, the
+   /etc overlay and the journal. "Unlocked at login" in the sense of a
+   per-user encrypted home needs a greeter the session starts after
+   (today the session starts as you and the lock screen comes later)
+   and a key agent (fscrypt or systemd-homed); that is a redesign of the
+   login. The whole-partition form is what most distributions do. The
+   installer asks for the passphrase; an OOBE stick would have to
+   encrypt at the first boot, when the owner exists.
+3. **The file dialog for sandboxed programs (item 6).** The way that
+   needs no FUSE: the shell shows the chooser (it sees the whole home)
+   and hands the program an open file descriptor over D-Bus; the SDK
+   opens it as /proc/self/fd/N, so Notepad and Images need no change
+   beyond showing the real name. Third-party GTK programs want the
+   freedesktop FileChooser portal interface, which the shell could
+   speak, but they open the returned path themselves, and a path outside
+   their home is unreachable without the document portal's FUSE mount.
+   So: AOS programs get it first (and then go into the sandbox, item 7);
+   Firefox and VS Code keep their shares (Downloads) until a document
+   portal exists. Fine?
 
 ## Afternoon (2026-10-06): the microphone permission, for 0.1.29
 
