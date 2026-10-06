@@ -10,8 +10,10 @@ the owner and the desktop restarts as them.
   2. aos-setup --first-boot --user tester --pass secret-1 --go, started
      as the setup user the way the window would: aos-firstboot runs
      through the one sudoers line; the journal shows its stages.
-  3. Within half a minute the desktop restarts as tester (oobe-owner);
-     /etc/aos/oobe and the sudoers line are gone, root is locked.
+  3. Within half a minute greetd shows the login screen with tester
+     (oobe-owner); /etc/aos/oobe and the sudoers line are gone, root is
+     locked. The password typed there brings tester's desktop
+     (oobe-desktop).
   4. tester logs in on the serial console with the password and sudo
      asks for it (an owner, not the live account).
 
@@ -59,7 +61,11 @@ def main():
             if s and s[0] >= 0.005:
                 break
             time.sleep(2)
-        time.sleep(8)
+        # The first boot of a fresh install takes a while to its desktop.
+        for _ in range(30):
+            if "setup" in ser.run("ps -o user= -C ade-shell"):
+                break
+            time.sleep(2)
         state = ser.run("cat /etc/aos/oobe >/dev/null 2>&1 && echo marker; ps -o user= -C ade-shell; pgrep -a aos-setup | head -2; "
                         "cat /etc/sudoers.d/30-aos-oobe; id setup; id admin 2>&1 | head -1")
         print("$ before\n%s" % state)
@@ -73,16 +79,25 @@ def main():
             "su -s /bin/sh setup -c '%s aos-setup --first-boot --user %s --pass %s --go >/tmp/oobe.log 2>&1 &'; "
             "for i in $(seq 40); do grep -q 'AOS is yours' /tmp/oobe.log 2>/dev/null && break; sleep 1; done; "
             "grep -E '>>>|AOS is yours|aos-firstboot' /tmp/oobe.log | head -8" % (ENV, USER, PASS), timeout=120))
-        # 3. The desktop restarts as the owner; the setup account goes.
+        # 3. greetd shows the login screen with the owner; the setup account
+        #    goes. A login there brings the owner's desktop.
         time.sleep(40)
-        after = ser.run("ps -o user= -C ade-shell; test -e /etc/aos/oobe && echo marker || echo no-marker; "
+        after = ser.run("ps -o user= -C ade-greeter; test -e /etc/aos/oobe && echo marker || echo no-marker; "
                         "test -e /etc/sudoers.d/30-aos-oobe && echo sudoers || echo no-sudoers; "
                         "id %s | cut -c1-80; id setup 2>&1 | head -1; passwd -S root | cut -d' ' -f1-2; ls /etc/sudoers.d; "
-                        "grep User= /etc/systemd/system/ade.service.d/10-aos-user.conf" % USER)
+                        "grep -c initial_session /etc/greetd/config.toml" % USER)
         print("$ after\n%s" % after)
         bt.shot("oobe-owner")
-        if USER not in after.split("\n")[0] or "no-marker" not in after or "no-sudoers" not in after:
-            print("!! the desktop is not the owner's, or the first boot's road is still open")
+        if "greeter" not in after.split("\n")[0] or "no-marker" not in after or "no-sudoers" not in after:
+            print("!! the login screen is not up, or the first boot's road is still open")
+            ok = False
+        bt.typekeys(PASS + "\n")
+        time.sleep(25)
+        who = " ".join(ser.run("ps -o user=,comm= -C ade-comp,ade-shell").split())
+        print("$ after the login: %s" % who)
+        bt.shot("oobe-desktop")
+        if ("%s ade-shell" % USER) not in who:
+            print("!! the owner's session did not start from the login screen")
             ok = False
         if "root L" not in after and "root LK" not in after:
             print("!! root's console login is not locked")
