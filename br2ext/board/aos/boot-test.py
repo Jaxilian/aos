@@ -119,10 +119,15 @@ PAM_CHECK = (r"""su admin -s /bin/sh -c 'printf "%s\0" nope | unix_chkpwd admin 
 # INSTALL_MODE=encrypt: the demo account on a LUKS2 aos partition whose
 # passphrase is LUKS_PASS (luks-test.py types it at the initramfs prompt).
 LUKS_PASS = "secret-1"
+OWNER = "tester"
 INSTALL = [
     "lsblk -o NAME,SIZE,TYPE /dev/vda",
     ("printf '%s\\n' > /tmp/pw; printf 'YES\\n' | aos-install --demo --encrypt /tmp/pw /dev/vda 2>&1 | tail -20" % LUKS_PASS)
     if os.environ.get("INSTALL_MODE") == "encrypt" else
+    # INSTALL_MODE=owner: an owned machine -- the account OWNER with
+    # LUKS_PASS as its password, and the login screen (greeter-test.py).
+    ("printf '%s\\n' > /tmp/pw; printf 'YES\\n' | aos-install --user %s --password-file /tmp/pw /dev/vda 2>&1 | tail -20" % (LUKS_PASS, OWNER))
+    if os.environ.get("INSTALL_MODE") == "owner" else
     "printf 'YES\\n' | aos-install --%s /dev/vda 2>&1 | tail -20" % os.environ.get("INSTALL_MODE", "demo"),
 ]
 

@@ -17,6 +17,8 @@ source "$BR2_EXTERNAL_AOS_PATH/package/apm/Config.in"
 comment "Desktop"
 
 source "$BR2_EXTERNAL_AOS_PATH/package/ade/Config.in"
+source "$BR2_EXTERNAL_AOS_PATH/package/ade-greeter/Config.in"
+source "$BR2_EXTERNAL_AOS_PATH/package/greetd/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/notepad/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/terminal/Config.in"
 source "$BR2_EXTERNAL_AOS_PATH/package/files/Config.in"

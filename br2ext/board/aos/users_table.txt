@@ -28,3 +28,8 @@
 # session real-time priority for audio through pam_limits, the way PipeWire
 # does it on a system without RTKit (Buildroot has none).
 admin	1000	admin	1000	!x	/home/admin	/bin/bash	wheel,pipewire,video	Live session account
+
+# greetd runs the greeter -- a compositor with ade-greeter -- as this
+# account, in a logind session of its own, so the display and the input
+# devices come from logind; no groups needed.
+greeter	-1	greeter	-1	!	/var/lib/greeter	/bin/false	-	The login screen's account

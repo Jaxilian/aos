@@ -1,6 +1,6 @@
 # TODO
 
-Updated 2026-10-06 afternoon. The newest release is 0.2.2 (the cores and
+Updated 2026-10-06 afternoon. The newest release is 0.2.3 (the cores and
 the aos partition: a reinstall; 0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
@@ -44,15 +44,20 @@ five tries; luks-test.py drives it in QEMU on GRUB's serial entry
 (the prompt is on /dev/console, which the normal entries make tty1).
 Not yet: `./usb.sh --encrypt`.
 
-Next in this line: the greeter. Buildroot has no greetd, so the plan
-is a br2ext package of upstream greetd (Rust, a root daemon that does
-PAM and starts the session as the user on the VT) and a new repo,
-ade-greeter: a tgn app the greeter's own ade-comp instance autostarts,
-speaking greetd's JSON socket -- the visual shell over the vendor
-piece. ade.service becomes greetd.service; the session is
-`ade-comp` as the user, as today. Then systemd-homed
-(BR2_PACKAGE_SYSTEMD_HOMED exists) for per-user LUKS homes unlocked
-by that login, through pam_systemd_home in greetd's PAM stack.
+Done for 0.2.3 (in QEMU, pending): the login screen. greetd
+(br2ext/package/greetd, upstream 0.10.3) runs `/usr/lib/aos/session
+--greeter` as the greeter account -- ade-comp with ade-greeter, a tgn
+app in its own repo (Jaxilian/greeter) that lists the accounts, takes
+a password and asks greetd over its socket to start
+`/usr/lib/aos/session` as that account: the compositor and the shell
+as today, restarted on a crash up to four times, with the apm
+environment. An owned machine (aos-install --user) and an OOBE one get
+greetd (the OOBE first boot is greetd's initial session as the setup
+account; aos-firstboot drops it and restarts greetd); the live medium
+and a demo install keep ade.service's autologin, so every existing
+QEMU driver stays as it is. greeter-test.py: INSTALL_MODE=owner, a
+wrong password, the right one, the owner's session. Next: systemd-homed
+for per-user LUKS homes through pam_systemd_home in /etc/pam.d/greetd.
 
 ## Decisions I need from you before the next big items
 

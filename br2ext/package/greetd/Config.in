@@ -1,0 +1,13 @@
+config BR2_PACKAGE_GREETD
+	bool "greetd"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_HOST_RUSTC
+	select BR2_PACKAGE_LINUX_PAM
+	help
+	  The login daemon: runs a greeter on a VT as its own user, does PAM
+	  for the account the greeter names, and starts that account's
+	  session in its place. AOS's greeter is ade-greeter on the
+	  compositor; agreety, the text one, comes along for a serial line.
+
+	  https://git.sr.ht/~kennylevinsen/greetd

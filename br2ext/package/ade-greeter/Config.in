@@ -1,0 +1,9 @@
+config BR2_PACKAGE_ADE_GREETER
+	bool "ade-greeter"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	select BR2_PACKAGE_HOST_RUSTC
+	select BR2_PACKAGE_GREETD
+	select BR2_PACKAGE_ADE
+	help
+	  The login screen of AOS: a greeter for greetd on the ade
+	  compositor (usr/lib/aos/session --greeter).

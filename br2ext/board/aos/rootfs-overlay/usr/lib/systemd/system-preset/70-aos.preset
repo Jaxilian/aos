@@ -5,3 +5,6 @@
 # from post-build.sh that says enable, and Settings -> Network enables it
 # on an installed machine. docs/security-model.md.
 disable sshd.service
+# The login daemon: an owned or an OOBE install enables it; the live
+# medium and a demo install run ade.service instead.
+disable greetd.service

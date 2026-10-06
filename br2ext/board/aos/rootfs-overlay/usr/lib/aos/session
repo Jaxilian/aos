@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# session -- the graphical session, as greetd starts it for an account:
+# the compositor with the shell, and everything the desktop needs in its
+# environment. Mirrors what ade.service gives the demo account's session
+# (the unit's EnvironmentFile and the apm drop-in).
+#
+#   session               the session of the account greetd logged in
+#   session --greeter     the greeter's own compositor: ade-greeter alone
+#   session --first-boot  the setup account's: the shell and the first-boot
+#                         setup (aos-install --oobe)
+#
+# A compositor that dies is started again, at most four times in two
+# minutes as the unit does, with ADE_CRASHED saying why so the shell can
+# say so; past that the session ends and greetd shows the greeter.
+
+set -a
+[ -f /etc/ade/environment ] && . /etc/ade/environment
+set +a
+export PATH="/opt/apm/bin:$PATH"
+export XDG_DATA_DIRS="/opt/apm/exports/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+
+case "$1" in
+	--greeter)    export ADE_AUTOSTART=ade-greeter; exec ade-comp ;;
+	--first-boot) export ADE_AUTOSTART="ade-shell;aos-setup --first-boot" ;;
+esac
+
+fails=0
+since=$(date +%s)
+while :; do
+	ade-comp
+	rc=$?
+	[ "$rc" -eq 0 ] && exit 0
+	now=$(date +%s)
+	if [ $((now - since)) -gt 120 ]; then fails=0; since=$now; fi
+	fails=$((fails + 1))
+	[ "$fails" -le 4 ] || { echo "session: the compositor failed $fails times; giving up" >&2; exit "$rc"; }
+	export ADE_CRASHED="exit $rc"
+	sleep 2
+done

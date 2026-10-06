@@ -283,13 +283,23 @@ if [ "$OOBE" = yes ]; then
 	chmod 440 "$TARGET/etc/sudoers.d/30-aos-oobe"
 	# root's console login stays until the owner exists: nothing else can
 	# log in to the machine meanwhile; aos-firstboot locks it.
-	cat > "$TARGET/etc/systemd/system/ade.service.d/10-aos-user.conf" <<USERCONF
-# Written by aos-install --oobe: the first boot's session, until an owner
-# exists (aos-firstboot rewrites this).
-[Service]
-User=setup
-Environment="ADE_AUTOSTART=ade-shell;aos-setup --first-boot"
-USERCONF
+	# greetd runs the setup account's first-boot session once; after the
+	# owner exists aos-firstboot drops that section and the greeter asks.
+	cat > "$TARGET/etc/greetd/config.toml" <<GREETD
+[terminal]
+vt = 1
+
+[default_session]
+command = "/usr/lib/aos/session --greeter"
+user = "greeter"
+
+[initial_session]
+command = "/usr/lib/aos/session --first-boot"
+user = "setup"
+GREETD
+	chroot "$TARGET" systemctl disable ade.service >/dev/null 2>&1 || true
+	chroot "$TARGET" systemctl enable greetd.service >/dev/null 2>&1
+	rm -f "$TARGET/etc/systemd/system/ade.service.d/10-aos-user.conf"
 fi
 if [ "$DEMO" = no ] && [ "$OOBE" = no ]; then
 	echo ">>> Account: $NEWUSER replaces the demo account; root's console login is locked"
@@ -309,11 +319,20 @@ if [ "$DEMO" = no ] && [ "$OOBE" = no ]; then
 	# A locked password refuses the console and nothing else: sshd's key
 	# login for root goes through pam account, which a lock does not touch.
 	chroot "$TARGET" passwd -l root >/dev/null
-	cat > "$TARGET/etc/systemd/system/ade.service.d/10-aos-user.conf" <<USERCONF
-# Written by aos-install: the desktop session is this account's.
-[Service]
-User=$NEWUSER
-USERCONF
+	# The login screen (greetd and ade-greeter) in place of the demo's
+	# autologin service: the greeter lists the accounts and starts the
+	# session of the one that gives its password.
+	cat > "$TARGET/etc/greetd/config.toml" <<GREETD
+[terminal]
+vt = 1
+
+[default_session]
+command = "/usr/lib/aos/session --greeter"
+user = "greeter"
+GREETD
+	chroot "$TARGET" systemctl disable ade.service >/dev/null 2>&1 || true
+	chroot "$TARGET" systemctl enable greetd.service >/dev/null 2>&1
+	rm -f "$TARGET/etc/systemd/system/ade.service.d/10-aos-user.conf"
 fi
 
 # The keyboard layout and the time zone, through the overlay so they

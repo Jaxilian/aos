@@ -447,6 +447,9 @@ BR2_PACKAGE_XKEYBOARD_CONFIG=y
 
 # The desktop environment itself. Takes tty1, so getty@tty1 does not run.
 BR2_PACKAGE_ADE=y
+# The login screen and its daemon (docs/layout.md: the greeter).
+BR2_PACKAGE_ADE_GREETER=y
+BR2_PACKAGE_GREETD=y
 
 # The first AOS application that is not part of the desktop: a text editor
 # on awin + tgn, which is also the only thing on the image that exercises

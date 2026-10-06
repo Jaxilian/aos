@@ -24,7 +24,7 @@ want to keep first.
    findmnt / /aos /home /opt/apm /var /etc /boot/efi
    journalctl -b -t aos-init --no-pager
    ```
-   Expect `VERSION_ID=0.2.2`.
+   Expect `VERSION_ID=0.2.3`.
    `/` is `/dev/mapper/core`, squashfs, read-only; `/aos` is the fifth
    partition, ext4; `/home` and `/opt/apm` come from it; the command
    line carries `aos.core=PARTUUID=... aos.hash=...`.
@@ -40,6 +40,18 @@ want to keep first.
    the same from the menu.
 5. The kernel is part of the core now: Software's AOS page no longer
    lists a kernel package, and `uname -r` matches the release notes.
+
+## 0a. The login screen (0.2.3)
+
+A stick installed with an owner (`./usb.sh --release`, or the live
+installer with an account) boots to a login screen now instead of
+straight into the desktop: the clock, "Who is this?", the account,
+a password field. A wrong password says "Wrong password" and stays;
+the right one brings the desktop as before, as that account. The lock
+screen (Super+L) is unchanged. Suspend and resume return to the lock
+screen, not to the login screen. `./usb.sh --oobe` sticks: the first
+boot runs the setup as before and then shows the login screen with the
+new owner listed.
 
 ## 0b. An encrypted install (optional, needs a second stick or a machine to erase)
 

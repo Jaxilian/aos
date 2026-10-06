@@ -96,15 +96,20 @@ fi
 # The session is the owner's from the next start of the desktop; the
 # setup user's road ends here: no marker, no sudoers line, and the account
 # itself goes once its session is over.
-echo ">>> Desktop: the session becomes $NEWUSER's"
-cat > "$USERCONF" <<USERCONF
-# Written by aos-firstboot: the desktop session is this account's.
-[Service]
-User=$NEWUSER
-USERCONF
-rm -f "$MARK" "$SUDOERS"
+echo ">>> Desktop: the login screen asks for $NEWUSER from now on"
+# greetd's first-boot session (the setup account's) goes; the greeter is
+# what greetd shows once this session ends, and it lists the owner.
+cat > /etc/greetd/config.toml <<GREETD
+[terminal]
+vt = 1
+
+[default_session]
+command = "/usr/lib/aos/session --greeter"
+user = "greeter"
+GREETD
+rm -f "$MARK" "$SUDOERS" "$USERCONF"
 systemctl daemon-reload
 # After this program has returned to aos-setup, which shows the last line.
-systemd-run --quiet --on-active=3 --unit=aos-firstboot-restart systemctl restart ade
+systemd-run --quiet --on-active=3 --unit=aos-firstboot-restart systemctl restart greetd
 systemd-run --quiet --on-active=30 --unit=aos-firstboot-cleanup userdel -r setup
-echo "AOS is yours, $NEWUSER. The desktop restarts as you in a moment."
+echo "AOS is yours, $NEWUSER. The login screen comes in a moment: log in with your password."

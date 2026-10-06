@@ -50,6 +50,23 @@ before the desktop; five tries. The ESP and the cores carry nothing of
 yours. Per-user homes (a second password for a second account) are
 systemd-homed's job, after the greeter.
 
+## The greeter
+
+An owned machine (and one installed for someone else, once its owner
+exists) boots to a login screen: greetd runs `/usr/lib/aos/session
+--greeter` as the `greeter` account -- the compositor with ade-greeter
+as its one program (the repository `greeter`), which lists the accounts,
+takes a password and asks greetd over its socket to start
+`/usr/lib/aos/session` as that account: the compositor and the shell as
+before, with the apm environment, started again after a crash up to
+four times in two minutes. The lock screen later in the session is
+ade-lock, as it was. The live medium and a demo install keep
+ade.service's autologin; `/etc/greetd/config.toml` in the /etc overlay
+and the unit's enablement are what aos-install writes for the others,
+and aos-firstboot rewrites after the first boot. greetd's PAM service
+(`/etc/pam.d/greetd`) is the console's with pam_systemd, so both the
+greeter and the session are logind's on seat0.
+
 ## Boot
 
 ```

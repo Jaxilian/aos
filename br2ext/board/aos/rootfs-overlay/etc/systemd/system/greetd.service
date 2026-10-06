@@ -1,0 +1,27 @@
+# greetd, the login daemon (docs/layout.md: the greeter). Upstream's unit
+# with an install target -- upstream has none, only an alias, so an
+# `enable` pulled nothing in -- and a conflict with the demo's autologin
+# service: a machine runs one of the two. aos-install enables this one
+# on an owned or an OOBE machine; the live medium and a demo install keep
+# ade.service (the preset leaves this off).
+[Unit]
+Description=Greeter daemon
+After=systemd-user-sessions.service systemd-logind.service dbus.service
+After=getty@tty1.service
+Conflicts=getty@tty1.service ade.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/greetd
+IgnoreSIGPIPE=no
+SendSIGHUP=yes
+TimeoutStopSec=30s
+KeyringMode=shared
+Restart=always
+RestartSec=1
+StartLimitBurst=5
+StartLimitInterval=30
+
+[Install]
+WantedBy=multi-user.target
+Alias=display-manager.service
