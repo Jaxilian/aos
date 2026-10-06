@@ -1,6 +1,6 @@
 # TODO
 
-Updated 2026-10-06 afternoon. The newest release is 0.2.3 (the cores and
+Updated 2026-10-06 afternoon. The newest release is 0.2.4 (the cores and
 the aos partition: a reinstall; 0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
@@ -21,6 +21,15 @@ and after in docs/performance.md, with the G14's own numbers from your
 report of 2026-10-05. Left there: resolved's 1.4 s on the live ISO,
 nvidia-devices before the desktop on the G14, and tgn programs' memory,
 to be read from your next report (TEST.md 4h).
+
+## 0.2.4: the stick's first boot of 0.2.3 hit a crash guard
+
+aos-update-confirm.service had Requires=ade.service, which pulled the
+disabled autologin service in beside greetd; the two conflict, the
+autologin won on the G14 and died four times without its account.
+The unit now follows whichever desktop service is up; the installer
+writes greetd's links itself instead of running systemctl in the
+chroot; greeter-test.py fails when ade.service ran.
 
 ## The cores and the aos partition (2026-10-06 afternoon, agreed; 0.2.0)
 

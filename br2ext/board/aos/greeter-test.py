@@ -57,6 +57,13 @@ def main():
         if "greeter" not in state or "ade-greeter" not in state:
             print("!! greetd did not bring up the greeter's compositor with ade-greeter")
             ok = False
+        # The autologin service must not have been pulled in beside greetd:
+        # the two conflict, and on the G14 it won the race and crashed.
+        ade = ser.run(sudo + "systemctl is-active ade.service; systemctl show -p NRestarts --value ade.service").strip().split("\n")[-2:]
+        print("$ ade.service: %s" % " ".join(x.strip().lstrip("# ") for x in ade))
+        if "inactive" not in " ".join(ade):
+            print("!! ade.service ran on an owned machine (the greeter's conflict)")
+            ok = False
 
         # 2. A wrong password, then the right one, typed on the screen.
         bt.typekeys("wrong-0\n")

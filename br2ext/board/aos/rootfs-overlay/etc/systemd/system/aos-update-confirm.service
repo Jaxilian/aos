@@ -1,20 +1,19 @@
-# A root slot booted on trial (grubenv next=) becomes the default once the
-# desktop is up. Only ever does something after aos-update; on the live ISO
-# and on a disk without a grubenv the condition keeps it inert.
+# Confirms the booted root slot (aos-update --confirm) twenty seconds
+# after the desktop service is up, if it did not restart meanwhile: a
+# boot that reaches a desktop (the demo's autologin, ade.service) or a
+# login screen (greetd.service) is a good slot. Neither is required
+# here: Requires=ade.service pulled the disabled autologin service in
+# beside greetd on an owned machine, the two conflict, and the G14's
+# stick booted to a crash guard instead of its login screen (2026-10-06).
 [Unit]
 Description=Confirm the booted AOS root slot
-After=ade.service
-Requires=ade.service
+After=ade.service greetd.service
 RequiresMountsFor=/boot/efi
 ConditionPathExists=/boot/efi/grub/grubenv
 
 [Service]
-# Not oneshot: that would hold multi-user.target for the wait. Let the
-# compositor live a moment before calling the boot good -- and a desktop
-# that has already been restarted this boot is not good: the trial slot
-# stays a trial, and the next reset goes back.
 Type=exec
-ExecStart=/bin/sh -c 'sleep 20; [ "$(systemctl show -p NRestarts --value ade.service)" = 0 ] && exec /usr/bin/aos-update --confirm; echo "aos-update: the desktop restarted; the slot is not confirmed"'
+ExecStart=/bin/sh -c 'sleep 20; for u in greetd ade; do systemctl is-active -q $u.service || continue; if [ "$(systemctl show -p NRestarts --value $u.service)" = 0 ]; then exec /usr/bin/aos-update --confirm; fi; echo "aos-update: $u restarted; the slot is not confirmed"; exit 0; done; echo "aos-update: no desktop service is up; the slot is not confirmed"'
 
 [Install]
 WantedBy=multi-user.target

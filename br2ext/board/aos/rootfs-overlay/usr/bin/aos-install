@@ -297,9 +297,7 @@ user = "greeter"
 command = "/usr/lib/aos/session --first-boot"
 user = "setup"
 GREETD
-	chroot "$TARGET" systemctl disable ade.service >/dev/null 2>&1 || true
-	chroot "$TARGET" systemctl enable greetd.service >/dev/null 2>&1
-	rm -f "$TARGET/etc/systemd/system/ade.service.d/10-aos-user.conf"
+	slot_enable_greetd "$TARGET"
 fi
 if [ "$DEMO" = no ] && [ "$OOBE" = no ]; then
 	echo ">>> Account: $NEWUSER replaces the demo account; root's console login is locked"
@@ -330,9 +328,7 @@ vt = 1
 command = "/usr/lib/aos/session --greeter"
 user = "greeter"
 GREETD
-	chroot "$TARGET" systemctl disable ade.service >/dev/null 2>&1 || true
-	chroot "$TARGET" systemctl enable greetd.service >/dev/null 2>&1
-	rm -f "$TARGET/etc/systemd/system/ade.service.d/10-aos-user.conf"
+	slot_enable_greetd "$TARGET"
 fi
 
 # The keyboard layout and the time zone, through the overlay so they

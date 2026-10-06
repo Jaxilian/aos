@@ -159,6 +159,20 @@ slot_version() {
 	[ -f "$d/verity.cfg" ] && sed -n 's/^VERSION_ID=//p' "$d/os-release"
 }
 
+# The login screen in place of the demo's autologin service, in a mounted
+# tree's /etc (the overlay): the links written by hand, not by systemctl
+# in a chroot -- on the G14's stick that made the alias and not the
+# wants link, and the machine booted to a crash guard (2026-10-06).
+#   slot_enable_greetd TREE
+slot_enable_greetd() {
+	local t="$1" d="$1/etc/systemd/system"
+	rm -f "$d/multi-user.target.wants/ade.service" "$d/ade.service.d/10-aos-user.conf"
+	mkdir -p "$d/multi-user.target.wants"
+	ln -sf /etc/systemd/system/greetd.service "$d/multi-user.target.wants/greetd.service"
+	ln -sf /etc/systemd/system/greetd.service "$d/display-manager.service"
+	[ -L "$d/multi-user.target.wants/greetd.service" ] || { echo "slot: greetd could not be enabled in $t" >&2; return 1; }
+}
+
 # GRUB's menu for an installed disk, on the ESP, where everything it loads
 # is: \$root is the ESP (grub-install pointed the core there). The three
 # PARTUUIDs are baked in: they never change for the life of the disk.

@@ -5,7 +5,7 @@
 [Unit]
 Description=Compressed swap on /dev/zram0
 DefaultDependencies=no
-After=systemd-modules-load.service ade.service
+After=systemd-modules-load.service ade.service greetd.service
 ConditionVirtualization=!container
 
 [Service]
