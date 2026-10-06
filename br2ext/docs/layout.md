@@ -39,6 +39,17 @@ with those three folders, and a person's own files are under users/.
 On the live ISO /aos is a tmpfs with the same three directories: the live
 home is writable now, and the installer copies the core, not a tree.
 
+## Encryption
+
+`aos-install --encrypt FILE` (the graphical installer's "Encrypt the
+disk", with the account's password) puts LUKS2 around the aos partition
+before the filesystem: homes, programs, settings and logs are encrypted,
+the cores are not (public images, verified). The initramfs finds the
+LUKS header and asks for the passphrase on the console at every start,
+before the desktop; five tries. The ESP and the cores carry nothing of
+yours. Per-user homes (a second password for a second account) are
+systemd-homed's job, after the greeter.
+
 ## Boot
 
 ```

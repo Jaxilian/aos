@@ -24,7 +24,7 @@ want to keep first.
    findmnt / /aos /home /opt/apm /var /etc /boot/efi
    journalctl -b -t aos-init --no-pager
    ```
-   Expect `VERSION_ID=0.2.1`.
+   Expect `VERSION_ID=0.2.2`.
    `/` is `/dev/mapper/core`, squashfs, read-only; `/aos` is the fifth
    partition, ext4; `/home` and `/opt/apm` come from it; the command
    line carries `aos.core=PARTUUID=... aos.hash=...`.
@@ -40,6 +40,16 @@ want to keep first.
    the same from the menu.
 5. The kernel is part of the core now: Software's AOS page no longer
    lists a kernel package, and `uname -r` matches the release notes.
+
+## 0b. An encrypted install (optional, needs a second stick or a machine to erase)
+
+In the graphical installer (the live ISO's Install AOS), the install
+page has **Encrypt the disk**. With it on, the aos partition is LUKS2
+and your account's password is its passphrase. The machine then asks
+for it at every start, in text, before the desktop: a wrong one is
+asked again (five tries); the right one brings the desktop as usual.
+`findmnt /aos` says `/dev/mapper/aos`. `./usb.sh` does not do this
+yet; the installer does.
 
 ## 1. Sleep
 

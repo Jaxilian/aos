@@ -1,6 +1,6 @@
 # TODO
 
-Updated 2026-10-06 afternoon. The newest release is 0.2.1 (the cores and
+Updated 2026-10-06 afternoon. The newest release is 0.2.2 (the cores and
 the aos partition: a reinstall; 0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
@@ -37,9 +37,22 @@ aos partition). The kernel is no longer an apm package. docs/layout.md.
 Open: the kernel packages still in the apm index (remove at release);
 docs/upgrading, publishing, usb, security-model to rewrite; the G14
 round (TEST.md 0: a reinstall).
-Next in this line: LUKS2 on the aos partition (the initramfs already
-asks for a passphrase when it finds LUKS; the installer's option and
-the test are to do), systemd-homed per user, the greeter repo.
+Done in 0.2.2: LUKS2 around the aos partition -- `aos-install
+--encrypt FILE`, the graphical installer's "Encrypt the disk" (the
+account's password is the passphrase), the initramfs's prompt with
+five tries; luks-test.py drives it in QEMU on GRUB's serial entry
+(the prompt is on /dev/console, which the normal entries make tty1).
+Not yet: `./usb.sh --encrypt`.
+
+Next in this line: the greeter. Buildroot has no greetd, so the plan
+is a br2ext package of upstream greetd (Rust, a root daemon that does
+PAM and starts the session as the user on the VT) and a new repo,
+ade-greeter: a tgn app the greeter's own ade-comp instance autostarts,
+speaking greetd's JSON socket -- the visual shell over the vendor
+piece. ade.service becomes greetd.service; the session is
+`ade-comp` as the user, as today. Then systemd-homed
+(BR2_PACKAGE_SYSTEMD_HOMED exists) for per-user LUKS homes unlocked
+by that login, through pam_systemd_home in greetd's PAM stack.
 
 ## Decisions I need from you before the next big items
 

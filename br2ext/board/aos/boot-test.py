@@ -116,8 +116,13 @@ PAM_CHECK = (r"""su admin -s /bin/sh -c 'printf "%s\0" nope | unix_chkpwd admin 
 # INSTALL_MODE=oobe installs with no account: the disk's first boot runs
 # the setup (oobe-test.py drives it); the default keeps the demo account
 # every other disk test logs in as.
+# INSTALL_MODE=encrypt: the demo account on a LUKS2 aos partition whose
+# passphrase is LUKS_PASS (luks-test.py types it at the initramfs prompt).
+LUKS_PASS = "secret-1"
 INSTALL = [
     "lsblk -o NAME,SIZE,TYPE /dev/vda",
+    ("printf '%s\\n' > /tmp/pw; printf 'YES\\n' | aos-install --demo --encrypt /tmp/pw /dev/vda 2>&1 | tail -20" % LUKS_PASS)
+    if os.environ.get("INSTALL_MODE") == "encrypt" else
     "printf 'YES\\n' | aos-install --%s /dev/vda 2>&1 | tail -20" % os.environ.get("INSTALL_MODE", "demo"),
 ]
 

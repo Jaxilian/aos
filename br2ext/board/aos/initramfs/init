@@ -21,7 +21,7 @@ export PATH
 
 # Through the kernel's log: it reaches every console (serial and screen),
 # and the journal keeps it once systemd runs.
-say() { echo "aos-init: $*" > /dev/kmsg 2>/dev/null || echo "aos-init: $*" > /dev/console; }
+say() { echo "<6>aos-init: $*" > /dev/kmsg 2>/dev/null || echo "aos-init: $*" > /dev/console; }
 fail() {
 	say "$*"
 	say "a shell follows; 'exit' tries to carry on"
@@ -95,8 +95,10 @@ if [ -n "$DATA" ]; then
 	DATADEV=$(device "$DATA") || fail "the aos partition $DATA never appeared"
 	# LUKS2: the installer's choice. The passphrase is asked on the console.
 	if cryptsetup isLuks "$DATADEV" 2>/dev/null; then
+		say "the aos partition is encrypted; asking for its passphrase on the console"
 		cryptsetup open --tries 5 "$DATADEV" aos < /dev/console > /dev/console 2>&1 \
 			|| fail "the aos partition stays locked"
+		say "the aos partition is open"
 		DATADEV=/dev/mapper/aos
 	fi
 	e2fsck -p "$DATADEV" > /dev/null 2>&1 || say "e2fsck on $DATADEV returned $?"

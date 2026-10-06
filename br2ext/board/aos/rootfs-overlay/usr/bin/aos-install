@@ -30,6 +30,11 @@ Usage: aos-install [--demo | --oobe | --user NAME [--hash HASH | --password-file
   --keymap CODE             the keyboard layout (an XKB code, "se"), for the
                             desktop and the console of the installed system
   --zone AREA/CITY          its time zone ("Europe/Stockholm")
+  --encrypt FILE            LUKS2 around the aos partition -- everything of
+                            yours: homes, programs, settings, logs -- with
+                            the passphrase in FILE (one line), asked for at
+                            every start before the desktop. The cores stay
+                            in the clear: they are public images, verified.
   --demo                    keep the demo account. For a test machine.
   --oobe                    no account yet: the machine's first boot asks
                             for one (a locked "setup" user runs aos-setup
@@ -48,6 +53,7 @@ NEWHASH=""
 NEWPASS=""
 KEYMAP=""
 ZONE=""
+ENCRYPT=""
 while [ $# -gt 1 ]; do
 	case "$1" in
 		--release) ;;
@@ -58,6 +64,7 @@ while [ $# -gt 1 ]; do
 		--password-file) NEWPASS=$(head -n 1 "$2") || exit 1; shift ;;
 		--keymap)  KEYMAP="$2"; shift ;;
 		--zone)    ZONE="$2"; shift ;;
+		--encrypt) ENCRYPT="$2"; shift ;;
 		*)         usage ;;
 	esac
 	shift
@@ -70,6 +77,9 @@ if [ -n "$ZONE" ]; then
 	[ -f "/usr/share/zoneinfo/$ZONE" ] || { echo "aos-install: no time zone '$ZONE'" >&2; exit 1; }
 fi
 [ $# -eq 1 ] || usage
+if [ -n "$ENCRYPT" ]; then
+	[ -s "$ENCRYPT" ] || { echo "aos-install: --encrypt needs a file with the passphrase" >&2; exit 1; }
+fi
 DISK="$1"
 [ -b "$DISK" ] || { echo "aos-install: $DISK is not a block device" >&2; exit 1; }
 
@@ -172,7 +182,19 @@ udevadm settle 2>/dev/null || true
 
 echo ">>> Creating filesystems"
 mkfs.fat -F32 -n AOS_ESP "$ESP"
-mkfs.ext4 -q -F -L aos "$DATA"
+# Encrypted: LUKS2 over the whole partition, the filesystem inside; the
+# initramfs finds the LUKS header at boot and asks for the passphrase.
+DATADEV=$DATA
+if [ -n "$ENCRYPT" ]; then
+	echo ">>> Encrypting the aos partition"
+	head -n 1 "$ENCRYPT" | tr -d '\n' > /run/aos-install.key
+	chmod 600 /run/aos-install.key
+	cryptsetup -q luksFormat --type luks2 --key-file /run/aos-install.key "$DATA"
+	cryptsetup open --key-file /run/aos-install.key "$DATA" aos-install-data
+	rm -f /run/aos-install.key
+	DATADEV=/dev/mapper/aos-install-data
+fi
+mkfs.ext4 -q -F -L aos "$DATADEV"
 
 # The core this live system runs is on the medium as /aos/core.img with
 # its verity parameters beside it; the slot gets the same bytes, read
@@ -193,7 +215,7 @@ TARGET=/run/aos-install
 slot_mount_core "$SLOT_A" "$VHASH" "$VOFFSET" "$TARGET" aos-install || {
 	echo "aos-install: cannot open the core in slot a" >&2; exit 1; }
 mount "$ESP" "$TARGET/boot/efi"
-mount "$DATA" "$TARGET/aos"
+mount "$DATADEV" "$TARGET/aos"
 
 echo ">>> The aos partition: var, the store, the homes"
 # /var from the core's factory copy (journald keeps logs across reboots
@@ -360,6 +382,7 @@ echo ">>> Unmounting"
 for d in dev sys proc; do umount "$TARGET/$d"; done
 slot_umount_tree "$TARGET"
 umount "$TARGET/aos"
+[ -z "$ENCRYPT" ] || cryptsetup close aos-install-data
 umount "$TARGET/boot/efi"
 slot_umount_core "$TARGET" aos-install
 
