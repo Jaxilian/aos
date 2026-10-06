@@ -48,7 +48,14 @@ and zram as a oneshot after ade.service instead of a swap unit under
 swap.target. Next: resolved takes 1.4 s on the live ISO (95 ms on an
 installed disk), nvidia-devices 0.95 s on the G14 could start after the
 desktop, and the memory of a tgn program on the Intel GPU is to be
-measured before anything is done about it.
+measured before anything is done about it. What QEMU says about that
+memory (smaps of 0.1.30): Notepad's 92 MB resident is 42 MB of libLLVM
+and 7 MB of lavapipe (the software Vulkan driver), 21 MB of its own heap,
+10 MB shared; the shell's 192 MB is 95 MB of the driver's buffer
+allocations (memfd) and 45 MB of libLLVM. A real driver has neither, so
+the G14's numbers with every program on the Intel GPU (0.1.28) are the
+ones to act on; the font atlas is 4 MB (2048 squared, one byte per
+pixel) and is not where the memory goes.
 
 From QEMU's start to the login prompt is 29 s and to the first frame on
 screen 38 s, but that is the firmware, the 5 s GRUB menu, loading the
