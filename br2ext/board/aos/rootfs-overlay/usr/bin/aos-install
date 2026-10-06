@@ -135,6 +135,26 @@ printf "Type YES to continue: "
 read -r confirm
 [ "$confirm" = "YES" ] || { echo "Aborted."; exit 1; }
 
+# Whatever the live system holds on this disk goes first: udev's
+# removable-media rule mounts a plugged-in stick's partitions under
+# /run/media (an earlier AOS on it, say), an installer run before may
+# have left a LUKS mapping or a swap file active, and mkfs refuses a
+# device in use ("/dev/sdb5 is apparently in use by the system", the G14,
+# 2026-10-06). Deepest mounts first; crypt mappings after their mounts.
+echo ">>> Releasing $DISK"
+for m in $(findmnt -rn -o SOURCE,TARGET | awk -v d="$DISK" 'index($1, d) == 1 || index($1, "/dev/mapper/") == 1 { print $2 }' | sort -r); do
+	echo "    unmounting $m"
+	umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true
+done
+for p in $(lsblk -lnpo NAME "$DISK" 2>/dev/null); do
+	swapoff "$p" 2>/dev/null || true
+done
+for c in $(lsblk -lnpo NAME,TYPE "$DISK" 2>/dev/null | awk '$2 == "crypt" { print $1 }'); do
+	echo "    closing $c"
+	cryptsetup close "$c" 2>/dev/null || true
+done
+udevadm settle 2>/dev/null || true
+
 echo ">>> Wiping old partition tables and signatures from $DISK"
 # A disk that has been a live ISO, an installed system, or anything else
 # carries more than one description of itself: an MBR with boot code, a

@@ -1,6 +1,6 @@
 # TODO
 
-Updated 2026-10-06 afternoon. The newest release is 0.2.4 (the cores and
+Updated 2026-10-06 afternoon. The newest release is 0.2.5 (the cores and
 the aos partition: a reinstall; 0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
@@ -21,6 +21,14 @@ and after in docs/performance.md, with the G14's own numbers from your
 report of 2026-10-05. Left there: resolved's 1.4 s on the live ISO,
 nvidia-devices before the desktop on the G14, and tgn programs' memory,
 to be read from your next report (TEST.md 4h).
+
+## 0.2.5: the installer releases the target disk first
+
+A stick with an earlier AOS on it is mounted by the live system's
+removable-media rule the moment it is plugged in, and mkfs refused
+"/dev/sdb5 is apparently in use" (the G14, 2026-10-06). aos-install
+now unmounts, swapoffs and closes whatever is held on the disk before
+wiping it.
 
 ## 0.2.4: the stick's first boot of 0.2.3 hit a crash guard
 

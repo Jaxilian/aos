@@ -24,7 +24,7 @@ want to keep first.
    findmnt / /aos /home /opt/apm /var /etc /boot/efi
    journalctl -b -t aos-init --no-pager
    ```
-   Expect `VERSION_ID=0.2.4`.
+   Expect `VERSION_ID=0.2.5`.
    `/` is `/dev/mapper/core`, squashfs, read-only; `/aos` is the fifth
    partition, ext4; `/home` and `/opt/apm` come from it; the command
    line carries `aos.core=PARTUUID=... aos.hash=...`.
