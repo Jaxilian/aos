@@ -62,10 +62,16 @@ def main():
                 break
             time.sleep(2)
         # The first boot of a fresh install takes a while to its desktop.
-        for _ in range(30):
+        up = False
+        for _ in range(60):
             if "setup" in ser.run("ps -o user= -C ade-shell"):
+                up = True
                 break
             time.sleep(2)
+        if not up:
+            print("$ no setup session; greetd and the console say\n%s" % ser.run(
+                "systemctl status greetd --no-pager 2>&1 | head -5; journalctl -b --no-pager | grep -iE 'greetd|session|logind|ade' | tail -20 | cut -c17-200; "
+                "echo --- tty1:; cat /dev/vcs1 | tr -s ' ' | fold -w 200 | grep -v '^ *$' | tail -15; ps -ef | grep -E 'session|ade|greetd' | grep -v grep", timeout=60))
         state = ser.run("cat /etc/aos/oobe >/dev/null 2>&1 && echo marker; ps -o user= -C ade-shell; pgrep -a aos-setup | head -2; "
                         "cat /etc/sudoers.d/30-aos-oobe; id setup; id admin 2>&1 | head -1")
         print("$ before\n%s" % state)
