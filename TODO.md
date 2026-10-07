@@ -1,6 +1,6 @@
 # TODO
 
-Updated 2026-10-06 afternoon. The newest release is 0.2.6 (the cores and
+Updated 2026-10-07 morning. The newest release is 0.2.7 (the cores and
 the aos partition: a reinstall; 0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
@@ -21,6 +21,23 @@ and after in docs/performance.md, with the G14's own numbers from your
 report of 2026-10-05. Left there: resolved's 1.4 s on the live ISO,
 nvidia-devices before the desktop on the G14, and tgn programs' memory,
 to be read from your next report (TEST.md 4h).
+
+## 0.2.7: installing from an installed stick onto a second one
+
+Four faults, each only visible with two AOS disks attached. The
+installer only knew the live ISO's core; it now copies the running
+slot's when there is no live medium. Its release step unmounted
+anything from /dev/mapper, the running root included; it now unmounts
+the target's own devices, by device, until none is left. The media rule
+mounted the running stick's own partitions under /run/media, its
+root-disk check predating the verity root; it follows slaves/ now. And
+the initramfs mounted /boot/efi by LABEL=AOS_ESP, which with two AOS
+disks was the other one's -- the "wipefs: Device or resource busy" on
+the G14, and where an update would have written its kernel; it is
+partition 2 of the core's disk now. Old partitions' signatures are
+wiped before the disk's, and the disk wipe retries, then prints the
+mounts and holders. Reproduced and verified with the real sticks in
+QEMU, then on the G14.
 
 ## 0.2.6: the installer hides the disk it runs from
 

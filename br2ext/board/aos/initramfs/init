@@ -131,10 +131,18 @@ mount -t overlay overlay -o "lowerdir=/sysroot/etc,upperdir=$A/aos/etc/upper,wor
 mount --bind "$A/apm" /sysroot/opt/apm || fail "bind of apm failed"
 mount --bind "$A/users" /sysroot/home || fail "bind of users failed"
 # The ESP, for grubenv and the next update; only on a disk, and never a
-# reason not to boot.
+# reason not to boot. Partition 2 of the disk the core is on -- not the
+# first partition labelled AOS_ESP, which with two AOS disks attached was
+# the other disk's (the G14 and its target stick, 2026-10-07): the
+# installer then found its target's ESP busy, and an update would have
+# written its kernel to the wrong disk.
 if [ -n "$DATA" ]; then
-	ESP=$(blkid -l -t LABEL=AOS_ESP -o device 2>/dev/null)
-	if [ -n "$ESP" ]; then
+	# /dev/sda3 -> /dev/sda2, /dev/nvme0n1p3 -> /dev/nvme0n1p2: the
+	# trailing digits off, a 2 on. (No sed or readlink in here.)
+	ESP=$COREDEV
+	while [ "${ESP%[0-9]}" != "$ESP" ]; do ESP=${ESP%[0-9]}; done
+	ESP="${ESP}2"
+	if [ -b "$ESP" ]; then
 		mkdir -p /sysroot/boot/efi
 		mount -t vfat -o noatime "$ESP" /sysroot/boot/efi 2>/dev/null || say "the ESP $ESP did not mount"
 	fi

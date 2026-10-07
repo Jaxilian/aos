@@ -159,9 +159,16 @@ read -r confirm
 # device in use ("/dev/sdb5 is apparently in use by the system", the G14,
 # 2026-10-06). Deepest mounts first; crypt mappings after their mounts.
 echo ">>> Releasing $DISK"
-for m in $(findmnt -rn -o SOURCE,TARGET | awk -v d="$DISK" 'index($1, d) == 1 || index($1, "/dev/mapper/") == 1 { print $2 }' | sort -r); do
-	echo "    unmounting $m"
-	umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true
+# Its partitions and what is opened on them (dm-crypt, verity), by the
+# device tree: any /dev/mapper/ source would include the running core at /.
+# By device, not path, until the device has no mount left: a partition
+# can be mounted more than once (udev's double add on the G14), and a
+# path can carry another disk's mount on top. Children (mappings) first.
+for p in $(lsblk -lnpo NAME "$DISK" 2>/dev/null | tac); do
+	while m=$(findmnt -rn -o TARGET -S "$p" 2>/dev/null | tail -n 1) && [ -n "$m" ]; do
+		echo "    unmounting $m ($p)"
+		umount "$p" 2>/dev/null || umount -l "$p" 2>/dev/null || break
+	done
 done
 for p in $(lsblk -lnpo NAME "$DISK" 2>/dev/null); do
 	swapoff "$p" 2>/dev/null || true
@@ -169,6 +176,14 @@ done
 for c in $(lsblk -lnpo NAME,TYPE "$DISK" 2>/dev/null | awk '$2 == "crypt" { print $1 }'); do
 	echo "    closing $c"
 	cryptsetup close "$c" 2>/dev/null || true
+done
+# The old partitions' own signatures too: the disk wipe below leaves
+# them, the kernel's re-read of the new table re-adds the partitions with
+# that content still in them, and udev's media rule mounts what still
+# looks like a filesystem -- under the installer (the G14, 2026-10-06:
+# veritysetup found slot a "already mapped or mounted").
+for p in $(lsblk -lnpo NAME "$DISK" 2>/dev/null | tail -n +2); do
+	wipefs -afq "$p" 2>/dev/null || true
 done
 udevadm settle 2>/dev/null || true
 
@@ -181,7 +196,23 @@ echo ">>> Wiping old partition tables and signatures from $DISK"
 # partition map ("multiple partition labels"). So scrub first: every known
 # signature, then the first and last 2 MiB outright, which is where all of
 # those structures live.
-wipefs -a "$DISK" >/dev/null
+# wipefs opens the disk exclusively, which fails while any partition is
+# still claimed: a mount that was busy and went lazy, a mapping, swap, or
+# udev still settling. A few tries, then the holders, for the log.
+for i in 1 2 3 4 5; do
+	wipefs -a "$DISK" >/dev/null 2>&1 && break
+	if [ "$i" = 5 ]; then
+		echo "aos-install: $DISK is still in use:" >&2
+		lsblk -o NAME,TYPE,FSTYPE,MOUNTPOINTS "$DISK" >&2
+		grep "$DISK" /proc/mounts /proc/swaps >&2 || true
+		for p in $(lsblk -lnpo NAME "$DISK"); do
+			ls "/sys/class/block/$(basename "$p")/holders" 2>/dev/null | sed "s|^|    $p held by |" >&2
+			fuser -vm "$p" 2>&1 | sed "s|^|    |" >&2 || true
+		done
+		exit 1
+	fi
+	sleep 2; udevadm settle 2>/dev/null || true
+done
 # In 512-byte sectors, not MiB: the backup GPT header sits in the very last
 # sector, and a size that is not a whole number of MiB would leave it.
 DISK_SECTORS=$(blockdev --getsz "$DISK")
@@ -233,16 +264,28 @@ if [ -n "$ENCRYPT" ]; then
 fi
 mkfs.ext4 -q -F -L aos "$DATADEV"
 
-# The core this live system runs is on the medium as /aos/core.img with
-# its verity parameters beside it; the slot gets the same bytes, read
-# back through the verity before anything else is done.
+# The core this system runs: on the live medium as /aos/core.img with its
+# verity parameters beside it, or, on an installed system, in its own
+# slot with the parameters on the kernel command line. The slot gets the
+# same bytes, read back through the verity before anything else is done.
 LIVE=/run/aos/live
-[ -f "$LIVE/aos/core.img" ] && [ -f "$LIVE/aos/core.verity" ] || {
-	echo "aos-install: no core on the live medium ($LIVE/aos/core.img)" >&2; exit 1; }
+if [ -f "$LIVE/aos/core.img" ] && [ -f "$LIVE/aos/core.verity" ]; then
+	COREIMG="$LIVE/aos/core.img"; COREVF="$LIVE/aos/core.verity"; COREBYTES=""
+else
+	COREIMG=$(slot_root_dev) || { echo "aos-install: no core to install: not live, and no aos.core= slot" >&2; exit 1; }
+	COREVF=/run/aos-install.verity
+	{ sed -n 's/.*aos\.hash=\([^ ]*\).*/hash=\1/p' /proc/cmdline
+	  sed -n 's/.*aos\.offset=\([^ ]*\).*/offset=\1/p' /proc/cmdline; } > "$COREVF"
+	slot_read_verity "$COREVF" || { echo "aos-install: no aos.hash=/aos.offset= on the command line" >&2; exit 1; }
+	# The squashfs, then its hash tree: under offset/127 for sha256 on
+	# 4 KiB blocks, plus a superblock. offset/64 + 1 MiB covers it; what
+	# else is copied is unused slot space.
+	COREBYTES=$((VOFFSET + VOFFSET / 64 + 1048576))
+fi
 echo ">>> Writing the core into slot a ($SLOT_A); this takes a while"
-slot_write_core "$SLOT_A" "$LIVE/aos/core.img" "$LIVE/aos/core.verity" || {
+slot_write_core "$SLOT_A" "$COREIMG" "$COREVF" "$COREBYTES" || {
 	echo "aos-install: the core did not verify on $SLOT_A" >&2; exit 1; }
-slot_read_verity "$LIVE/aos/core.verity"
+slot_read_verity "$COREVF"
 
 echo ">>> Mounting"
 # Under /run, not /mnt: the core is read-only and a mount point cannot be

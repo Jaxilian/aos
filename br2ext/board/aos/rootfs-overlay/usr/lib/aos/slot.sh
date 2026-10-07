@@ -92,13 +92,14 @@ slot_read_verity() {
 # Writes a core image into a slot's partition and reads it back through
 # its verity: a block that does not match its hash is an I/O error, so a
 # read of the whole device proves the write.
-#   slot_write_core DEV IMAGE VERITYFILE   (IMAGE may be .xz)
+#   slot_write_core DEV IMAGE VERITYFILE [BYTES]   (IMAGE may be .xz;
+#   BYTES copies only the start of IMAGE, for a core read off a slot)
 slot_write_core() {
-	local dev="$1" img="$2" vf="$3"
+	local dev="$1" img="$2" vf="$3" bytes="$4"
 	slot_read_verity "$vf" || { echo "slot: $vf is not a verity file" >&2; return 1; }
 	case "$img" in
 		*.xz) xz -dc "$img" | dd of="$dev" bs=4M conv=fsync status=none ;;
-		*)    dd if="$img" of="$dev" bs=4M conv=fsync status=none ;;
+		*)    dd if="$img" of="$dev" bs=4M conv=fsync status=none ${bytes:+count=$bytes iflag=count_bytes} ;;
 	esac
 	veritysetup open "$dev" aos-check "$dev" "$VHASH" --hash-offset="$VOFFSET" || return 1
 	local ok=0

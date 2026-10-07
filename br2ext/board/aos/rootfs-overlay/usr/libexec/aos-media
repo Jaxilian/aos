@@ -20,7 +20,16 @@ add)
 	# sysfs names the root's the same way, whatever the kernel calls the
 	# devices. (lsblk -o MAJ:MIN printed nothing on the image, and every
 	# partition of the G14's stick was mounted twice, 2026-10-01.)
-	rootdisk=$(cat "/sys/dev/block/$(findmnt -n -o MAJ:MIN / | tr -d " ")/../dev" 2>/dev/null)
+	# The root is the verity device over the slot (/dev/mapper/core since
+	# 0.2.0): its partition is in slaves/, and the partition's disk is its
+	# parent. (The old parent-of-root lookup found nothing for a mapper
+	# device, and every partition of the stick was mounted again under
+	# /run/media, 2026-10-07.)
+	rootdev=$(findmnt -n -o MAJ:MIN / | tr -d " ")
+	for s in "/sys/dev/block/$rootdev/slaves"/*; do
+		[ -e "$s/dev" ] && rootdev=$(cat "$s/dev")
+	done
+	rootdisk=$(cat "/sys/dev/block/$rootdev/../dev" 2>/dev/null)
 	disk=${ID_PART_ENTRY_DISK:-$(cat "/sys/class/block/$(basename "$dev")/dev" 2>/dev/null)}
 	if [ -n "$rootdisk" ] && [ "$disk" = "$rootdisk" ]; then
 		exit 0
