@@ -24,7 +24,7 @@ AOS; a CHECK is something to look at in [known-issues.md](known-issues.md).
   2 or older will not boot it). Intel or AMD graphics work out of the box;
   NVIDIA cards from the RTX 20 series on use NVIDIA's open driver.
 - A USB stick of 2 GB or more, for the installer. It is erased.
-- A disk of at least 15 GB to install onto. **It is erased completely.**
+- A disk of at least 16 GB to install onto. **It is erased completely.**
   AOS does not share a disk with another system yet.
 - Secure Boot turned **off** in the firmware settings. Nothing AOS ships
   is signed for it (see [policies.md](policies.md)).
@@ -87,8 +87,12 @@ AOS**:
    and root cannot log in on the console.
 4. **Disk**: the disk to install onto. The stick you started from is never
    offered. Everything on the chosen disk is erased.
-5. **Install**: a progress bar, then **Restart**. Remove the stick when the
-   machine turns off.
+5. **Install**: "Encrypt the disk", if you want it, locks your files,
+   programs and settings with your password, which is then asked for at
+   every start, before the desktop. Then a progress bar, then
+   **Restart**. Remove the stick when the machine turns off.
+
+The installed machine starts at a login screen with your account.
 
 A machine installed for someone else (`aos-install --oobe`, or a stick
 made with `./usb.sh --oobe`) asks the same questions at its first boot
@@ -96,7 +100,7 @@ instead, without the disk, and the desktop restarts as the new owner.
 
 ## 5. After the install
 
-- **Wi-Fi, sound, displays, Bluetooth, users, updates**: the Settings
+- **Wi-Fi, sound, displays, Bluetooth, users**: the Settings
   application.
 - **Software**: Super, then Software -- AOS's own applications under
   Official, and Visual Studio Code, Firefox, Discord and Steam under
@@ -108,8 +112,8 @@ instead, without the disk, and the desktop restarts as the new owner.
   (previous version)" goes back to the one before if anything is wrong.
 - **Screenshots**: Print (the display), Shift+Print (the window); they
   are in Pictures/Screenshots.
-- **Glass or light**: Settings -> Display -> Appearance. Light is opaque
-  and easiest on a slow GPU.
+- **Glass or not**: Settings -> Display -> Appearance. Lightweight is
+  opaque and easiest on a slow GPU.
 
 ## If something goes wrong
 

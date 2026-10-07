@@ -14,6 +14,7 @@ For working on AOS:
 - [what-is-aos.md](what-is-aos.md) — what AOS is: one desktop, one package manager, one stack
 - [packages.md](packages.md) — everything in the image, with versions
 - [building.md](building.md) — how to build it
+- [layout.md](layout.md) — the disk and the boot: verified cores in two slots, the aos partition, LUKS
 - [upgrading.md](upgrading.md) — how to move to a newer kernel or package
 - [keyboard.md](keyboard.md) — changing the console keyboard layout
 - [testing.md](testing.md) — how to run and test it

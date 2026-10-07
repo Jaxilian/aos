@@ -7,6 +7,11 @@ NVD's feed). This page is its triage, redone when the report changes.
 
 **Triaged 2026-10-01 against the 0.1.7 report: 64 CVEs in 19 packages.**
 
+Not redone since the bumps of 0.1.17 and 0.1.18. The 0.2.x releases
+(verity cores, LUKS, greetd) have their own reports beside each release,
+not yet triaged here; some reasons below date from 0.1.x (the tar entry:
+`aos-update` now writes core images, not tarballs).
+
 ## Fixed by a version bump (in 0.1.18)
 
 - **linux** 7.1.13 → 7.2.9: CVE-2026-52972 (af_alg AEAD length). 7.1.y

@@ -18,8 +18,9 @@ when it has no driver — that every QEMU run had passed over.
 ./br2ext/board/aos/run-qemu.sh disk       # boot what you installed
 ```
 
-Log in as `root`, no password. Add `serial` as an extra word to run in the
-terminal instead of a window.
+The live ISO and a demo install start the desktop as `admin`; on the
+serial console log in as `root`, no password (root logs in nowhere else).
+Add `serial` as an extra word to run in the terminal instead of a window.
 
 ## Installing to the virtual disk
 
@@ -30,7 +31,8 @@ terminal instead of a window.
 Then inside the VM:
 
 ```sh
-aos-install /dev/vda      # type YES when asked; takes a few minutes
+aos-install --demo /dev/vda   # type YES when asked; takes a few minutes
+                              # without --demo it asks for the machine's account
 poweroff
 ```
 
@@ -67,9 +69,9 @@ systemctl --failed                   # expect "0 loaded units listed"
 journalctl -b -p err                 # errors from this boot, kernel included
 loginctl                             # your login shows as a session with a seat
 networkctl                           # the NIC should be "routable"
-swapon --show                        # zram0 everywhere; /var/swapfile too once installed
+swapon --show                        # zram0 everywhere; /aos/aos/swapfile too once installed
 journalctl -k | grep -i microcode    # the early initrd was found and applied
-systemctl status systemd-fsck-root   # ran, on an installed disk
+journalctl -b | grep e2fsck         # the initramfs checks the aos partition; the core is verity, not fsck'd
 systemctl show -p RuntimeWatchdogUSec  # 30s where a watchdog device exists
 cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor   # schedutil (no cpufreq in a VM)
 systemctl list-timers                # fstrim weekly
@@ -102,23 +104,22 @@ over ssh first -- a compositor change tested without an ISO -- and
 installs Firefox and Xwayland from the repositories the disk knows.
 Every test on the installed disk wants the keyed build in `output/images`
 (`board/aos/authorized_keys` present at `make`): `update-test.py` writes
-the build's root tarball into the disk's slots, and a keyless one takes
+the build's core into the disk's slots, and a keyless one takes
 sshd and root's key off the disk, after which nothing can be copied in.
 `update-abort-test.py` kills QEMU while `aos-update` is writing the idle
 slot, then checks the machine boots its slot as before, `--rollback`
 refuses the half-written one, and a second update completes; run it
 after `update-test.py`, whose last boot leaves the disk where this one
 expects it. `update-test.py`, also on the installed disk, is a base-OS update
-([upgrading.md](upgrading.md)): the build's own root tarball served from
+([upgrading.md](upgrading.md)): the build's own `core.img` served from
 the host as a fake release 9.9.9, signed with the local apm key, then four
 boots -- the update into slot b, its confirmation, a rollback armed, the
 trial of slot a forgotten -- with the mounts, the account and failed units
 checked on each; with `--usb` the disk is a USB stick, as on the G14,
 where udev once mounted the idle slot as media and stopped the update
-at mkfs. Transcripts: `update-N.serial.txt`. `kernel-test.py
-<file.apkg>` installs a kernel package made by `kernel-apkg.sh` on the
-same disk and boots it: `/boot/bzImage.apm` must be a copy, not a link,
-since GRUB cannot follow a link out of the root slot. `setup-test.py` is
+at mkfs. Transcripts: `update-N.serial.txt`. (`kernel-test.py` tested
+the 0.1.x kernel package; since 0.2.0 the kernel is part of the core and
+it has nothing to test.) `setup-test.py` is
 the graphical installer end to end: the live ISO with a blank disk,
 `aos-setup` started in the session with every answer on its command
 line and `--go`, screendumps while it installs, then the disk booted and
@@ -179,6 +180,44 @@ One thing to know when reading its output: the compositor's own log lines are
 not under `journalctl -u ade`. `PAMName=login` hands the process to logind,
 which moves it into a session scope, and journald files its output there.
 Use `journalctl -b _COMM=ade-comp`.
+
+## Every script, one line each
+
+`INSTALL_MODE=owner|oobe|encrypt` before `boot-test.py install` makes the
+other kinds of disk; run a plain `install` afterwards, since the disk
+drivers log in as the demo account. "Disk" below means the installed
+QEMU disk of the keyed build.
+
+| Script | What it drives |
+|---|---|
+| `boot-test.py` | live, usb, install, disk, desktop, soak (and probe, apm): boot, serial checks, screendump |
+| `ade-test.py` | live ISO: popup grabs, a menu item that runs, the live keyboard layout, the overview, a second display |
+| `clip-test.py` | disk: Files' rename field, F2 then Ctrl+C, must reach the clipboard (fails today: Files' old prompt) |
+| `crash-test.py` | disk: shell killed, compositor killed while locked, compositor killed five times |
+| `desk-test.py` | disk: Notepad's unsaved-text dialog, minimize and restore from the dock, the dock's right-click menu |
+| `disk-test.py` | disk: the working tree's binaries copied in; overview keys, Firefox and Xwayland from the index, popups, sysmon's menu |
+| `disp-test.py` | disk: two displays, the order= and off= lines followed by the compositor |
+| `fx-test.py` | disk: quick panel glass, the snap ghost, the minimize animation, the screenshot toast opening Images |
+| `greeter-test.py` | `INSTALL_MODE=owner`: the login screen, a wrong and a right password, Super+L with an OSD while unlocking |
+| `luks-test.py` | `INSTALL_MODE=encrypt`: the initramfs's passphrase prompt on serial, wrong then right |
+| `mic-test.py` | disk: the nomic PipeWire sockets refuse capture; aos-sandbox with and without `--microphone` |
+| `oobe-test.py` | `INSTALL_MODE=oobe`: the setup user's welcome, aos-firstboot making the owner, the login screen after |
+| `perf-test.py` | live ISO: seconds to login and first window, memory at idle, app start times (output/images/perf.json) |
+| `perm-test.py` | disk: Software's Permissions on a package page, the "restart to finish" state, Settings' Open Software |
+| `replug-test.py` | live ISO: a second display unplugged and plugged back gets its bar and wallpaper again (QEMU leaves the head blank; for the journal) |
+| `sec-test.py` | live ISO: sysctls, the LSM list, the bar's red "SSH open" following port 22 |
+| `setup-test.py` | live ISO + blank disk: the graphical installer end to end; leaves the disk installed for `jax` |
+| `shot-test.py` | disk: Print and Shift+Print, the two PNGs copied back |
+| `steam-test.py` | disk: Steam's sandbox declaration, the farm entry and the 32-bit loader inside the sandbox |
+| `store-test.py` | disk: the index fetched, Software's pages screendumped |
+| `theme-test.py` | disk: the bar follows the theme file's effects= line without a restart |
+| `update-test.py` | disk: a fake 9.9.9 core written into slot b, confirmed, rolled back, a forgotten trial (`--usb` for a stick) |
+| `update-abort-test.py` | disk: QEMU killed mid-write; the old slot boots, `--rollback` refuses, a second update completes |
+| `upgrade-ui-test.py` | disk: the update check, the toast, Software's Update page, Upgrade system against a fake release |
+| `kernel-test.py` | 0.1.x only: the aos/kernel apm package; nothing to test since the kernel is in the core |
+| `auto-install.py` | not a test: types the install for `write-usb.sh --install --auto`, and `--boot --auto`'s login check |
+| `iso-gpt.py` | not a test: trims and checks the live ISO's GPT after xorriso (a build hook) |
+| `br2apkg.py` | not a test: lifts Buildroot packages out of the target into an apm package (the runtimes) |
 
 ## Three traps
 

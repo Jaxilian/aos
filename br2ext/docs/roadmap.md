@@ -9,6 +9,20 @@ from a package repository. The previous roadmap (an init system under
 BusyBox, then a compositor) is done or superseded: systemd is the init, ade
 is the compositor.
 
+*As of 0.2.8 (2026-10-07)*: an installed disk holds two read-only cores
+(squashfs checked by dm-verity) and an `aos` partition for everything
+written, optionally LUKS2-encrypted; an owned machine boots to a login
+screen, an unowned one to the first-boot setup; Software installs
+programs and the OS update in one place; third-party programs run in a
+sandbox with their microphone and camera withheld unless allowed. The
+core is 746 MB, the ISO 825 MB, both published (the ISO on
+[aos-releases](https://github.com/Jaxilian/aos-releases)). Open, in
+rough order: per-user encrypted homes (systemd-homed, waiting for the
+owner's yes), the file dialog for sandboxed programs and then AOS's own
+apps in the sandbox, output on the second GPU's connectors (the G14's
+HDMI), a second test machine, CI's first green run, and Secure Boot,
+decided unsupported. Everything has been tested on one laptop, the G14.
+
 The goal from here is a **consumer Linux distribution with hard standards**.
 One desktop. One package format. One native GUI stack. A person installs it,
 sets it up, and uses it — for games, for work, for anything — without ever
@@ -35,7 +49,7 @@ These are the standards. They are stated here and in
 | Packaging | apm is the only way software enters the machine: signed packages with a `.desktop` entry, installed into apm's store. No tarballs, no `curl \| sh`. |
 | Two tiers | **Official** — [apm-recipes](https://github.com/Jaxilian/apm-recipes), tested against each release, recommended. **Third-party** — [apm-thirdparty](https://github.com/Jaxilian/apm-thirdparty), carried for compatibility, at the user's risk, and labelled so wherever it appears. A third-party package may depend on official ones, never the reverse. |
 | Users | Never need a console. Install, first-boot setup, settings, updates and the app store are all graphical. The terminal exists for developers. |
-| Base | systemd, all of it; glibc; x86-64-v2; merged `/usr`; no initramfs. As in [../PLATFORM.md](../PLATFORM.md), unchanged. |
+| Base | systemd, all of it; glibc; x86-64-v2; merged `/usr`; a small initramfs of the image's own binaries that opens the verity core and the aos partition (since 0.2.0; [layout.md](layout.md)). As in [../PLATFORM.md](../PLATFORM.md). |
 
 ## Phase 0 — Build and release engineering
 
@@ -72,15 +86,18 @@ other item is a result no one else can reproduce.
    runs `boot-test.py live`, `install`, `disk` and `desktop`, keeping the
    serial logs and screendumps as artifacts. A red run blocks the tag.
    *Written 2026-09-22*: [ci.sh](../board/aos/ci.sh) is the job and
-   `.github/workflows/aos.yml` runs it. Outstanding: a runner registered
-   with the label `kvm`.
+   `.github/workflows/aos.yml` runs it. *Runner registered 2026-10-03*
+   (`g14`, label `kvm`, on the build laptop); its runs so far failed on
+   the runner's side, not the build's, and it was paused on 2026-10-07.
+   Outstanding: a first green run.
 4. **Release shape.**
    *Half done 2026-09-22*: `aos-install` now asks for the machine's own
    account and installs that; the demo account survives only with `--demo`,
    which the tests pass. *Done 2026-10-03*: the live ISO's account has no
    password at all (sudo asks for none there, no lock screen, root on the
    serial console only); the desktop session still needs a user to belong
-   to, and this one can be nobody's way in.
+   to, and this one can be nobody's way in. *2026-10-05*: `--oobe` leaves
+   the account to the machine's first boot (Phase 2, item 2).
 5. **Signed releases.**
    Today: [publishing.md](publishing.md) suggests a bare `sha256sum`.
    Done: `SHA256SUMS` signed with the same minisign key every AOS machine
@@ -125,11 +142,37 @@ What an evaluator checks before anything else.
    would have saved was the slot switch, which GRUB has to do by hand
    anyway. The release is published next to the apm index
    (`release.sh --publish`). Disks installed before this are reinstalled.
+   *Verity cores, 0.2.0 (2026-10-06)*: a release is a core -- a squashfs
+   with its dm-verity hash tree, written raw into the slot and read back
+   through the verity -- not a tarball; the kernel ships inside it, no
+   longer as an apm package, and a small initramfs opens it. What is
+   written lives on the `aos` partition ([layout.md](layout.md)). 0.1.x
+   disks are reinstalled.
 6. **Disk encryption: decide.** *Decided 2026-09-28*: `/home` on LUKS,
    unlocked at login, when it comes; the root stays in the clear and there
-   is no initramfs ([policies.md](policies.md)). Not built yet.
+   is no initramfs ([policies.md](policies.md)). *Done differently, 0.2.2
+   (2026-10-06)*: LUKS2 around the whole `aos` partition (homes,
+   programs, settings, logs), `aos-install --encrypt` and the installer's
+   "Encrypt the disk", the passphrase asked by the initramfs before the
+   desktop; the cores stay in the clear, public and verified.
+   Outstanding: per-user homes unlocked at login (systemd-homed through
+   greetd's PAM, with a recovery key) -- it changes what a disk holds and
+   waits for the owner's yes; and `./usb.sh --encrypt`.
 7. **No telemetry**, written down as a guarantee. *Done 2026-09-28*:
    [policies.md](policies.md).
+8. **An application sandbox.** *`aos-sandbox` 2026-09-22; declarations
+   done 2026-10-02*: a package declares
+   what it needs (`[sandbox]` in its manifest), apm writes an
+   `aos-sandbox` wrapper for it, a program gets a private home under
+   `~/.var/app` unless it declares more, and Software shows what each
+   one sees and lets the person change it. *Camera 2026-10-05*
+   (`/dev/video*` only with the switch on), *microphone 2026-10-06*
+   (0.1.29: PipeWire's capture refused on a second socket the sandbox
+   binds over the real one, unless allowed; `mic-test.py`). No prompt
+   when a program first asks; the switch is the answer. Outstanding: a
+   file dialog the desktop draws, handing a sandboxed program one file
+   by descriptor, and then AOS's own applications in the sandbox (they
+   run outside it today).
 
 ## Phase 2 — Everything a user does, without a terminal
 
@@ -144,12 +187,20 @@ In the order a new user meets them.
    live ISO the app unlocks sudo with the demo account's password
    itself. Tested in QEMU as every other app; the first hardware run is
    the G14's next stick.
-2. **First-boot setup.** *Dropped 2026-10-01.* It existed to let the ISO
-   ship without an account; but the installer asks for the account and
-   installs it, so no installed machine ever has the demo one, and the
-   live session's documented `admin` is what every live ISO has. A
-   second code path for the same questions, a `setup` system user and a
-   session restart were not worth that.
+2. **First-boot setup.** *Dropped 2026-10-01, then asked for and done
+   2026-10-05 (0.1.24)*, so a stick can be handed to someone:
+   `aos-install --oobe` (`./usb.sh --oobe`) leaves no account; the first
+   boot is a locked `setup` user's session running `aos-setup
+   --first-boot` -- keyboard, time zone, account -- whose Finish runs
+   `aos-firstboot` through its one sudoers line; that makes the owner,
+   locks root, and refuses once an owner exists. `oobe-test.py` in QEMU;
+   untested on hardware.
+2b. **A login screen.** *Done 0.2.3 (2026-10-06)*: greetd with
+   ade-greeter (Jaxilian/greeter) on an owned or first-boot machine --
+   the accounts listed, a password, the session started as that account;
+   the live medium and a demo install keep the autologin.
+   `greeter-test.py` in QEMU, including the lock screen keeping the
+   keyboard under an OSD (0.2.8).
 3. **A Settings application.** *Done 2026-09-25 (settings v0.1.0)*:
    network and Wi-Fi, sound, display, keyboard layout, power and the lid,
    users, date and time, apm updates, the XWayland switch, the
@@ -160,8 +211,10 @@ In the order a new user meets them.
    power off go through the seat's polkit rule. *Display scale and a
    Lock button added 2026-09-25 (settings v0.1.1, ade v0.1.11)*: the
    scale goes to `~/.config/ade/display`, which the compositor rereads
-   within seconds. Outstanding: display arrangement and per-output
-   scale in the page (the file already takes a line per output), and
+   within seconds. *Display arrangement and per-display on/off done
+   2026-10-05 (0.1.25)*: the file's `order=` and `off=` lines, left or
+   right of the first display (`disp-test.py`); per-display scale since
+   2026-10-02. And
    *idle blanking added 2026-09-28*: `blank=<seconds>` in the same file,
    ten minutes by default; ade switches every head off through its DPMS
    property after that long without input and on again at the next key
@@ -188,6 +241,12 @@ In the order a new user meets them.
    OS (apm v0.1.3); Software -> Updates and Settings -> Software are the
    one button, with Restart beside it; `aos-update-check.timer` looks
    daily and the shell says when there is something (ade v0.1.27).
+   *Software owns updates, 2026-10-04 (0.1.19)*: Settings' Software page
+   is gone; Software's Update page lists every pending package and the OS
+   with a line each while they run (`apm --progress`), a failed package
+   is skipped and reported, then Restart; the check runs two minutes
+   after boot and a click on its toast opens the page
+   (`upgrade-ui-test.py`).
 6. **XWayland.** *Done 2026-09-23*: `runtime/xwayland` in apm-thirdparty,
    built out of the packages tree by `board/aos/runtime-xwayland.sh`.
    Installing it is the switch: ade-comp starts Xwayland at the next
@@ -399,10 +458,14 @@ In the order a new user meets them.
    watchdog reboot ([testing.md](testing.md)). The nightly workflow runs
    eight hours of it after the build. First run: 147,740 kB flat.
 2. **Suspend, resume and lid-close** on every machine on the hardware list.
-   The most common laptop failure, and untested today.
-3. **Boot-test the release path.** `boot-test.py` exercises the demo image.
-   The `--release` path and, once it exists, the graphical installer need
-   the same treatment.
+   The most common laptop failure. Worked through on the G14 in rounds
+   13-17 (input after resume, the NVIDIA GPU's memory, the lock before
+   sleep); no second machine yet, and QEMU cannot resume from S3.
+3. **Boot-test the release path.** *Done*: `boot-test.py` exercises the
+   demo image; `INSTALL_MODE=owner|oobe|encrypt` installs the other kinds
+   of disk, and `greeter-test.py`, `oobe-test.py`, `luks-test.py` and
+   `setup-test.py` (the graphical installer) drive them
+   ([testing.md](testing.md)).
 4. **A gaming baseline.** A Vulkan game at native resolution on Intel, AMD
    and NVIDIA, through ade-comp's direct-scanout path, measured against a
    stock distribution. Steam with Proton is the real test. Variable refresh
@@ -416,7 +479,10 @@ In the order a new user meets them.
    won the GPU and left it dark without GSP firmware (blacklisted). The
    sandbox passes the nodes through; `prime-run` offloads a program. Not
    yet proven on the hardware, and no 32-bit NVIDIA libraries yet (32-bit
-   GL games under Proton).
+   GL games under Proton). Open: the G14's HDMI port belongs to the NVIDIA
+   GPU, and the compositor drives the connectors of one DRM device only;
+   output on a second GPU's connectors (smithay's GpuManager) is big and
+   not started.
 5. **A crash story.** coredump and journald are configured. *`aos-report`
    added 2026-09-22*: one command, one tarball -- this boot's journal, the
    errors, failed units, the compositor's log, the hardware, what apm has
@@ -445,12 +511,9 @@ In the order a new user meets them.
 2. **Reference hardware.** One machine that is *the* AOS machine, where
    everything is made perfect first. That is the hardware story, and the
    machine an evaluator is handed. A preinstalled machine has no owner
-   yet, so this is where first-boot setup belongs (dropped from Phase 2
-   on 2026-10-01): `aos-install --oobe` leaves the machine owned by a
-   locked `setup` system user whose session runs aos-setup in a second
-   mode -- keyboard, time zone, account, Wi-Fi -- through a root helper
-   that refuses once an owner exists, then restarts the desktop as the
-   owner. Never a placeholder account with a known password.
+   yet; the first-boot setup (Phase 2, item 2, done 2026-10-05) is what it
+   ships with. Never a placeholder account with a known password. A second
+   test machine (an Intel or AMD laptop) is postponed until there is one.
 3. **One use case the evaluation wins at.** "Runs anything" is the vision;
    the evaluation needs a single thing AOS does better. With what works
    today, that is a developer workstation — Visual Studio Code, gcc and Rust,
@@ -458,9 +521,11 @@ In the order a new user meets them.
 4. **Documentation for someone who is not the author.** *Written
    2026-10-01*: [install.md](install.md) (download, verify, the stick,
    the installer, after) and [known-issues.md](known-issues.md). Still
-   owed: a public place to download the ISO from -- the source repository
-   is private and `release.sh --publish` uploads only what `aos-update`
-   needs.
+   owed: a public place to download the ISO from. *Done*: `release.sh
+   --iso-to` since 2026-10-01, and this repository (Jaxilian/aos) public
+   since 2026-10-03; `release.sh --publish
+   --iso-to Jaxilian/aos-releases` puts each release's ISO, `SHA256SUMS`,
+   signature and key there ([publishing.md](publishing.md)).
 
 ## Verification
 

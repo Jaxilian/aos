@@ -74,6 +74,12 @@ red in the middle of the screen, so a door opened for a reason is not
 forgotten. A published image carries nobody's key: `release.sh` refuses
 an image with a root key on it ([ssh.md](ssh.md)).
 
+**A stolen disk can be made unreadable.** The installer's "Encrypt the
+disk" puts LUKS2 around the aos partition -- homes, programs, settings,
+logs -- unlocked by the account's password at every start, before the
+desktop ([layout.md](layout.md)). It is a choice at install, off by
+default, and one passphrase covers every account on the machine.
+
 **Programs cannot read each other's memory, or the kernel's.** Yama
 limits ptrace to a process's own children; kernel pointers and the
 kernel log are root's; BPF and perf counters are root's; the running
@@ -89,7 +95,10 @@ Ubuntu do.
 
 **Accounts are separate.** Homes are 0700; the first account is an
 administrator and the rest are not; root has no password and no
-console login; `sudo` asks for the person's own. The live system's
+console login; `sudo` asks for the person's own. An owned machine starts
+at a login screen (greetd and ade-greeter) and the session locks before
+sleep; a machine installed for someone else asks for its owner at the
+first boot. The live system's
 account has no password either: nothing on the ISO lets anyone in by a
 password that every copy shares, and whoever sits at the stick owns the
 machine, so its sudo asks for none and there is no lock screen there.
@@ -109,7 +118,9 @@ store's package page shows it as "Sees: its own files and Downloads"
 before Install, and once installed the page's Permissions section shows
 what it may see, and lets the person change it: its own files or
 the whole home, each of Downloads, Documents, Pictures, Music and
-Videos, and the network. The change is a line in
+Videos, the network, the camera and the microphone. A program gets no
+camera and no microphone unless its package declares them or the
+person switches them on; sound still plays. The change is a line in
 `~/.config/aos/sandbox/<org>.<name>` that aos-sandbox reads over the
 package's declaration. Firefox and Discord run that way; Visual Studio
 Code sees the whole home, being an editor; Steam runs in the same
@@ -124,25 +135,27 @@ undeclared".
    desktop draws, so a sandboxed program reaches one chosen file outside
    its home and nothing else (the portal pattern) -- until then a program
    that needs more declares a directory, or the person grants one in
-   Settings; Landlock fencing the view a second
+   Software; Landlock fencing the view a second
    time from inside; a package that cannot be installed without a
    declaration, once every recipe has one; and AOS's own programs in it
-   too. The declaration is what answers the child with the download: a
+   too, once that dialog exists (it hands them an open file, so they
+   need no view of the home). The declaration is what answers the child with the download: a
    "free RAM" package that asks for the whole home says so on its page.
 2. ~~**Verified root slots.**~~ Done 2026-10-06 (0.2.0): the cores, above.
    The root hash is on the ESP, named by the signed `SHA256SUMS` of the
    release that wrote it; a signed root hash checked by the firmware is
    Secure Boot's job, which is after stable.
-3. **`/home` encrypted**, LUKS, unlocked by the account's own password at
-   login, as decided in [policies.md](policies.md). A stolen laptop is
-   then a stolen laptop and nothing more. The root slots stay in the
-   clear: there is nothing private in them, and verity covers their
-   integrity.
+3. ~~**The disk encrypted.**~~ Done 2026-10-06 (0.2.2): LUKS2 around the
+   aos partition, above. Next: **a home per account**, systemd-homed,
+   each account its own LUKS volume unlocked by its own password at
+   login, with a recovery key shown once. Proposed, waiting for a
+   decision ([policies.md](policies.md)). The cores stay in the clear:
+   there is nothing private in them, and verity covers their integrity.
 4. **Secure Boot**, shim, a MOK-enrolled kernel, signed modules
    including NVIDIA's, and lockdown on. This closes the chain from
    firmware to kernel and is the last link verity and LUKS leave open.
    It is known engineering and ongoing maintenance per kernel and per
-   driver, and it comes after the three above, which stop more.
+   driver; unsupported until after stable ([policies.md](policies.md)).
 5. **An outside measure.** The CIS benchmark for a Linux desktop run
    once against a release and the differences explained here, so the
    claims above are checked by someone else's list.

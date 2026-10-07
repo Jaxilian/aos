@@ -21,14 +21,18 @@ Everything lands in `output/images/`:
 
 | File | Size | What it is |
 |---|---|---|
-| `rootfs.iso9660` | ~956 MB | **The AOS image.** Bootable ISO, BIOS and UEFI |
-| `bzImage` | ~11 MB | The kernel on its own |
-| `rootfs.tar` | ~2.6 GB | The whole filesystem as a tarball |
-| `rootfs.ext2` | 4 GB | The filesystem as a disk image |
-| `aos-disk.img` | 8 GB | Scratch disk used by `run-qemu.sh install` |
+| `rootfs.iso9660` | ~825 MB | **The AOS image.** The live ISO, BIOS and UEFI: `/boot` and the core |
+| `core.img` | ~746 MB | The core: the root squashfs (zstd) with its dm-verity hash tree; what a slot holds |
+| `core.verity` | 1 line each | The core's root hash, hash offset and size |
+| `rootfs.squashfs` | ~740 MB | The core before `post-image.sh` adds the hash tree |
+| `bzImage` | ~12 MB | The kernel on its own |
+| `rootfs.tar` | ~2.5 GB | The whole filesystem as a tarball |
+| `aos-disk.img` | 32 GB, sparse | Scratch disk used by `run-qemu.sh install` and the QEMU drivers |
 
-`rootfs.iso9660` is the one you give people. It is compressed with zisofs, so
-956 MB on disk expands to about 2.6 GB once installed.
+`rootfs.iso9660` is the one you give people; `core.img` and `core.verity`
+are what `aos-update` fetches (see [publishing.md](publishing.md) and
+[layout.md](layout.md)). The core stays compressed on disk: about 2.5 GB
+of files in 746 MB. A `rootfs.ext2` there is left over from before 0.2.0.
 
 `output/` is not in git — it is entirely rebuildable from `br2ext/`.
 
@@ -48,7 +52,7 @@ sudo dnf install perl-Time-Piece perl-Digest-SHA perl-Pod-Html perl-Test-Simple 
 
 For testing you also want `qemu-system-x86` and `edk2-ovmf`.
 
-## Two Buildroot behaviours that will bite you
+## Three Buildroot behaviours that will bite you
 
 **1. Options you set can vanish silently.** If a symbol's dependencies are not
 met, kconfig drops it with no warning at all — the build succeeds and the
@@ -85,7 +89,7 @@ Most things are already in Buildroot — add the symbol to
 `br2ext/configs/aos_x86_64_defconfig`, reload, verify it took, and `make`.
 
 For something Buildroot does not have, write a package under
-`br2ext/package/<name>/` following the four in there now, and add a `source`
+`br2ext/package/<name>/` following the ones in there now, and add a `source`
 line to `br2ext/Config.in`. Check the style before building:
 
 ```sh
@@ -155,6 +159,8 @@ is not an option; rsync is. `publish.sh` in apm-recipes is for releases:
 GitHub's edge cache serves the old index for minutes.
 
 Buildroot-built libraries go through `br2apkg.py` (see plans/08 in the apm
-repository), and the kernel through `kernel-apkg.sh` (docs/upgrading.md).
-What still needs an ISO: glibc, systemd, GRUB, apm itself, and anything in
-the rootfs overlay.
+repository). What still needs a new core, shipped as an OS release
+([upgrading.md](upgrading.md)): the kernel and its modules, glibc,
+systemd, GRUB, apm itself, and anything in the rootfs overlay.
+(`kernel-apkg.sh` made the kernel an apm package in 0.1.x; a verity core
+cannot take one.)

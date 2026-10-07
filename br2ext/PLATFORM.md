@@ -23,7 +23,7 @@ can rely on when building software for it.
 | C library | glibc 2.44 |
 | C/C++ compiler | gcc 15.3.0 |
 | Rust | 1.96.1 (rustc + cargo), through apm as `aos/rust` |
-| Kernel | Linux 7.1.13 |
+| Kernel | Linux 7.2.9 |
 | Init | systemd 258.7 |
 | binutils | as, ld and friends, on the target |
 
@@ -79,6 +79,9 @@ assembles that tree before systemd starts. GRUB's menu, its `grubenv`
 kernel, microcode, initramfs and verity parameters are on the ESP under
 `/boot/efi/grub` and `/boot/efi/aos/<slot>`, since they belong to
 neither slot. `/usr/lib/aos/slot.sh` is the layout in code.
+The installer can put the `aos` partition inside LUKS2 (`aos-install
+--encrypt`): the initramfs asks for the passphrase before it mounts it,
+and the cores stay in the clear, since they are public, verified images.
 
 The initramfs is small and ours: `board/aos/initramfs/init`, with bash,
 util-linux, veritysetup, cryptsetup and e2fsck from the target tree,
@@ -87,13 +90,13 @@ passes `/boot/microcode.img` (CPU microcode) and it as the initrd. The
 live ISO boots the same way: the medium holds `/aos/core.img`, the same
 image a slot gets, and the initramfs loop-mounts it.
 
-On the live ISO the root is read-only and `/var` is a tmpfs, seeded at boot
-from `/usr/share/factory/var`. An installed system's `/etc/fstab` names the
-data partition for `/var`, and that unit shadows the tmpfs one.
+On the live ISO a tmpfs takes the `aos` partition's place: `/var` is
+seeded at boot from the core's `/usr/share/factory/var`, the live home
+from the core, and everything of the session is lost at power-off.
 
 **Swap** is two layers. `/dev/zram0` — zstd-compressed swap in RAM, half of
 memory up to 8 GB — is active on every system including the live ISO, at
-priority 100. An installed system also has `/var/swapfile` (RAM-sized, up
+priority 100. An installed system also has `/aos/aos/swapfile` (RAM-sized, up
 to 8 GB, created by `aos-install`) at priority 10, which is what gives a large
 build real headroom. `systemd-oomd` is configured the way Fedora ships it:
 it kills on sustained memory pressure in a user session and when swap is
@@ -170,21 +173,24 @@ you add that must be reachable needs a line in that file.
 
 **Accounts.** The desktop session belongs to a real user, not to root or to
 a service account: the terminal it opens is that user's shell in that
-user's home. The image ships one such account, `admin` with password
-`123321`, a member of `wheel` — which is what both sudo
-(`/etc/sudoers.d/10-aos-wheel`) and polkit's default rules treat as
-administrators. Powering off, rebooting and suspending need no password at
+user's home. The live ISO ships one such account, `admin`, a member of
+`wheel` — which is what both sudo (`/etc/sudoers.d/10-aos-wheel`) and
+polkit's default rules treat as administrators. It has no password, and
+on the live medium sudo asks for none (`/etc/sudoers.d/20-aos-live`).
+Powering off, rebooting and suspending need no password at
 all from the active seat (`/etc/polkit-1/rules.d/10-aos-seat.rules`);
 everything else is `sudo`. That rule can only work because AOS builds
 polkit against logind: Buildroot's own polkit tracks sessions through
 ConsoleKit, so on a stock Buildroot system polkit sees no session behind
 any request and every `allow_active` in every policy silently becomes
 `auth_admin` — the reason is a dependency cycle, and the override that
-breaks it is in `external.mk`. That password opens nothing remotely, since
-sshd refuses passwords. The demo account exists on the live ISO only:
-`aos-install` asks for a user name and password and installs that account
-in its place, with root's console login locked (root stays reachable over
-SSH with a key). `aos-install --demo` keeps it, for a test machine; the
+breaks it is in `external.mk`. The demo account exists on the live ISO
+only: the graphical installer (or `aos-install` asked directly) makes the
+owner's account in its place, with root's console login locked (root
+stays reachable over SSH with a key), and an installed machine starts at
+the login screen (greetd with ade-greeter). `aos-install --oobe` leaves
+the account to the machine's first boot, which asks for it;
+`aos-install --demo` keeps the demo account, for a test machine; the
 boot tests use that.
 
 **Displays.** Every connected display is used. They extend the desktop,
@@ -223,7 +229,8 @@ on the image and pairing on Settings' Bluetooth page; the controller is
 
 **Theme.** `/etc/aos/theme`, overridden line by line by
 `~/.config/aos/theme` (Settings' Display page writes that one):
-`primary=` and `secondary=` (#rrggbb), and `effects=full` or `light`.
+`primary=` and `secondary=` (#rrggbb), and `effects=full`, `chrome`
+(the default: glass on the bar and panels only, windows solid) or `light`.
 awin and tgn read it when a program starts -- the accent, the selection,
 and under `full` translucent window and panel backgrounds on a
 premultiplied swapchain. The compositor rereads it within seconds and,
@@ -268,9 +275,10 @@ exactly that class of program. Official software never runs in it; it
 is the OS. Isolation of what a program sees, not of who it is: the uid
 is the account's.
 
-Optionally, the NVIDIA open kernel modules and the matching proprietary
-userspace (EGL, GLES, Vulkan and GSP firmware). These are off by default;
-enable `BR2_PACKAGE_AOS_NVIDIA` to include them.
+The NVIDIA open kernel modules and the matching proprietary userspace
+(EGL, GLES, Vulkan and GSP firmware). The package is off by default in
+Buildroot terms; the AOS defconfig enables it (`BR2_PACKAGE_AOS_NVIDIA`),
+so the image carries it.
 
 ## What is deliberately absent
 
@@ -282,10 +290,6 @@ enable `BR2_PACKAGE_AOS_NVIDIA` to include them.
   or at the next session's start. No official package depends on it.
 - **A second way to install software.** apm is the only one. No tarballs,
   no `curl | sh`, no vendor installers.
-- **A base-OS update mechanism, a GUI installer and an app store** -- not
-  yet. `aos-install` is a shell script. These are the next phase of work;
-  see [docs/roadmap.md](docs/roadmap.md). The settings application exists
-  (`settings`); it drives the tools named above through sudo.
 
 ## Building on top
 

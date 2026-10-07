@@ -28,6 +28,9 @@ built and tested for each release and are what AOS recommends. Third-party
 packages — Electron applications, GTK programs, Steam — are carried so the
 things people expect to run, run. They are labelled as third-party
 everywhere they appear, and may break with an update. That is the deal.
+Those that need it run in a sandbox, with a home of their own
+(`~/.var/app`), and reach the camera or the microphone only when the
+user allows it in Software.
 
 **It targets real PCs.** Intel, AMD and NVIDIA graphics, wired and wireless
 networking with firmware, USB, NVMe, SATA and legacy PATA. Roughly any
@@ -41,12 +44,13 @@ it. No official package depends on it.
 
 | | |
 |---|---|
-| Kernel | Linux 7.2.9, modular, ~115 driver modules |
+| Kernel | Linux 7.2.9, modular, ~430 modules |
 | C library | glibc 2.44 |
 | Init | systemd 258.7, all of it — journald, udev, logind, polkit, networkd, resolved, oomd, nspawn |
-| Desktop | ade: a Wayland compositor on smithay, and a shell on the awin/tgn Vulkan stack |
+| Desktop | ade: a Wayland compositor on smithay, and a shell and lock screen on the awin/tgn Vulkan stack; a login screen (greetd with ade-greeter) |
 | Package manager | apm, with an official repository and a third-party one |
-| Applications | terminal, notepad, files, sysmon, settings; Visual Studio Code and more from the third-party repository |
+| System | a read-only core verified by dm-verity, in one of two slots: an update goes to the other and falls back if it does not reach the desktop; everything of the user's on one partition, optionally encrypted (LUKS2) |
+| Applications | the installer (also the first-boot setup), Settings, Software (the app store, which also updates the OS), Files, Images, Notepad, Terminal, Sysmon; Visual Studio Code and more from the third-party repository |
 | Compilers | gcc 15.3.0 (C and C++) on the image; Rust 1.96.1 with cargo through apm |
 | Userland | Real GNU tools — coreutils, bash, gawk, sed, grep, tar, findutils, vim |
 | Graphics | Mesa 26.1.8, Vulkan, libglvnd, NVIDIA 610.57.04 |
@@ -60,9 +64,7 @@ Full list with versions: [packages.md](packages.md). Where it is going:
 ## What it does not include
 
 No second desktop, and no way to install one. No X11 server — XWayland is
-the compatibility layer, off by default. No graphical installer, settings
-application, app store or base-OS updater yet; those are the next phase of
-work and are what [roadmap.md](roadmap.md) is about.
+the compatibility layer, off by default.
 
 ## The short answer
 

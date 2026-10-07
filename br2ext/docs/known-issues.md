@@ -18,8 +18,13 @@ an issue on the project.
   ordinary system, which every firmware boots ([usb.md](usb.md)).
 - **The whole disk is used.** No dual boot, no installing beside another
   system, no choosing partitions.
-- **No disk encryption.** `/home` on LUKS is planned; until then anyone
-  with the disk can read it ([policies.md](policies.md)).
+- **Encryption is one passphrase for the whole machine.** "Encrypt the
+  disk" in the installer (`aos-install --encrypt`) puts LUKS2 around the
+  aos partition -- homes, programs, settings, logs -- and asks for the
+  account's password at every start, before the desktop. Every account on
+  the machine sits behind that one passphrase; a home of its own per
+  account (systemd-homed) is proposed, not decided. Without the switch,
+  anyone with the disk can read it ([policies.md](policies.md)).
 - **The live session's account, `admin`, has no password**: sudo asks for
   none, and there is no lock screen. It exists only on
   the installer; an installed machine has only the account you create.
@@ -29,12 +34,19 @@ an issue on the project.
 - **One laptop has been tested**, an ASUS ROG Zephyrus G14 (2026, Intel
   Panther Lake, NVIDIA RTX 5070). Everything else is untested; reports are
   what makes the compatibility list.
-- **Sound on SoundWire laptops** (Intel's DSP with Cirrus amplifiers, as
-  on the G14) is found but silent so far. HDA sound (most desktops and
-  older laptops) works in testing.
-- **Bluetooth** on the G14 (Intel BE201, on PCIe): the adapter comes up,
-  the Settings page does not see it yet.
-- **Suspend and lid close** have not been tested on hardware.
+- **Sound** works on the G14's SoundWire (Intel's DSP with Cirrus
+  amplifiers) and on HDA in testing.
+- **Bluetooth** works on the G14 (Intel BE201, on PCIe): Settings sees the
+  adapter and the devices around. Pairing has no agent yet, so a keyboard
+  that wants a passkey typed cannot pair.
+- **Suspend and lid close** work on the G14, and the screen locks before
+  sleep. A lock screen that lost the keyboard after a resume (when the
+  brightness display was up) is fixed in 0.2.8, not yet confirmed on the
+  G14.
+- **A port wired to the NVIDIA GPU** (the G14's HDMI) shows nothing: the
+  desktop draws on one GPU and drives only its outputs. Planned, and big.
+- **A display plugged back in** stayed black, without its bar, before
+  0.2.8; fixed, not yet confirmed on hardware.
 - **NVIDIA**: RTX 20 series and newer only (the open kernel modules); games
   through Proton have run on the Intel GPU, not yet on the NVIDIA one.
 
@@ -42,12 +54,14 @@ an issue on the project.
 
 - **Glass shows only the wallpaper through a window**, never the windows
   behind it -- the cheap kind of blur, chosen so it runs on an integrated
-  GPU. Settings -> Display -> Appearance -> Light turns it off.
+  GPU. Settings -> Display -> Appearance -> Lightweight turns it off.
 - **A new theme reaches an application when it next starts**; the desktop
   itself follows within seconds.
 - **No drag and drop between applications** yet. (Screenshots: Print for
   the display, Shift+Print for the window, Super+Shift+S without a Print
   key; they land in Pictures/Screenshots.)
+- **Files: a name selected while renaming (F2) is not copied** by
+  Ctrl+C.
 - **X11 programs** need XWayland, a third-party package (Software ->
   AOS -> Compatibility); Steam installs it.
 
@@ -67,9 +81,10 @@ an issue on the project.
 
 ## Updates
 
-- **A machine installed before 0.1.0** (one root partition) cannot update
-  itself; reinstall it.
-- **An update replaces the system, not a part of it**: about 650 MB per
+- **A machine installed before 0.2.0** cannot update to 0.2.x: its
+  updater knows only the old root slots ([layout.md](layout.md)).
+  Reinstall it, once.
+- **An update replaces the system, not a part of it**: about 750 MB per
   release. Delta updates are not planned before 1.0.
 - **AOS's own applications show as installed in Software but do not
   upgrade one by one**: they are part of the release image, and a new
@@ -79,5 +94,6 @@ an issue on the project.
 
 The CVE report of each release and what was done about every entry:
 [security-status.md](security-status.md). What AOS defends against and
-what it does not yet -- third-party programs are not sandboxed, the root
-is not verified, the disk is not encrypted: [security-model.md](security-model.md).
+what it does not yet -- AOS's own applications are not sandboxed (third-party
+ones are), Secure Boot is unsupported, one account's home is not
+encrypted apart from another's: [security-model.md](security-model.md).

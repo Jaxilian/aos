@@ -13,9 +13,9 @@ There are no point releases before 1.0 unless a fix cannot wait a month,
 in which case the release is simply cut early. A release is not made from
 a `-dirty` tree ([release.sh](../board/aos/release.sh) refuses).
 
-Until base-OS updates exist (roadmap Phase 1, item 5), moving an installed
-machine to a new release is a reinstall that keeps `/home`
-([usb.md](usb.md), "Reinstalling").
+An installed machine moves to a new release by a base-OS update (below).
+A machine on 0.1.x cannot update to 0.2.x and is reinstalled once
+([layout.md](layout.md)).
 
 ## Security reporting
 
@@ -41,8 +41,10 @@ part of what "third-party" means on AOS.
 
 An AOS machine answers nothing it was not asked. The firewall
 (`/etc/nftables.conf`, loaded before the network) drops every inbound
-packet that is not a reply, ICMP, a DHCP answer or SSH; sshd itself is
-enabled only in an image built with an SSH key; systemd-resolved's LLMNR
+packet that is not a reply, ICMP, a DHCP answer or SSH; sshd itself runs
+only when the person turns remote login on in Settings -> Network (a
+developer's image built with an SSH key has it on; `release.sh` refuses
+to publish one); systemd-resolved's LLMNR
 and mDNS responders are off. There is no LSM policy (AppArmor, SELinux,
 Landlock) yet -- a known gap, not a decision. Updates are looked for
 daily (`aos-update-check.timer`, which refreshes the signed indexes and
@@ -60,24 +62,29 @@ known limitations, and it stays that way until there is a reason to carry
 shim, a MOK-enrolled kernel and signed modules -- a business reason, since
 the engineering is known and the maintenance is what costs.
 
-## Disk encryption: not yet, and `/home` first when it comes
+## Disk encryption: the aos partition, chosen at install
 
-AOS boots with no initramfs ([../PLATFORM.md](../PLATFORM.md)), so the
-root filesystem cannot be on LUKS: there is nothing to unlock it before
-the kernel mounts it. When encryption comes it will be `/home` on LUKS,
-unlocked at login by the password, with the root left in the clear; that
-needs no initramfs and protects what is personal. Full-disk encryption
-would need a minimal initramfs and is not planned. Until then: an AOS
-machine's disk is readable by anyone who has the disk.
+The installer's "Encrypt the disk" (`aos-install --encrypt`) puts LUKS2
+around the aos partition: homes, programs, settings, the journal. The
+passphrase is the account's password, and the initramfs asks for it on
+the console at every start, before the desktop. The cores stay in the
+clear: they are the public release images, and verity covers their
+integrity ([layout.md](layout.md)). Without the switch, the disk is
+readable by anyone who has it.
+
+Per-account encrypted homes (systemd-homed: each account its own LUKS
+volume, unlocked by its own password at login, with a recovery key
+shown once) are proposed and wait for a decision: they change what a
+disk holds, and a forgotten password is the data gone.
 
 ## Base OS updates
 
-A release's root filesystem, as a tarball named in a `SHA256SUMS` signed
-with the apm key, written by `aos-update` into the idle one of two root
-slots; GRUB boots it once and the desktop coming up confirms it, else the
+A release's core image (a squashfs with its dm-verity hash tree), named
+in a `SHA256SUMS` signed with the apm key, written by `aos-update` into
+the idle one of two core slots and checked through its verity; GRUB boots it once and the desktop coming up confirms it, else the
 previous slot boots at the next reset, and "AOS (previous version)" in the
 boot menu goes back by hand ([upgrading.md](upgrading.md)). Accounts,
-`/home`, installed programs and settings live on a data partition no update
-touches. Application updates go through `apm upgrade`; both are on the
-Software application's Update page. A disk installed before the slots
-existed is reinstalled, which erases it.
+`/home`, installed programs and settings live on the aos partition, which
+no update touches; the kernel comes with the core, not from apm. Application updates go through `apm upgrade`; both are on the
+Software application's Update page. A disk installed before 0.2.0
+is reinstalled once, which erases it.

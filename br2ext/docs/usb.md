@@ -17,8 +17,10 @@ the live ISO in QEMU with the stick attached and types the install for you.
 Ten minutes, most of it the build and the copy; the guest's transcript is
 in `output/images/usb-install.txt`. `./usb.sh --no-build` skips the make,
 `./usb.sh --test` boots the finished stick in QEMU afterwards as proof,
-`./usb.sh --release` makes it your own machine rather than a demo (see
-"Accounts" below), and `./usb.sh /dev/sdX` names the stick instead of
+`./usb.sh --release` makes it your own machine rather than a demo,
+`./usb.sh --oobe` leaves the account to the stick's first boot (see
+"Accounts" below), `./usb.sh --seed=DIR` copies DIR into the account's
+home afterwards, and `./usb.sh /dev/sdX` names the stick instead of
 being asked.
 
 Then: stick into a **USB-A port on the machine itself**, machine fully **off**,
@@ -41,12 +43,14 @@ sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --install   # X = the letter it pr
 In the QEMU window that opens: log in as `root`, then
 
 ```
-aos-install /dev/vda
+aos-install --demo /dev/vda      # or without --demo: it asks for the machine's account
 poweroff
 ```
 
 (`--install --auto` is the middle ground: the same command, with
-`auto-install.py` typing those two lines instead of you.)
+`auto-install.py` typing those two lines instead of you; it is what
+`usb.sh` runs, with `--user`/`--hash` for `--release` and `--oobe` for
+`--oobe`.)
 
 **Do not `dd` the ISO to the stick expecting it to boot.** See "Why not the
 live ISO" below.
@@ -118,8 +122,11 @@ aos login:
 
 ```
 root
-aos-install /dev/vda
+aos-install --demo /dev/vda
 ```
+
+Without `--demo` it first asks for a user name and a password, the
+account that will own the machine (see "Accounts" below).
 
 - **It is `/dev/vda` inside the VM**, always. The stick is `/dev/sda` on the
   host and `/dev/vda` in the guest; the guest never sees a `/dev/sda`.
@@ -129,6 +136,7 @@ aos-install /dev/vda
 - What follows, and how long:
 
   ```
+  >>> Releasing /dev/vda
   >>> Wiping old partition tables and signatures from /dev/vda
   >>> Partitioning /dev/vda
   >>> Creating filesystems
@@ -137,19 +145,22 @@ aos-install /dev/vda
   `mkfs.fat` here is harmless — no locale tables on the image; it uses its
   built-in one.
   ```
-  >>> Copying system (this takes a while)          ~2 minutes on USB
+  >>> Writing the core into slot a (/dev/vda3); this takes a while
+                                                   the ~750 MB core, then read back through its verity
+  >>> Mounting
+  >>> The aos partition: var, the store, the homes
   >>> Creating swap file
-      3924 MiB at /var/swapfile                    2-3 minutes, no progress shown
-  >>> Writing /etc/fstab
+      3924 MiB at aos/swapfile                     2-3 minutes, no progress shown
   >>> Installing bootloader
   Installing for x86_64-efi platform.
   Installation finished. No error reported.
   Installing for i386-pc platform.
   Installation finished. No error reported.
-  >>> Writing grub.cfg
+  >>> Writing grub.cfg, and slot a's kernel, initramfs and verity to the ESP
   >>> Unmounting
   AOS installed on /dev/vda. Remove the install media and reboot.
   ```
+  With an account there is a `>>> Account:` line before the bootloader.
   The swap step is silent and slow. It has not hung. Kernel lines like
   `clocksource: Watchdog remote CPU 1 read timed out` are QEMU noise.
 
@@ -173,7 +184,7 @@ NAME    SIZE PARTLABEL PARTTYPENAME     FSTYPE LABEL
 sda    28.7G
 ├─sda1    1M bios_grub BIOS boot
 ├─sda2  512M ESP       EFI System       vfat   AOS_ESP
-├─sda3    6G aos-a     Linux filesystem               (a core: squashfs + verity, raw)
+├─sda3    6G aos-a     Linux filesystem squashfs      (the core: squashfs + verity hash tree)
 ├─sda4    6G aos-b     Linux filesystem               (empty until the first update)
 └─sda5 16.2G aos       Linux filesystem ext4   aos
 >>> EFI system partition /dev/sda2 is FAT32    with:
@@ -242,21 +253,27 @@ The desktop session is a real user's, not root's. What you get in the
 terminal is that user's shell, in that user's home, and `sudo` asks that
 user's password.
 
-**Demo (the default).** The account is `admin`, password `123321`, a
-member of `wheel`. `sudo` works with that password. Powering off,
+**Demo (`usb.sh` with no account option, `aos-install --demo`).** The
+live medium's account, `admin`, kept: a member of `wheel`, **no
+password**, and `sudo` asks for none (`/etc/sudoers.d/20-aos-live`), so
+there is no lock screen either: whoever holds the stick owns it. The
+session starts as `admin` at boot (ade.service's autologin; the account
+is in `/etc/systemd/system/ade.service.d/10-aos-user.conf`). Powering off,
 rebooting and suspending need no password at all: `systemctl poweroff`
 (or `shutdown now`, or `reboot`) typed in the terminal just does it,
 because a polkit rule of ours lets the active seat session do those —
 logind's own policy would demand an administrator's password through a
 polkit agent the moment anyone else is logged in, over SSH say, and there
-is no agent to ask. That password is only usable at the keyboard: sshd
-refuses password authentication, so a stick with the demo account on it is
-not a remote root hole. Root itself has no password on the console.
+is no agent to ask. sshd refuses password authentication, so a stick
+with the demo account on it is not a remote root hole. Root logs in
+without a password on the serial console only (`/etc/securetty`).
 
 **Release (`./usb.sh --release`).** For a machine you will actually use.
 Before the build it asks for a user name and a password; the install then
-deletes `admin`, creates your account in its place (same `wheel`
-membership, same session ownership) and locks root's console login. Root
+deletes `admin` and its passwordless sudo, creates your account in its
+place (`wheel`, `pipewire`, `video`), locks root's console login and
+boots to the login screen (greetd with ade-greeter) instead of the
+autologin. Root
 stays reachable over SSH with your key, and `sudo` covers the rest. The
 password is hashed on the host and only the hash reaches the guest, typed
 with echo off, so it is in no transcript.
@@ -265,15 +282,11 @@ with echo off, so it is in no transcript.
 all. Its first boot comes up as a locked `setup` user whose only program
 is the welcome: keyboard, time zone, a name and a password, **Finish**.
 That makes the owner (the same account a release install makes), locks
-root's console login, restarts the desktop as the owner and closes the
-road -- the helper behind Finish refuses once an owner exists, and the
-`setup` account is removed. Until then the stick has no password at
-all, so hand it over rather than leave it lying around.
-
-There is no login screen yet: the session starts as its owner at boot.
-Which account that is lives in
-`/etc/systemd/system/ade.service.d/10-aos-user.conf`, and a release
-install writes it there.
+root's console login, restarts into the login screen, which lists the
+owner, and closes the road -- the helper behind Finish refuses once an
+owner exists, and the `setup` account is removed. Until then the stick
+has no password at all, so hand it over rather than leave it lying
+around.
 
 ## Why not the live ISO
 
@@ -308,8 +321,8 @@ journalctl -b -1 -k --no-pager | grep -iE 'xe|i915|nvidia|drm|firmware'
 ```
 
 Blind, with no console: the **power button once** is a clean poweroff,
-**Ctrl+Alt+Del** a clean reboot. There is **no `sudo` on AOS** — you are
-root — so `sudo shutdown now` typed blind does nothing; `poweroff` does.
+**Ctrl+Alt+Del** a clean reboot. In a terminal, `systemctl poweroff` needs
+no password (the polkit rule under "Accounts").
 
 **Console floods with `PCIe Bus Error: severity=Correctable ... Timeout`
 and shutdown seems stuck.** A PCIe device with no driver, not sleeping,
@@ -353,8 +366,8 @@ disk; every tool that guesses which one it is looking at can guess wrong.
 | `sgdisk: /dev/sda does not exist` | The stick was not attached. Re-seat it; listing first |
 | `/dev/sdX is not a block device` | X is a placeholder |
 | `Type YES to continue: yes` → `Aborted.` | Capitals |
-| `-bash: /dev/sda: No such file or directory` inside the VM | Inside the VM it is `aos-install /dev/vda` |
-| Booted, then black screen; `sudo shutdown now` blind did nothing | `xe/` firmware missing; no `sudo` on AOS; power button or Ctrl+Alt+Del |
+| `-bash: /dev/sda: No such file or directory` inside the VM | Inside the VM it is `aos-install [--demo] /dev/vda` |
+| Booted, then black screen; `sudo shutdown now` blind did nothing | `xe/` firmware missing (the image then had no `sudo`); power button or Ctrl+Alt+Del |
 | Console flooded with correctable PCIe errors | Card reader had no driver; every PCIe device needs one even if unused |
 | Touchpad dead, USB mouse worked | The touchpad is I2C-HID: it needs the I2C controller, the LPSS and pinctrl drivers, and i2c-hid-acpi, all four |
 | BIOS loader refused a reinstalled stick; firmware stopped listing it | Stale ISO signature at sector 64; the installer now scrubs first |

@@ -5,6 +5,7 @@
 ```sh
 ./br2ext/board/aos/release.sh            # -> output/release/
 ./br2ext/board/aos/release.sh --publish  # the same, then uploaded for aos-update
+./br2ext/board/aos/release.sh --publish --iso-to Jaxilian/aos-releases  # and the download page
 ```
 
 `release.sh` takes a tagged, clean build and writes `output/release/`: the
@@ -15,14 +16,22 @@ slot and checks it by), the legal-info manifest, the CVE report from `make pkg-s
 `SHA256SUMS` over all of them signed with `apm sign` -- the same key that
 signs the apm repositories, the one `apm key new` made, whose public half
 is `keys/apm.pub` in [apm-recipes](https://github.com/Jaxilian/apm-recipes)
-and is trusted by every AOS machine. `--publish` uploads the tarball,
-`SHA256SUMS` and `SHA256SUMS.minisig` as assets of the apm package index's
-release in apm-recipes (tag `index`), which is the URL in the image's
-`/usr/lib/aos/update.conf`; the previous release's tarball is removed. The
-ISO is handed out by hand. The version is the tag's (`v0.2.0` ->
-`VERSION_ID=0.2.0`), written into `os-release` by `post-build.sh`;
-`release.sh` refuses a `-dirty` build, and one carrying a root SSH key
-([ssh.md](ssh.md)). The CVE report is Buildroot's
+and is trusted by every AOS machine. `--publish` uploads the core image,
+its `.verity`, `SHA256SUMS` and `SHA256SUMS.minisig` as assets of the apm
+package index's release in apm-recipes (tag `index`), which is the URL in
+the image's `/usr/lib/aos/update.conf`; the previous release's core (and
+any 0.1.x root tarball) is removed. The core goes up as it is, not
+compressed again: it is a zstd squashfs already (746 MB for 0.2.8).
+`--iso-to OWNER/REPO` makes the download page: a GitHub release
+`v<version>` there with the ISO (825 MB for 0.2.8), `SHA256SUMS`, its
+signature, `apm.pub` and the CVE report, and release notes made from the
+commit subjects since the previous tag; AOS's is
+[Jaxilian/aos-releases](https://github.com/Jaxilian/aos-releases).
+The version is the tag's (`v0.2.0` -> `VERSION_ID=0.2.0`), written into
+`os-release` by `post-build.sh`; `release.sh` refuses a `-dirty` build, a
+build whose `BUILD_ID` is not `v<VERSION_ID>` (the tag must be on the
+built commit: tag, then `make`), and one carrying a root SSH key or with
+sshd enabled ([ssh.md](ssh.md)). The CVE report is Buildroot's
 `pkg-stats`, whose `cve.py` wants two Python modules the host may lack
 (`python3 -m pip install --user aiohttp setuptools` -- the second for
 `distutils`, gone from Python 3.12); it fetches the NVD feed, minutes.
@@ -30,9 +39,9 @@ ISO is handed out by hand. The version is the tag's (`v0.2.0` ->
 **The live ISO's account has no password.** `admin` logs in nowhere by
 password, its sudo asks for none, and root logs in on the serial console
 only (`/etc/securetty`). Say so when you publish it. An install does not: `aos-install` asks for the machine's own
-account and installs that instead, unless told `--demo`. A live ISO with no
-demo account needs the first-boot setup of [roadmap.md](roadmap.md),
-Phase 2. See the accounts section of [../PLATFORM.md](../PLATFORM.md).
+account and installs that instead, with the login screen, unless told
+`--demo`; `--oobe` leaves the account to the machine's first boot. See
+the accounts section of [../PLATFORM.md](../PLATFORM.md).
 
 ## How people use it
 
@@ -40,7 +49,8 @@ Phase 2. See the accounts section of [../PLATFORM.md](../PLATFORM.md).
 passthrough; AOS needs x86-64-v2 and most default QEMU CPU models are older.
 
 **On a USB stick** — `sudo ./br2ext/board/aos/write-usb.sh /dev/sdX --install`,
-or `./usb.sh` to build and write in one go. This installs AOS onto the stick
+or `./usb.sh` to build and write in one go (a stick carries no SSH key
+and no listening sshd, like a release; [ssh.md](ssh.md)). This installs AOS onto the stick
 as an ordinary system rather than writing the ISO, which is the form every
 firmware boots. [usb.md](usb.md) has the procedure and the ways that failed.
 

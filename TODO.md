@@ -1,27 +1,31 @@
 # TODO
 
-Updated 2026-10-07 midday. The newest release is 0.2.8 (the stick round
-on 0.2.7; 0.2.0-0.2.7: the cores and
-the aos partition: a reinstall; 0.1.23: the
-desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
-chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
-bar's glass; 0.1.27: the shell follows the theme at once; 0.1.28: the
-morning list; 0.1.29: the microphone permission; 0.1.30: the boot
-chain). The stick round is
-in [TEST.md](TEST.md).
+Updated 2026-10-07 afternoon. The newest release is 0.2.8 (the stick
+round on 0.2.7), published, untested on the stick: [TEST.md](TEST.md).
+0.2.0-0.2.7 brought the verity cores, the aos partition, LUKS and the
+login screen; a machine on 0.1.x reinstalls once.
+
+## Open now, in priority order
+
+1. **The stick round on 0.2.8** (TEST.md): reinstall, the lock screen
+   with the OSD, two displays, the small things.
+2. **Encrypted homes (systemd-homed)**: waits for your yes (0.2.8
+   section below); changes what a disk holds; about a week.
+3. **Files' rename prompt onto the current tgn widgets** (F2 then
+   Ctrl+C copies nothing).
+4. **The file dialog by fd passing**, then AOS's own apps in the
+   sandbox (settled in WORKFLOW.md section 9).
+5. **HDMI on the G14** is the NVIDIA GPU's port: multi-GPU output in
+   the compositor (smithay's GpuManager). Big.
+6. **A second test machine** (any Intel or AMD laptop): nothing but the
+   G14 has run AOS.
+7. **CI's first real run**: paused since 2026-10-07; only on your word.
+8. Wishes: snap and open/close transitions, Notepad Ctrl+F and the
+   last document, refresh rate in Settings, a glassier quick panel
+   (say the alpha).
 
 Anything that needs a second machine, a second stick or a permanent
 installation is postponed (see the end).
-
-## Afternoon (2026-10-06): the performance round, for 0.1.30
-
-Done: the journal persistent from the first line (no 4.5 s flush inside
-sysinit on a USB stick) and zram started after the desktop instead of
-under swap.target (1.3 to 1.7 s off the chain); measured in QEMU before
-and after in docs/performance.md, with the G14's own numbers from your
-report of 2026-10-05. Left there: resolved's 1.4 s on the live ISO,
-nvidia-devices before the desktop on the G14, and tgn programs' memory,
-to be read from your next report (TEST.md 4h).
 
 ## 0.2.8: the stick round on 0.2.7 (2026-10-07)
 
@@ -192,45 +196,22 @@ QEMU driver stays as it is. greeter-test.py: INSTALL_MODE=owner, a
 wrong password, the right one, the owner's session. Next: systemd-homed
 for per-user LUKS homes through pam_systemd_home in /etc/pam.d/greetd.
 
-## Decisions I need from you before the next big items
+## Decisions of 2026-10-06, settled
 
-Each of these changes something you chose earlier, so I have not
-started them; the microphone and the performance round below did not.
+dm-verity cores (done, 0.2.0; the kernel is part of the core, not an
+apm package), LUKS on the aos partition from the installer (done,
+0.2.2), and the file dialog by fd passing for AOS apps first (open,
+item 4 above). The earlier questions are in git history.
 
-1. **dm-verity (item 8) ends the kernel-as-apm-package.** A verity
-   root is a read-only image whose every block is checked against a
-   hash in GRUB's command line; nothing can write /boot/bzImage.apm or
-   /usr/lib/modules into it afterwards. A kernel update would be an OS
-   update (an image flip through Software, which is quick now), and the
-   aos/kernel package would go. The release becomes
-   `aos-X-root.img.xz` (squashfs plus hash tree, ~450 MB) with the root
-   hash signed in SHA256SUMS; aos-update writes it with dd and copies
-   the kernel to the ESP; aos-install the same from the ISO, which then
-   carries the image beside the live root (ISO ~1.5 GB) unless the live
-   root itself moves onto that image. Say yes and I take it as the
-   next week's work; say no and the slots stay ext4 with a signed
-   tarball.
-2. **LUKS (item 9): the whole data partition, unlocked at boot.** A
-   passphrase prompt before the desktop (our init runs before systemd,
-   so the prompt is text on tty1), covering home, the apm store, the
-   /etc overlay and the journal. "Unlocked at login" in the sense of a
-   per-user encrypted home needs a greeter the session starts after
-   (today the session starts as you and the lock screen comes later)
-   and a key agent (fscrypt or systemd-homed); that is a redesign of the
-   login. The whole-partition form is what most distributions do. The
-   installer asks for the passphrase; an OOBE stick would have to
-   encrypt at the first boot, when the owner exists.
-3. **The file dialog for sandboxed programs (item 6).** The way that
-   needs no FUSE: the shell shows the chooser (it sees the whole home)
-   and hands the program an open file descriptor over D-Bus; the SDK
-   opens it as /proc/self/fd/N, so Notepad and Images need no change
-   beyond showing the real name. Third-party GTK programs want the
-   freedesktop FileChooser portal interface, which the shell could
-   speak, but they open the returned path themselves, and a path outside
-   their home is unreachable without the document portal's FUSE mount.
-   So: AOS programs get it first (and then go into the sandbox, item 7);
-   Firefox and VS Code keep their shares (Downloads) until a document
-   portal exists. Fine?
+## Afternoon (2026-10-06): the performance round, for 0.1.30
+
+Done: the journal persistent from the first line (no 4.5 s flush inside
+sysinit on a USB stick) and zram started after the desktop instead of
+under swap.target (1.3 to 1.7 s off the chain); measured in QEMU before
+and after in docs/performance.md, with the G14's own numbers from your
+report of 2026-10-05. Left there: resolved's 1.4 s on the live ISO,
+nvidia-devices before the desktop on the G14, and tgn programs' memory,
+to be read from your next report (TEST.md 4h).
 
 ## Afternoon (2026-10-06): the microphone permission, for 0.1.29
 
@@ -426,7 +407,7 @@ Open, in priority order:
    restricted, which also carries the sound output; PipeWire's access
    module is the road.
 
-## Next, in priority order
+## Next, as of 2026-10-03 (superseded by "Open now" at the top)
 
 Done since 2026-10-03 morning: the live ISO's account has no password
 (0.1.16); release notes come from the commit log; binutils 2.46.1
@@ -472,11 +453,9 @@ runner is installed on this laptop.
 6b. ~~**Programs page as a list.**~~ Gone: each program's permissions
    are on its own page in Software (2026-10-04).
 7. **AOS's own apps in the sandbox**, once the file dialog exists.
-8. **dm-verity on the root slots.** The release becomes an image, not a
-   tarball: release.sh, aos-update and aos-install change. Testable in
-   QEMU.
-9. **LUKS-encrypted home**, unlocked at login. QEMU first, then the
-   stick, which needs its data partition recreated.
+8. ~~**dm-verity on the root slots.**~~ Done in 0.2.0.
+9. ~~**LUKS**~~ on the aos partition, done in 0.2.2; per-user homes
+   (homed) is item 2 at the top.
 
 The stick round ([TEST.md](TEST.md)) stays as written for whenever the
 laptop is free; sound and Bluetooth wait for the target hardware.

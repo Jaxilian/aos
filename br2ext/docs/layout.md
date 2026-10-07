@@ -84,13 +84,15 @@ e2fsck, and nothing else. The command line it reads:
 |------------------|------------------------------------------------------------|
 | `aos.core=`      | `PARTUUID=<uuid>` of the slot, or `live` (the medium's `/aos/core.img` through a loop device) |
 | `aos.hash=`      | the verity root hash of that core                           |
+| `aos.offset=`    | where the hash tree starts in the core, in bytes            |
+| `aos.live=`      | on the live medium: the device (or `PARTUUID=`) holding `/aos/core.img` |
 | `aos.data=`      | `PARTUUID=<uuid>` of the aos partition; absent on the live ISO |
 
 ## Images and releases
 
 Buildroot makes `rootfs.squashfs` (zstd) inside its fakeroot; post-image.sh
 appends the hash tree (`veritysetup format`) and writes `core.img` with
-`core.verity` beside it (`blocks=`, `hash=`), then assembles the ISO from
+`core.verity` beside it (`hash=`, `offset=`, `size=`), then assembles the ISO from
 `/boot` and that image. A release ships `aos-X-x86_64.iso`,
 `aos-X-x86_64-core.img` (a squashfs is compressed already) and
 `aos-X-x86_64-core.verity`, named in the

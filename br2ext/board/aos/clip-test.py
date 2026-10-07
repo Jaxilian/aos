@@ -5,8 +5,10 @@ F2 then Ctrl+C left the clipboard untouched.
 
   1. Files (Super+E, at /); Down selects the first row, F2 opens the
      rename prompt with the name marked, Ctrl+C, Escape.
-  2. wl-paste (the host's, copied in) as the demo account must print
-     the stem.
+  2. Notepad on an empty file, Ctrl+V, Ctrl+S: the file holds the
+     name. (wl-paste is no judge here: ade has no data-control protocol,
+     so wl-paste reads through a focus-stealing popup and races; it
+     printed nothing while a real paste worked, 2026-10-07.)
 
 Screendumps: clip-*. Serial transcript: clip.serial.txt."""
 import importlib.util
@@ -47,10 +49,8 @@ def main():
             if s and s[0] >= 0.005:
                 break
             time.sleep(2)
-        if not dt.scp(["/usr/bin/wl-paste"], "/tmp/wl-paste"):
-            return False
         # 1. Files (it opens at /: aos is the first row), the row
-        #    selected, the rename prompt, Ctrl+C.
+        #    selected, the rename prompt, Ctrl+C, Escape.
         bt.monitor("sendkey meta_l-e")
         time.sleep(8)
         bt.shot("clip-files")
@@ -63,11 +63,18 @@ def main():
         time.sleep(2)
         bt.monitor("sendkey esc")
         time.sleep(1)
-        # 2. What the clipboard holds.
-        got = ser.run("chmod 755 /tmp/wl-paste; su -s /bin/sh admin -c 'export %s; /tmp/wl-paste --no-newline 2>&1'" % dt.ENV)
-        print("$ wl-paste\n%s" % got)
-        if "aos" not in got.replace("# ", "").split("\n")[-1:][0] and "aos" not in got:
-            print("!! the clipboard does not hold the name")
+        # 2. A real paste: Notepad on an empty file, Ctrl+V, Ctrl+S.
+        ser.run("rm -f /tmp/paste.txt; su -s /bin/sh admin -c 'touch /tmp/paste.txt; export %s; setsid notepad /tmp/paste.txt >/tmp/np.log 2>&1 &'" % dt.ENV)
+        time.sleep(7)
+        bt.monitor("sendkey ctrl-v")
+        time.sleep(1.5)
+        bt.monitor("sendkey ctrl-s")
+        time.sleep(2)
+        bt.shot("clip-pasted")
+        got = ser.run("cat /tmp/paste.txt; echo")
+        print("$ pasted\n%s" % got)
+        if "aos" not in got:
+            print("!! the paste does not hold the name")
             ok = False
         print("$ files\n%s" % ser.run("pgrep -a files; journalctl -b _COMM=ade-comp --no-pager | grep -i -E 'selection|clip' | tail -5 | cut -c17-160"))
         ser.send("poweroff\n")

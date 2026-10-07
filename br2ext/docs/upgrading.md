@@ -48,8 +48,9 @@ package, `kernel-apkg.sh`; that road is closed.)
 
 ## Base OS updates
 
-An installed disk has two root slots ([../PLATFORM.md](../PLATFORM.md)
-describes the layout). `aos-update` moves a machine to a newer release:
+An installed disk has two root slots, each holding a core: a squashfs
+with its dm-verity hash tree ([layout.md](layout.md) describes the
+disk). `aos-update` moves a machine to a newer release:
 
 ```sh
 sudo apm upgrade       # every package, then the OS itself: what Software's "Upgrade system" runs
@@ -87,8 +88,9 @@ It fetches `SHA256SUMS` and `SHA256SUMS.minisig` from the URL in
 where `release.sh --publish` puts them), checks the signature against the
 keys in `/opt/apm/etc/keys/trusted` -- the same key every machine already
 trusts for apm -- downloads the core image the file names
-(`aos-<version>-x86_64-core.img`) and its verity parameters
-(`-core.verity`), checks their sha256, writes the image into the idle
+(`aos-<version>-x86_64-core.img`, about 750 MB, uncompressed beyond the
+squashfs's own zstd) and its verity parameters (`-core.verity`), checks
+their sha256, writes the image into the idle
 slot and reads it back through its verity (a block that does not match
 its hash is an I/O error), copies the kernel, microcode and initramfs
 out of it onto the ESP with the root hash in `/boot/efi/aos/<slot>/
@@ -96,7 +98,9 @@ verity.cfg`, appends any system account the new release adds to the
 overlay's `passwd`/`group`, and sets `next=<slot>` in
 `/boot/efi/grub/grubenv`. GRUB boots `next` once and clears it before the
 kernel runs; `aos-update-confirm.service`, twenty seconds after the
-desktop's service is up, sets `slot=` to the running slot. A slot that
+desktop's service is up (the login screen's, greetd, or the demo's
+autologin, ade) and if it has not restarted meanwhile, sets `slot=` to
+the running slot. A slot that
 never reaches that point is forgotten at the next reset and the confirmed
 slot boots. The GRUB menu's "AOS (previous version)" entry boots the other
 slot by hand, and `--rollback` does the same from the running system.

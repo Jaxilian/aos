@@ -5,25 +5,26 @@ that machine from your desk. A foundation has no desktop to sit at, and real
 hardware is the only place the drivers, the GPU and the CPU microcode are
 actually exercised — QEMU cannot test any of them.
 
-## Before you build: add your key
+## No key by default
 
-**AOS accepts no SSH login until you do this.** Root has no password, and
-sshd refuses password authentication anyway, so a key is the only way in.
-An image built without a key has sshd installed but *disabled*: a desktop
-nobody can log into remotely should not listen on port 22. With a key,
-`post-build.sh` enables it.
+Since 2026-10-07 a stick and a release carry no SSH key and no listening
+sshd: root has no password, and the person at the keyboard logs in with
+their own. An image built without `br2ext/board/aos/authorized_keys` has
+sshd installed but *disabled*, and `make-usb.sh` refuses to write a
+keyed image to a stick unless `AOS_DEV=1` says it is a development
+stick.
+
+The key is for the QEMU drivers that copy files into the guest
+(`fx-test.py`, `desk-test.py`, `disp-test.py`, ...): put it there, build,
+run them, and remove it before anything leaves the machine. The file is
+**deliberately untracked** (`br2ext/.gitignore`), and `release.sh`
+refuses an image with a root key or sshd enabled.
 
 ```sh
-cp ~/.ssh/id_ed25519.pub br2ext/board/aos/authorized_keys
+cp ~/.ssh/id_ed25519.pub br2ext/board/aos/authorized_keys   # the drivers
 make
+rm br2ext/board/aos/authorized_keys; make                   # before a stick
 ```
-
-The file may hold several keys, one per line, and `#` comments are stripped.
-It is **deliberately untracked** — see `br2ext/.gitignore`. An image you
-publish must not carry anyone's key, or whoever built it has root on every
-machine that installs it: `release.sh` refuses an image with a root key on
-it, so a release is built with the file moved away (`make` again after;
-only post-build.sh reruns). If you have no key yet, `ssh-keygen -t ed25519`.
 
 On an installed machine the person turns sshd on in Settings -> Network
 ("Let other computers log in over SSH"), keys only, with their own
@@ -35,10 +36,6 @@ On an installed machine the person turns sshd on in Settings -> Network
 post-build.sh: installed 1 SSH key(s) for root; sshd enabled
 post-build.sh: no board/aos/authorized_keys -- sshd disabled
 ```
-
-On a machine installed from a keyless image, add a key to
-`/root/.ssh/authorized_keys` and `systemctl enable --now sshd`. The
-firewall (`/etc/nftables.conf`) already lets port 22 through.
 
 ## Getting AOS onto a machine to SSH into
 

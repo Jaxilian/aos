@@ -171,17 +171,17 @@ ISO="$BASE/output/images/rootfs.iso9660"
 [ -f "$ISO" ] || { echo "make-usb.sh: no $ISO -- nothing to install" >&2; exit 1; }
 echo ">>> Image: $ISO ($(date -r "$ISO" '+%F %T'))"
 
-# The rule from docs/usb.md: never write a stick that will accept no SSH
-# login. post-build.sh says so at the end of the build; this checks the
-# result rather than the message.
+# The rule since 2026-10-07 (docs/ssh.md): a stick carries no SSH key
+# for root and no listening sshd; the person at the keyboard has the
+# password. A keyed build is for the QEMU drivers that copy files in,
+# and goes onto a stick only with AOS_DEV=1.
 KEYS="$BASE/output/target/root/.ssh/authorized_keys"
-if [ -s "$KEYS" ]; then
-	echo ">>> SSH: $(grep -c . "$KEYS") key(s) for root on the image"
-else
-	echo "make-usb.sh: the image has no SSH keys for root." >&2
-	echo "    Add yours to br2ext/board/aos/authorized_keys and build again (docs/ssh.md)." >&2
+if [ -s "$KEYS" ] && [ "${AOS_DEV:-}" != 1 ]; then
+	echo "make-usb.sh: the image has $(grep -c . "$KEYS") SSH key(s) for root; a stick gets none." >&2
+	echo "    Remove br2ext/board/aos/authorized_keys and build again, or AOS_DEV=1 for a development stick." >&2
 	exit 1
 fi
+[ -s "$KEYS" ] && echo ">>> SSH: development stick, $(grep -c . "$KEYS") key(s) for root" || echo ">>> SSH: none; sshd off"
 echo
 
 # The stick was confirmed above; write-usb.sh asks the same question once
