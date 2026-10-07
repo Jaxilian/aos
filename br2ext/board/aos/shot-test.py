@@ -55,10 +55,8 @@ def main():
         ser.read_until(b"# ", 30)
         ser.send("stty -echo cols 200 rows 50; export SYSTEMD_PAGER= PAGER=cat\n")
         ser.read_until(b"# ", 10)
-        print(ser.run("for i in $(seq 20); do systemctl is-active sshd >/dev/null && break; sleep 3; done; mkdir -p /root/new", timeout=120))
-        if not scp([os.path.join(TARGET, b) for b in ("ade-comp", "ade-shell")] + ["root@127.0.0.1:/root/new/"]):
-            return False
-        print(ser.run("mv -f /root/new/* /usr/bin/; rm -rf %s; systemctl restart ade; sleep 15; echo restarted" % DIR, timeout=120))
+        # The disk holds this build (a verity core since 0.2.0): nothing to push.
+        print(ser.run("rm -rf %s; systemctl restart ade; sleep 15; echo restarted" % DIR, timeout=120))
         ser.run("su -s /bin/sh admin -c '%s setsid terminal >/tmp/t.log 2>&1 &'; sleep 10" % ENV, timeout=60)
         bt.monitor("sendkey print")
         time.sleep(6)

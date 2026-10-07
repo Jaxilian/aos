@@ -59,14 +59,20 @@ def main():
             ok = False
         print("$ unplug\n%s" % ser.run("c=$(ls -d /sys/class/drm/card*-Virtual-2); echo off > $c/status; %s; sleep 6; "
                                        "journalctl -b _COMM=ade-comp --no-pager | tail -6 | cut -c17-160" % TRIGGER, timeout=60))
-        print("$ replug\n%s" % ser.run("c=$(ls -d /sys/class/drm/card*-Virtual-2); echo on > $c/status; %s; sleep 12; "
+        rp = ser.run("c=$(ls -d /sys/class/drm/card*-Virtual-2); echo on > $c/status; %s; sleep 12; "
                                        "journalctl -b _COMM=ade-comp --no-pager | tail -12 | cut -c17-160; "
                                        "echo --shell; journalctl -b _COMM=ade-shell --no-pager | tail -8 | cut -c17-160; "
-                                       "echo --outputs; cat /sys/class/drm/card*-Virtual-2/status" % TRIGGER, timeout=60))
+                                       "echo --outputs; cat /sys/class/drm/card*-Virtual-2/status" % TRIGGER, timeout=60)
+        print("$ replug\n%s" % rp)
+        # virtio-gpu shows nothing on a head that came back (its scanout
+        # after a hotplug), whatever the compositor draws: the dump is
+        # reported, the journal is the check -- the bar mapped on the
+        # returning head after it was gone (ade v0.1.47, 2026-10-07).
         b = at.dump2(qmp, "replug-b", 1)
-        print("== head 1 after the replug: ink %.1f%%" % (b * 100))
-        if b < 0.005:
-            print("!! no bar on the second display after it came back")
+        print("== head 1 after the replug: ink %.1f%% (QEMU shows a re-plugged head blank; not judged)" % (b * 100))
+        tail = rp[rp.rfind("head Virtual-2 gone"):] if "head Virtual-2 gone" in rp else ""
+        if "ade-bar mapped on Top of Virtual-2" not in tail:
+            print("!! no bar mapped on the second display after it came back")
             ok = False
         bt.shot("replug-head0")
         ser.send("poweroff\n")

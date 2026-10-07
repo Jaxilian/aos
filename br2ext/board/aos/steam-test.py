@@ -49,15 +49,16 @@ def main():
         ser.send("stty -echo cols 200 rows 50; export SYSTEMD_PAGER= PAGER=cat\n")
         ser.read_until(b"# ", 10)
         time.sleep(15)
-        ser.run("rm -rf /root/new; mkdir -p /root/new")
-        if not dt.scp(["-r", os.path.join(TARGET, "apm"), os.path.join(TARGET, "aos-sandbox"), INDEX], "/root/new/"):
+        # The disk holds this build (a verity core since 0.2.0): only the
+        # index goes in, under /var/tmp (on the aos partition).
+        ser.run("rm -rf %s; mkdir -p %s" % (dt.NEW, dt.NEW))
+        if not dt.scp(["-r", INDEX], dt.NEW + "/"):
             return False
         print("$ install steam\n%s" % ser.run(
-            "mv -f /root/new/apm /root/new/aos-sandbox /usr/bin/; "
-            "apm repo remove thirdparty >/dev/null 2>&1; apm repo add thirdparty file:///root/new/index --third-party 2>&1 | tail -1; "
+            "apm repo remove thirdparty >/dev/null 2>&1; apm repo add thirdparty file://%s/index --third-party 2>&1 | tail -1; "
             "for i in $(seq 30); do getent hosts repo.steampowered.com >/dev/null 2>&1 && break; sleep 1; done; "
             "apm update --force --quiet 2>&1 | tail -1; apm --yes --force remove steam >/dev/null 2>&1; "
-            "apm --yes --quiet install steam 2>&1 | tail -3", timeout=1200))
+            "apm --yes --quiet install steam 2>&1 | tail -3" % dt.NEW, timeout=1200))
         entry = ser.run("head -3 /opt/apm/bin/steam | cut -c1-200")
         print("$ the farm entry\n%s" % entry)
         if "[sandbox] full" not in entry or "--lib32 runtime/compat32" not in entry:

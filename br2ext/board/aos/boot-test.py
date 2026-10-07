@@ -654,14 +654,19 @@ def shot(tag, quiet=False):
     """Screendump the VGA output and report how much is on it."""
     ppm = os.path.join(OUT, "%s.screen.ppm" % tag)
     png = os.path.join(OUT, "%s.screen.png" % tag)
-    try:
-        r = monitor("screendump %s" % ppm)
-    except OSError:
-        # QEMU has already exited (a power-off, or a watchdog reset)
-        if not quiet:
-            print("!! screendump %s: QEMU is gone" % tag)
-        return None
-    time.sleep(1)
+    # The monitor now and then answers with its line editor's echo and no
+    # dump (seen once in a gate of 28 drivers, 2026-10-07): ask again.
+    for attempt in range(3):
+        try:
+            r = monitor("screendump %s" % ppm)
+        except OSError:
+            # QEMU has already exited (a power-off, or a watchdog reset)
+            if not quiet:
+                print("!! screendump %s: QEMU is gone" % tag)
+            return None
+        time.sleep(1)
+        if os.path.exists(ppm):
+            break
     if not os.path.exists(ppm):
         if not quiet:
             print("!! screendump failed: %s" % r.strip())

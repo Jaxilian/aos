@@ -28,6 +28,7 @@ bt = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bt)
 
 TARGET = "/home/jax/Projects/OS/aos/output/target/usr/bin"
+NEW = "/var/tmp/new"    # where the driver puts files in the guest (on the aos partition)
 QMP = os.path.join(bt.OUT, "r9i-qmp.sock")
 W, H = 1280, 800
 ENV = ("WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/admin "
@@ -62,6 +63,11 @@ class Qmp:
         time.sleep(0.3)
 
     def button(self, b, x, y):
+        # A step aside first: QEMU sends no motion for a tablet moved to
+        # where it already is, and the compositor gives a button to the
+        # surface under the last motion -- a toast that mapped under a
+        # parked pointer never got the click (probe-toast.py, 2026-10-07).
+        self.move(x - 1 if x > 1 else x + 1, y)
         self.move(x, y)
         self.cmd("input-send-event", events=[{"type": "btn", "data": {"down": True, "button": b}}])
         time.sleep(0.15)
@@ -126,14 +132,14 @@ def main():
         #    aos-sandbox too: the app sandbox is theirs. With APM_THIRDPARTY
         #    a local index directory (publish.sh --local), the recipes under
         #    test go in beside them and the guest reads them by file://.
-        files = [os.path.join(TARGET, b) for b in ("ade-comp", "ade-shell", "ade-lock", "settings", "sysmon", "apm", "aos-sandbox")]
-        if bt.APM_TP_LOCAL:
-            files.append(bt.APM_THIRDPARTY.rstrip("/"))
-        ser.run("mkdir -p /root/new")
-        if not scp(["-r"] + files, "/root/new/"):
+        #    Since 0.2.0 the disk holds a verity core, installed from this
+        #    build: nothing is pushed (the 0.1.x drivers copied the host's
+        #    fresh binaries over the OS's; /usr/bin takes nothing now).
+        #    A local third-party index goes in under /var/tmp, which is on
+        #    the aos partition (/root is in the core).
+        ser.run("rm -rf %s; mkdir -p %s" % (NEW, NEW))
+        if bt.APM_TP_LOCAL and not scp(["-r", bt.APM_THIRDPARTY.rstrip("/")], NEW + "/"):
             return False
-        print("$ install\n%s" % ser.run("ls -la /root/new; for f in /root/new/*; do [ -f $f ] && mv -f $f /usr/bin/; done; systemctl restart ade; sleep 12; "
-                                       "journalctl -b _COMM=ade-comp --no-pager | tail -6 | cut -c17-200", timeout=120))
         for _ in range(30):
             s = bt.shot("r9i-desktop", quiet=True)
             if s and s[0] >= 0.005:
@@ -164,7 +170,7 @@ def main():
         #     knows (the apm run leaves the repos and the key, removes the
         #     packages).
         print("$ install firefox, xwayland\n%s" % ser.run(
-            "apm repo remove thirdparty >/dev/null 2>&1; apm repo add thirdparty %s --third-party 2>&1 | tail -1; for i in $(seq 30); do getent hosts github.com >/dev/null 2>&1 && break; sleep 1; done; " % ("file:///root/new/" + os.path.basename(bt.APM_THIRDPARTY.rstrip("/")) if bt.APM_TP_LOCAL else bt.APM_THIRDPARTY) +
+            "apm repo remove thirdparty >/dev/null 2>&1; apm repo add thirdparty %s --third-party 2>&1 | tail -1; for i in $(seq 30); do getent hosts github.com >/dev/null 2>&1 && break; sleep 1; done; " % ("file://%s/" % NEW + os.path.basename(bt.APM_THIRDPARTY.rstrip("/")) if bt.APM_TP_LOCAL else bt.APM_THIRDPARTY) +
             "apm update --force --quiet 2>&1 | tail -1; apm --yes --force remove firefox >/dev/null 2>&1; rm -rf /home/admin/.var/app/mozilla.firefox; apm install firefox --quiet 2>&1 | tail -2; apm install xwayland --quiet 2>&1 | tail -2; "
             "ls /opt/apm/bin/ | head; sleep 25; journalctl -b _COMM=ade-comp --no-pager | grep -i xwayland | tail -4 | cut -c17-200", timeout=1500))
         # 2. Firefox maximised, its hamburger button at the top right: the
@@ -196,7 +202,8 @@ def main():
         over = ser.run("p=$(pgrep -f -o firefox/firefox); echo pid=$p; grep -E ' /home/admin ' /proc/$p/mountinfo | awk '{print $4}' | head -2")
         print("$ override full: home source\n%s" % over)
         ser.run("pkill -f firefox; sleep 5; rm -f /home/admin/.config/aos/sandbox/mozilla.firefox")
-        if "/.var/app/" in over or "/home/admin" not in over:
+        # mountinfo names the source inside the aos partition: /users/admin.
+        if "/.var/app/" in over or not over.strip().endswith("/admin"):
             print("!! the override did not give Firefox the real home: %r" % over)
             ok = False
         ser.run("su -s /bin/sh admin -c '%s setsid /opt/apm/bin/firefox file:///etc/os-release >/tmp/ff.log 2>&1 &'; sleep 12" % ENV)
@@ -245,10 +252,10 @@ def main():
         #    restarted; the compositor gives it three tries, the library
         #    comes back, and the fourth is ready.
         print("$ xwayland: break\n%s" % ser.run(
-            "mkdir -p /root/aside; ls -la /opt/apm/lib/libpixman-1.so*; mv /opt/apm/lib/libpixman-1.so* /root/aside/; ldconfig /opt/apm/lib; systemctl restart ade; sleep 40; "
+            "mkdir -p /var/tmp/aside; ls -la /opt/apm/lib/libpixman-1.so*; mv /opt/apm/lib/libpixman-1.so* /var/tmp/aside/; ldconfig /opt/apm/lib; systemctl restart ade; sleep 40; "
             "journalctl -b _COMM=ade-comp --no-pager | grep -E 'xwayland' | tail -6 | cut -c17-200", timeout=120))
         print("$ xwayland: mend\n%s" % ser.run(
-            "mv /root/aside/libpixman-1.so* /opt/apm/lib/; ldconfig /opt/apm/lib; sleep 20; "
+            "mv /var/tmp/aside/libpixman-1.so* /opt/apm/lib/; ldconfig /opt/apm/lib; sleep 20; "
             "journalctl -b _COMM=ade-comp --no-pager | grep -E 'xwayland' | tail -4 | cut -c17-200; ls /tmp/.X11-unix/", timeout=120))
         xw = journal(ser, "xwayland", 12)
         if "starting again" not in xw or "ready on" not in xw.split("starting again")[-1]:

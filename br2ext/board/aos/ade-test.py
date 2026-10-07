@@ -167,14 +167,17 @@ def main():
         time.sleep(2)
         ink("r8-menu-gone")
         gone = changed("r8-menu", "r8-menu-gone", W // 2, H // 2)
-        qmp.button("right", W // 2 - 200, H // 2 + 60)
+        qmp.button("right", W // 2 - 200, H // 2 - 60)
         time.sleep(2)
         ink("r8-menu-again")
-        again = changed("r8-menu-gone", "r8-menu-again", W // 2 - 200, H // 2 + 60)
+        again = changed("r8-menu-gone", "r8-menu-again", W // 2 - 200, H // 2 - 60)
         print("== menu opened %.1f%% -> closed %.1f%% -> second opened %.1f%% (box change)" % (menu * 100, gone * 100, again * 100))
         if not (menu > 0.02 and gone > 0.02 and again > 0.02):
             print("!! the popup grab did not dismiss and hand the click on")
             ok = False
+        # (The second menu is opened above the centre: below it the seven
+        # rows do not fit under the pointer inside the window and the
+        # popup flips upward, so the item would not be where it is clicked.)
         # An item of that second menu, its second row, "Rotate 90 Right"
         # (the first is Copy since images v0.1.3; rows are 26 px): the
         # landscape picture turns to portrait. The menu is drawn on the
@@ -182,7 +185,7 @@ def main():
         # content, and a compositor that moved keyboard focus between the
         # two surfaces closed the menu under the click (Set as Wallpaper
         # did nothing on the G14).
-        qmp.button("left", W // 2 - 200 + 60, H // 2 + 60 + 17 + 26)
+        qmp.button("left", W // 2 - 200 + 60, H // 2 - 60 + 17 + 26)
         time.sleep(2)
         ink("r8-item")
         turned = changed("r8-menu-gone", "r8-item", W // 2, H // 2 - 60)

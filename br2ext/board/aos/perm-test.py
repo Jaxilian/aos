@@ -65,11 +65,8 @@ def main():
             if s and s[0] >= 0.005:
                 break
             time.sleep(2)
-        files = [os.path.join(TARGET, b) for b in ("aos-store", "settings", "ade-shell")]
-        ser.run("mkdir -p /root/new")
-        if not dt.scp(files, "/root/new/"):
-            return False
-        print("$ install\n%s" % ser.run("mv -f /root/new/* /usr/bin/; systemctl restart ade; sleep 12; "
+        # The disk holds this build (a verity core since 0.2.0): nothing to push.
+        print("$ install\n%s" % ser.run("systemctl restart ade; sleep 12; "
                                        "journalctl -b _COMM=ade-shell --no-pager | tail -3 | cut -c17-200; apm list | grep -c firefox", timeout=120))
         for _ in range(30):
             s = bt.shot("perm-desktop", quiet=True)

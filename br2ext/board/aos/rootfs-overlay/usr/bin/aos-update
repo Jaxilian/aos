@@ -27,7 +27,12 @@ USAGE
 	exit 1
 }
 
-URL=$(sed -n 's/^URL=//p' /usr/lib/aos/update.conf)
+# /etc/aos/update.conf, when it exists, overrides the core's: the /etc
+# overlay is writable on a verity core, /usr/lib is not (the drivers
+# point a machine at a local server that way; a channel later).
+CONF=/usr/lib/aos/update.conf
+[ -f /etc/aos/update.conf ] && CONF=/etc/aos/update.conf
+URL=$(sed -n 's/^URL=//p' "$CONF")
 MODE=install
 PROG=no
 while [ $# -gt 0 ]; do
@@ -174,6 +179,11 @@ M=/run/aos-update
 # allowed to fail, or a completed update would report umount's status.
 grub-editenv "$GRUBENV" unset next
 rm -rf "$ESPAOS/$OTHER"
+# To the disk now: a power cut during the slot write (the lid, the
+# plug) must find the slot's ESP share gone -- --rollback and GRUB's
+# menu judge a slot by its verity.cfg -- not sitting in the page cache
+# while the slot is half written (update-abort-test.py, 2026-10-07).
+sync -f "$ESPAOS"
 trap 'slot_umount_core "$M" aos-update 2>/dev/null || true; rm -rf "$WORK" || true' EXIT
 # An idle slot is nobody's to mount, but a stick's partitions are USB
 # media to udev, and the removable-media rule has mounted one under

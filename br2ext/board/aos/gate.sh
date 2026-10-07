@@ -99,7 +99,14 @@ if want setup; then run setup python3 $T/setup-test.py; DISK=setup; fi
 
 # The other kinds of disk, each with its drivers.
 disk owner greeter   && { want greeter && run greeter python3 $T/greeter-test.py; }
-disk oobe oobe homed && { want oobe && run oobe python3 $T/oobe-test.py; [ -f $T/homed-test.py ] && want homed && run homed python3 $T/homed-test.py; }
+disk oobe oobe homed && {
+	want oobe && run oobe python3 $T/oobe-test.py
+	if want homed; then
+		# oobe-test used up the first boot; homed-test needs a fresh one.
+		want oobe && run install-oobe-2 env INSTALL_MODE=oobe python3 $T/boot-test.py install
+		run homed python3 $T/homed-test.py
+	fi
+}
 disk encrypt luks    && { want luks && run luks python3 $T/luks-test.py; }
 
 # The demo disk: the installed-disk drivers, update-abort after update.

@@ -70,11 +70,8 @@ def main():
             if s and s[0] >= 0.005:
                 break
             time.sleep(2)
-        files = [os.path.join(TARGET, b) for b in ("ade-comp", "ade-shell", "notepad")]
-        ser.run("mkdir -p /root/new")
-        if not dt.scp(files, "/root/new/"):
-            return False
-        print("$ install\n%s" % ser.run("mv -f /root/new/* /usr/bin/; systemctl restart ade; sleep 12; "
+        # The disk holds this build (a verity core since 0.2.0): nothing to push.
+        print("$ install\n%s" % ser.run("systemctl restart ade; sleep 12; "
                                        "journalctl -b _COMM=ade-comp --no-pager | tail -2 | cut -c17-160", timeout=120))
         for _ in range(30):
             s = bt.shot("desk-desktop", quiet=True)

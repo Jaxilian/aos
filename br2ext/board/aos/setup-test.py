@@ -2,10 +2,11 @@
 """The graphical installer, end to end, in QEMU: the live ISO with a blank
 32 GB disk, aos-setup started in the demo account's session with every
 answer on its command line and --go, screendumps while it installs, then
-the disk booted and checked: the account exists and owns the session, the
-keyboard and the time zone reached it, the desktop comes up. Leaves the
-disk installed for jax, not admin: run `boot-test.py install` afterwards
-to give the other tests their demo disk back.
+the disk booted: its first boot makes the owner (the installer makes no
+account since 0.3.0), the keyboard and the time zone reached the disk,
+the login screen lists jax and the password brings the desktop. Leaves
+the disk jax's, not admin's: run `boot-test.py install` afterwards to
+give the other tests their demo disk back.
 
 Screendumps: setup-*.screen.png; transcripts setup-N.serial.txt."""
 import importlib.util
@@ -22,9 +23,11 @@ sys.argv = ["boot-test.py", "install"]
 bt = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bt)
 
-USER, PASS = "jax", "secret-1"
+USER, PASS = "jax", "secretpass1"    # typed at the login screen under the se layout: no -
 ENV = ("WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/admin "
        "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus")
+OOBE_ENV = ("WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/$(id -u setup) HOME=/var/lib/aos-setup "
+            "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u setup)/bus")
 LOG = "/tmp/setup.log"
 
 
@@ -65,10 +68,6 @@ def login(ser, user="root", password=None):
     ser.send("stty -echo cols 200 rows 50; export SYSTEMD_PAGER= PAGER=cat\n")
     ser.read_until(b"# ", 10)
     return True
-
-
-def sudo(ser, cmd):
-    return ser.run("printf '%%s\\n' '%s' | sudo -S -p '' sh -c '%s'" % (PASS, cmd))
 
 
 def quit_qemu(q):
@@ -130,31 +129,53 @@ def main():
 
 
 def boot2():
+    """The installed disk has no account (0.3.0): its first boot runs the
+    setup session, which makes the owner -- aos-setup --first-boot --go,
+    as oobe-test.py does -- then the login screen lists jax, the keyboard
+    and the time zone the installer was given are on the disk, and the
+    password at the login screen brings jax's desktop."""
     ok = True
-    print("\n== boot 2: the installed disk")
+    print("\n== boot 2: the installed disk, its first boot")
     q = qemu("disk")
     try:
         ser = bt.Serial(bt.SER, os.path.join(bt.OUT, "setup-2.serial.txt"))
-        if not login(ser, USER, PASS):
+        # root's console login is open until the owner exists.
+        if not login(ser):
             return False
+        up = False
+        for _ in range(60):
+            if "setup" in ser.run("ps -o user= -C ade-shell"):
+                up = True
+                break
+            time.sleep(2)
+        bt.shot("setup-welcome")
+        if not up:
+            print("!! the first boot did not come up as the setup user")
+            print("$ greetd and the console say\n%s" % ser.run(
+                "systemctl status greetd --no-pager 2>&1 | head -5; journalctl -b --no-pager | grep -iE 'greetd|session|logind|ade' | tail -20 | cut -c17-200", timeout=60))
+            return False
+        print("$ first boot\n%s" % ser.run(
+            "su -s /bin/sh setup -c '%s aos-setup --first-boot --user %s --pass %s --keymap se --zone Europe/Stockholm --go >/tmp/oobe.log 2>&1 &'; "
+            "for i in $(seq 40); do grep -q 'AOS is yours' /tmp/oobe.log 2>/dev/null && break; sleep 1; done; "
+            "grep -E '>>>|AOS is yours|aos-firstboot' /tmp/oobe.log | head -8" % (OOBE_ENV, USER, PASS), timeout=120))
+        time.sleep(40)
         checks = [
             # the harness drops the first output line; keep it blank
             "echo; id %s; id admin 2>&1 | head -1" % USER,
-            "cat /etc/systemd/system/ade.service.d/10-aos-user.conf | grep User",
+            "ps -o user= -C ade-greeter",
             "grep XKB /etc/ade/environment; cat /etc/vconsole.conf | grep KEYMAP",
             "readlink /etc/localtime",
             "systemctl --failed --no-pager",
-            "loginctl list-sessions --no-pager | tail -3",
         ]
         out = {}
         for c in checks:
-            out[c] = sudo(ser, c)
-            print("\n$ sudo %s\n%s" % (c, out[c]))
+            out[c] = ser.run(c)
+            print("\n$ %s\n%s" % (c, out[c]))
         if "uid=1000(%s)" % USER not in out[checks[0]] or "no such user" not in out[checks[0]]:
             print("!! the account is wrong: %r" % out[checks[0]])
             ok = False
-        if "User=%s" % USER not in out[checks[1]]:
-            print("!! the session is not %s's" % USER)
+        if "greeter" not in out[checks[1]]:
+            print("!! the login screen is not up after the first boot")
             ok = False
         if "XKB_DEFAULT_LAYOUT=se" not in out[checks[2]] or "sv-latin1" not in out[checks[2]]:
             print("!! the keyboard layout did not reach the disk")
@@ -165,12 +186,15 @@ def boot2():
         if "0 loaded" not in out[checks[4]]:
             print("!! failed units")
             ok = False
-        for _ in range(30):
-            s = bt.shot("setup-installed", quiet=True)
-            if s and s[0] >= 0.005:
-                break
-            time.sleep(2)
+        bt.shot("setup-login")
+        bt.typekeys(PASS + "\n")
+        time.sleep(25)
+        who = " ".join(ser.run("ps -o user=,comm= -C ade-comp,ade-shell").split())
+        print("$ after the login: %s" % who)
         s = bt.shot("setup-installed")
+        if ("%s ade-shell" % USER) not in who:
+            print("!! the owner's session did not start from the login screen")
+            ok = False
         if not s or s[0] < 0.005:
             print("!! the installed desktop is black")
             ok = False

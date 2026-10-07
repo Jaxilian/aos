@@ -93,11 +93,8 @@ def main():
             if s and s[0] >= 0.005:
                 break
             time.sleep(2)
-        files = [os.path.join(TARGET, b) for b in ("ade-comp", "ade-shell", "settings")]
-        ser.run("mkdir -p /root/new")
-        if not dt.scp(files, "/root/new/"):
-            return False
-        print("$ install\n%s" % ser.run("mv -f /root/new/* /usr/bin/; rm -f %s; systemctl restart ade; sleep 10; "
+        # The disk holds this build (a verity core since 0.2.0): nothing to push.
+        print("$ install\n%s" % ser.run("rm -f %s; systemctl restart ade; sleep 10; "
                                        "c=$(ls -d /sys/class/drm/card*-Virtual-2); echo on > $c/status; "
                                        "udevadm trigger --action=change --subsystem-match=drm --property-match=DEVTYPE=drm_minor; sleep 6; "
                                        "journalctl -b _COMM=ade-comp --no-pager | grep -E 'head|output' | tail -4 | cut -c17-160" % DISPLAY, timeout=120))

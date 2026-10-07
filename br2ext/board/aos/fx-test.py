@@ -77,10 +77,8 @@ def main():
             if s and s[0] >= 0.005:
                 break
             time.sleep(2)
-        ser.run("mkdir -p /root/new")
-        if not dt.scp([os.path.join(TARGET, b) for b in ("ade-comp", "ade-shell")], "/root/new/"):
-            return False
-        print("$ install\n%s" % ser.run("mv -f /root/new/* /usr/bin/; rm -rf /home/admin/Pictures/Screenshots; systemctl restart ade; sleep 12; echo restarted", timeout=60))
+        # The disk holds this build (a verity core since 0.2.0): nothing to push.
+        print("$ install\n%s" % ser.run("rm -rf /home/admin/Pictures/Screenshots; systemctl restart ade; sleep 12; echo restarted", timeout=60))
         qmp = dt.Qmp(dt.QMP)
 
         # 1. The quick panel.
@@ -139,13 +137,15 @@ def main():
         # 4. The screenshot toast.
         dt.ink("fx-before-shot")
         bt.monitor("sendkey print")
-        time.sleep(4)
+        # The toast holds six seconds (ade v0.1.47); the dump takes two
+        # and a half, so the click comes at about four.
+        time.sleep(1)
         dt.ink("fx-toast")
         toast = dt.changed("fx-before-shot", "fx-toast", W - 400, 20, W, 140)
         print("== toast region changed %.2f%%" % (toast * 100))
         qmp.button("left", W - 180, 70)
         time.sleep(6)
-        after = ser.run("ls /home/admin/Pictures/Screenshots; pgrep -a images; journalctl -b _COMM=ade-shell --no-pager | grep -i 'launch' | tail -1 | cut -c17-160")
+        after = ser.run("ls /home/admin/Pictures/Screenshots; pgrep -a images; journalctl -b _SYSTEMD_UNIT=ade.service + SYSLOG_IDENTIFIER=ade-session --no-pager | grep -i 'launch' | tail -1 | cut -c17-160")
         print("$ after the click\n%s" % after)
         dt.ink("fx-images")
         if toast < 0.01 or "images " not in after or "Screenshots/" not in after:

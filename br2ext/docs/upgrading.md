@@ -84,7 +84,9 @@ a failed one can be read afterwards -- from another machine too, since
 that partition is readable with the stick plugged in.
 
 It fetches `SHA256SUMS` and `SHA256SUMS.minisig` from the URL in
-`/usr/lib/aos/update.conf` (the apm package index's release in apm-recipes,
+`/usr/lib/aos/update.conf` -- `/etc/aos/update.conf` overrides it when it
+exists, the /etc overlay being writable where the core is not -- (the
+apm package index's release in apm-recipes,
 where `release.sh --publish` puts them), checks the signature against the
 keys in `/opt/apm/etc/keys/trusted` -- the same key every machine already
 trusts for apm -- downloads the core image the file names

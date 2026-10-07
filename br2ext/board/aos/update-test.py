@@ -87,6 +87,9 @@ def make_release():
 
 def serve():
     handler = lambda *a, **k: http.server.SimpleHTTPRequestHandler(*a, directory=RELEASE, **k)
+    # The next driver binds the same port a second after this one's
+    # shutdown; without this the socket sits in TIME_WAIT for a minute.
+    socketserver.TCPServer.allow_reuse_address = True
     httpd = socketserver.TCPServer(("127.0.0.1", PORT), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd

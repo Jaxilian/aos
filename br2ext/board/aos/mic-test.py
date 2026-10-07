@@ -82,13 +82,9 @@ def main():
         ser.send("stty -echo cols 200 rows 50; export SYSTEMD_PAGER= PAGER=cat\n")
         ser.read_until(b"# ", 10)
         time.sleep(15)
-        ser.run("rm -rf /root/new; mkdir -p /root/new")
-        for f in FILES:
-            ser.run("mkdir -p /root/new/%s" % os.path.dirname(f))
-            if not dt.scp([os.path.join(OVERLAY, f)], "/root/new/%s" % f):
-                return False
+        # The disk holds this build (a verity core since 0.2.0): the
+        # overlay's files are in it; nothing to push.
         print("$ install\n%s" % ser.run(
-            "cp -a /root/new/usr/. /usr/; "
             "systemctl --user -M admin@ restart pipewire.socket pipewire pipewire-pulse.socket pipewire-pulse wireplumber 2>&1 | tail -2; sleep 5; "
             "ls /run/user/1000/ | grep -E 'pipewire-0'; ls /run/user/1000/pulse; "
             "journalctl --no-pager _COMM=wireplumber | grep -iE 'nomic|error|fail' | tail -4 | cut -c17-180", timeout=120))

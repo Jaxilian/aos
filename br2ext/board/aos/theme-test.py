@@ -71,10 +71,8 @@ def main():
             if s and s[0] >= 0.005:
                 break
             time.sleep(2)
-        ser.run("mkdir -p /root/new")
-        if not dt.scp([os.path.join(TARGET, "ade-shell")], "/root/new/"):
-            return False
-        print("$ install\n%s" % ser.run("mv -f /root/new/ade-shell /usr/bin/; rm -f %s; systemctl restart ade; sleep 12; cat /etc/aos/theme" % THEME, timeout=60))
+        # The disk holds this build (a verity core since 0.2.0): nothing to push.
+        print("$ install\n%s" % ser.run("rm -f %s; systemctl restart ade; sleep 12; cat /etc/aos/theme" % THEME, timeout=60))
         a = bar_grey("theme-a-chrome")
         set_theme(ser, "effects=light")
         b = bar_grey("theme-b-light")

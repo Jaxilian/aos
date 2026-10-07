@@ -69,6 +69,7 @@ def make_release():
 
 def serve():
     handler = lambda *a, **k: http.server.SimpleHTTPRequestHandler(*a, directory=RELEASE, **k)
+    socketserver.TCPServer.allow_reuse_address = True    # the port a minute after the last driver's
     httpd = socketserver.TCPServer(("127.0.0.1", PORT), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd
@@ -103,17 +104,13 @@ def main():
         # 0. The new binaries and scripts in; the timer unit too, so the
         #    guest's systemd knows the two-minute check; the session
         #    restarted on the new shell.
-        files = [os.path.join(TARGET, "usr", "bin", b) for b in ("ade-comp", "ade-shell", "settings", "aos-store", "apm", "aos-update")]
-        files.append(os.path.join(OVERLAY, "usr", "libexec", "aos-update-check"))
-        files.append(os.path.join(OVERLAY, "etc", "systemd", "system", "aos-update-check.timer"))
-        ser.run("mkdir -p /root/new")
-        if not dt.scp(files, "/root/new/"):
-            return False
+        # The disk holds this build (a verity core since 0.2.0): nothing to
+        # push. The update URL through /etc/aos/update.conf, which
+        # aos-update reads over the core's (the /etc overlay is writable).
         print("$ install\n%s" % ser.run(
-            "cd /root/new && mv -f aos-update-check /usr/libexec/ && mv -f aos-update-check.timer /etc/systemd/system/ && mv -f * /usr/bin/; "
-            "systemctl daemon-reload; systemctl list-timers aos-update-check.timer --no-pager | head -3; "
-            "sed -i 's#^URL=.*#URL=%s#' /usr/lib/aos/update.conf; cat /usr/lib/aos/update.conf; grep VERSION_ID /etc/os-release; "
-            "echo admin:%s | chpasswd; rm -f /var/lib/aos/updates; systemctl restart ade; sleep 12; journalctl -b _COMM=ade-shell --no-pager | tail -3 | cut -c17-200" % (URL, PASS), timeout=120))
+            "systemctl list-timers aos-update-check.timer --no-pager | head -3; "
+            "mkdir -p /etc/aos; echo URL=%s > /etc/aos/update.conf; cat /etc/aos/update.conf; grep VERSION_ID /etc/os-release; "
+            "echo admin:%s | chpasswd; rm -f /var/lib/aos/updates; systemctl restart ade; sleep 12; journalctl -b _SYSTEMD_UNIT=ade.service + SYSLOG_IDENTIFIER=ade-session --no-pager | tail -3 | cut -c17-200" % (URL, PASS), timeout=120))
         for _ in range(30):
             s = bt.shot("upd-desktop", quiet=True)
             if s and s[0] >= 0.005:
@@ -124,24 +121,22 @@ def main():
         # 1. The check, as the timer runs it, and the toast it brings.
         print("$ aos-update-check\n%s" % ser.run("for i in $(seq 30); do getent hosts github.com >/dev/null 2>&1 && break; sleep 1; done; "
                                                 "time /usr/libexec/aos-update-check 2>&1 | tail -8; echo ---; cat /var/lib/aos/updates", timeout=600))
-        # The shell reads the file within ten seconds; the toast then stays
-        # a minute, and the click comes as soon as it is seen.
-        toast = 0.0
-        for _ in range(12):
-            time.sleep(3)
-            dt.ink("upd-toast")
-            toast = dt.changed("upd-desktop", "upd-toast", W - 400, 20, W, 140)
-            if toast >= 0.01:
+        # The shell looks at the file every ten seconds and the toast holds
+        # six (ade v0.1.47); a screendump takes two and a half, too slow to
+        # see the toast and then click it in time. So a click on the
+        # toast's place every second until Software is up: a click on the
+        # wallpaper does nothing, and only the toast's action starts
+        # "aos-store update".
+        store = ""
+        for _ in range(25):
+            qmp.button("left", W - 180, 70)
+            time.sleep(1)
+            store = ser.run("pgrep -a aos-store")
+            if "aos-store" in store:
                 break
-        print("== toast region changed %.2f%%" % (toast * 100))
-        if toast < 0.01:
-            print("!! no toast after the check")
-            ok = False
-
-        # 2. The click on it: Software opens on Update.
-        qmp.button("left", W - 180, 70)
-        time.sleep(8)
-        store = ser.run("pgrep -a aos-store; journalctl -b _COMM=ade-shell --no-pager | grep -i 'launch' | tail -2 | cut -c17-160")
+        time.sleep(6)
+        dt.ink("upd-clicked")
+        store = ser.run("pgrep -a aos-store; journalctl -b _SYSTEMD_UNIT=ade.service + SYSLOG_IDENTIFIER=ade-session --no-pager | grep -i 'launch' | tail -2 | cut -c17-160")
         print("$ after the click\n%s" % store)
         if "aos-store update" not in store:
             print("!! the toast click did not open Software's Update page")
