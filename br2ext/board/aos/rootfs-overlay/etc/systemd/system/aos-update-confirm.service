@@ -5,15 +5,18 @@
 # here: Requires=ade.service pulled the disabled autologin service in
 # beside greetd on an owned machine, the two conflict, and the G14's
 # stick booted to a crash guard instead of its login screen (2026-10-06).
+# A login screen on a machine nobody can log in to is not a good slot
+# either: the services a login needs (logind, D-Bus, homed where it
+# runs) must not have failed. A slot left unconfirmed is forgotten at
+# the next boot, which goes back to the release before it.
 [Unit]
 Description=Confirm the booted AOS root slot
 After=ade.service greetd.service
 RequiresMountsFor=/boot/efi
-ConditionPathExists=/boot/efi/grub/grubenv
 
 [Service]
 Type=exec
-ExecStart=/bin/sh -c 'sleep 20; for u in greetd ade; do systemctl is-active -q $u.service || continue; if [ "$(systemctl show -p NRestarts --value $u.service)" = 0 ]; then exec /usr/bin/aos-update --confirm; fi; echo "aos-update: $u restarted; the slot is not confirmed"; exit 0; done; echo "aos-update: no desktop service is up; the slot is not confirmed"'
+ExecStart=/bin/sh -c 'sleep 20; [ -f /boot/efi/grub/grubenv ] || { echo "aos-update: no grubenv on the ESP; the slot cannot be confirmed"; exit 0; }; for n in systemd-logind dbus systemd-homed; do if systemctl is-failed -q $n.service; then echo "aos-update: $n failed; the slot is not confirmed"; exit 0; fi; done; for u in greetd ade; do systemctl is-active -q $u.service || continue; if [ "$(systemctl show -p NRestarts --value $u.service)" = 0 ]; then exec /usr/bin/aos-update --confirm; fi; echo "aos-update: $u restarted; the slot is not confirmed"; exit 0; done; echo "aos-update: no desktop service is up; the slot is not confirmed"'
 
 [Install]
 WantedBy=multi-user.target

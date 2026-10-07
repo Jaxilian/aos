@@ -11,8 +11,20 @@
 #                         setup (aos-install --oobe)
 #
 # A compositor that dies is started again, at most four times in two
-# minutes as the unit does, with ADE_CRASHED saying why so the shell can
-# say so; past that the session ends and greetd shows the greeter.
+# minutes as the unit does, with a line in the runtime directory's crash
+# file so the shell can say so; past that the session ends and greetd
+# shows the greeter, and the lines wait for the account's next login.
+
+# Everything the session prints goes to the journal, tagged ade-session
+# (ade-greeter for the greeter's own). greetd hands a session the VT as
+# its stdout and stderr: a console the compositor covers, gone with the
+# next login, which is why the lockup of 2026-10-07 left an empty
+# journal. ade.service's sessions get the journal from the unit.
+if [ -z "$AOS_SESSION_LOG" ]; then
+	tag=ade-session
+	[ "$1" = --greeter ] && tag=ade-greeter
+	AOS_SESSION_LOG=1 exec systemd-cat -t "$tag" "$0" "$@"
+fi
 
 set -a
 [ -f /etc/ade/environment ] && . /etc/ade/environment
@@ -20,21 +32,52 @@ set +a
 export PATH="/opt/apm/bin:$PATH"
 export XDG_DATA_DIRS="/opt/apm/exports/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 
+# The compositor's runtime files -- "locked" while the session is locked,
+# "crash" with a line per bad end -- are the unit's /run/ade under
+# ade.service; here they live in the account's own runtime directory,
+# which lasts as long as this login does. Without one, an owned machine
+# never had the locked mark and a compositor that crashed while locked
+# came back open.
+export ADE_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}/ade"
+mkdir -p "$ADE_RUNTIME_DIR"
+
 case "$1" in
 	--greeter)    export ADE_AUTOSTART=ade-greeter; exec ade-comp ;;
 	--first-boot) export ADE_AUTOSTART="ade-shell;aos-setup --first-boot" ;;
 esac
 
+# A session this script gave up on (below) left its crash lines under
+# /run/aos/session for the account's next login: the compositor reads
+# them at its start and the shell says what happened. The file must be
+# the account's own: the directory is shared, sticky, like /tmp.
+left=/run/aos/session/${USER:-$(id -un)}
+if [ -f "$left" ] && [ -O "$left" ]; then
+	cat "$left" >> "$ADE_RUNTIME_DIR/crash"
+	rm -f "$left"
+fi
+
+# Five failures within two minutes of the first of them end the session
+# (the unit's StartLimitBurst and StartLimitInterval). The window opens
+# at the first failure, not at the session's start: opened there, a
+# window that happened to end between the third and the fourth crash
+# started the count over, and a session could be killed every few
+# seconds forever (greeter-test.py, 2026-10-07).
 fails=0
-since=$(date +%s)
+since=0
 while :; do
 	ade-comp
 	rc=$?
 	[ "$rc" -eq 0 ] && exit 0
+	# The unit's ExecStopPost line, in the same words.
+	if [ "$rc" -gt 128 ]; then how="signal $((rc - 128))"; else how="exit $rc"; fi
+	echo "$how" >> "$ADE_RUNTIME_DIR/crash"
 	now=$(date +%s)
-	if [ $((now - since)) -gt 120 ]; then fails=0; since=$now; fi
+	if [ "$fails" -eq 0 ] || [ $((now - since)) -gt 120 ]; then fails=0; since=$now; fi
 	fails=$((fails + 1))
-	[ "$fails" -le 4 ] || { echo "session: the compositor failed $fails times; giving up" >&2; exit "$rc"; }
-	export ADE_CRASHED="exit $rc"
+	if [ "$fails" -gt 4 ]; then
+		echo "session: the compositor failed $fails times; giving up" >&2
+		cp "$ADE_RUNTIME_DIR/crash" "$left" 2>/dev/null
+		exit "$rc"
+	fi
 	sleep 2
 done

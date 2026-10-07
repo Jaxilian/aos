@@ -1,9 +1,64 @@
 # TODO
 
-Updated 2026-10-07 afternoon. The newest release is 0.2.8 (the stick
-round on 0.2.7), published, untested on the stick: [TEST.md](TEST.md).
+Updated 2026-10-07 evening. The newest release is 0.2.9 (the session
+in the journal, the lock across a crash; the alpha plan below),
+published, untested on the stick: [TEST.md](TEST.md). 0.2.8 was never
+on the stick either; its round is in TEST.md too.
 0.2.0-0.2.7 brought the verity cores, the aos partition, LUKS and the
 login screen; a machine on 0.1.x reinstalls once.
+
+## The stable alpha (decided 2026-10-07 afternoon; 0.3.0)
+
+Robustness and security first, no new features. The plan, in order:
+
+1. ~~**Housekeeping**~~: local.mk gone, the docs on 0.2.8 committed.
+2. ~~**Diagnosability**~~ (0.2.9, done): an owned machine's session logs nothing
+   -- greetd hands it the VT, so every line of the compositor, the
+   shell and the apps was drawn on a hidden console; the lockup of the
+   morning left an empty journal. The session script now runs under
+   `systemd-cat -t ade-session` (`-t ade-greeter` for the greeter), its
+   crash lines go to the account's runtime directory and the compositor
+   reads them there (ADE_RUNTIME_DIR, ade v0.1.49). Found on the way:
+   /run/ade existed only as ade.service's RuntimeDirectory, so on an
+   owned machine the lock mark was never written and a compositor that
+   crashed while locked came back **unlocked**; fixed by the same
+   change. The session's crash window counts from the first crash (it
+   counted from the login, and a window ending mid-series restarted the
+   count). greetd failing five times gets the tty1 explanation
+   (OnFailure=ade-failed.service); Save Report carries the session
+   journal, greetd's, the left-over crash lines and tty1's last screen.
+   greeter-test.py steps 4-6 cover it; aos-update-confirm also refuses
+   a slot where logind, D-Bus or homed failed.
+3. **The open bugs**: Files' rename Ctrl+C is on tgn's field widget
+   already and works in QEMU (clip-test.py passes with a real paste;
+   the morning's "reproduction" was wl-paste, which races without a
+   data-control protocol). A WAYLAND_DEBUG trace shows the data source
+   made and the compositor's selection event back. TEST.md 3.9 asks
+   where it failed on the G14 (Notepad, terminal, Firefox; launcher or
+   terminal). issues.md 3.4 is unclear: asked in TEST.md 4.4.
+4. ~~**The gate**~~ (`board/aos/gate.sh`, written, not yet run whole):
+   every driver in one run, one verdict each; 0.3.0 is tagged only
+   after it is green. kernel-test.py is gone (0.1.x only).
+5. **systemd-homed**: a LUKS home per account, unlocked by the password
+   at login, a recovery key shown once; **every install's owner is
+   made at the first boot** (homectl needs a running homed, so the
+   installer's account page goes and `--oobe` is what an owned install
+   is; `--demo` keeps the classic account for the drivers). The
+   swapfile only on a LUKS aos partition. The half-done PAM/preset/
+   defconfig lines are parked in ~/Projects/OS/chains/homed-wip.patch
+   (shipped by mistake in a dev build, they are a "faulty module" in
+   every PAM stack without homed). About a week.
+6. **0.3.0**: TODO/TEST/docs, the gate, the stick round. Another
+   session asked (2026-10-07 afternoon) to repin apm to v0.1.13
+   (b41da28: .deb and AppImage sources, for the Chrome/Spotify/Krita/
+   Inkscape recipes) as part of it; the repin was not done here -- it
+   is a commit from outside this session, so it is yours to confirm:
+   WORKFLOW.md section 5.3.
+
+Decided out for the alpha: transitions, Notepad Ctrl+F and the last
+document, the refresh rate, a glassier panel, HDMI multi-GPU, the file
+dialog and own apps in the sandbox, Secure Boot, CI, an update channel
+(edge/stable: later), committing CLAUDE.md/WORKFLOW.md/alpha-roadmap.md.
 
 ## Open now, in priority order
 

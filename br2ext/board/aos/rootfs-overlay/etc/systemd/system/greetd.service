@@ -9,6 +9,10 @@ Description=Greeter daemon
 After=systemd-user-sessions.service systemd-logind.service dbus.service
 After=getty@tty1.service
 Conflicts=getty@tty1.service ade.service
+# Five greeter crashes in half a minute end the restarts; a dead tty1
+# would be all that is left. ade-failed.service explains on a login
+# prompt instead, as it does for ade.service.
+OnFailure=ade-failed.service
 
 [Service]
 Type=simple

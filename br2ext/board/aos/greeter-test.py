@@ -11,6 +11,16 @@ account OWNER with password LUKS_PASS, no demo account, greetd enabled).
      (greeter-desktop).
   3. Super+L locks; a volume key's OSD comes and goes while the password
      is typed; the right one unlocks (greeter-locked, greeter-unlocked).
+  4. The session's output is in the journal (-t ade-session, -t
+     ade-greeter): greetd gives a session the VT, and the script sends
+     it to the journal instead.
+  5. The compositor killed while locked: the session script starts it
+     again and it comes back locked, with the crash in the journal
+     (greeter-relocked); the password unlocks.
+  6. Killed four more times: the script gives up, the greeter is back,
+     the crash lines wait under /run/aos/session (greeter-again); the
+     next login finds them and the shell's toast says so
+     (greeter-crash-toast).
 
 Screendumps: greeter-*. Serial transcript: greeter.serial.txt."""
 import importlib.util
@@ -111,6 +121,49 @@ def main():
         print("$ after the unlock\n%s" % still)
         if "ade-lock" in still:
             print("!! the locker is still up: the password did not reach it")
+            ok = False
+
+        # 4. What the session said is in the journal, not on the VT.
+        logs = ser.run(sudo + "sh -c 'journalctl -b -t ade-session --no-pager | wc -l; journalctl -b -t ade-greeter --no-pager | wc -l; journalctl -b -t ade-session --no-pager | tail -3 | cut -c17-140'")
+        print("$ session journal\n%s" % logs)
+        counts = [l.strip().lstrip("#$ ") for l in logs.split("\n") if l.strip().lstrip("#$ ").isdigit()]
+        if len(counts) < 2 or counts[0] == "0" or counts[1] == "0":
+            print("!! the session's or the greeter's output is not in the journal: %r" % counts)
+            ok = False
+
+        # 5. The compositor killed while locked: back, and locked. The
+        #    owner's compositor only (-u): the greeter's has its own.
+        bt.monitor("sendkey meta_l-l")
+        time.sleep(5)
+        killed = ser.run(sudo + "sh -c 'pkill -KILL -x -u %s ade-comp; sleep 14; echo LOCK:$(pgrep -c -x ade-lock); ps -o user=,comm= -p $(pgrep -x ade-comp); journalctl -b -t ade-session --no-pager | grep -E \"was locked|previous session|giving up\" | tail -3 | cut -c17-160'" % bt.OWNER, timeout=40)
+        print("$ killed while locked\n%s" % killed)
+        bt.shot("greeter-relocked")
+        if "LOCK:1" not in killed or "was locked" not in killed or "previous session" not in killed:
+            print("!! the compositor did not come back locked after the kill")
+            ok = False
+        bt.typekeys(bt.LUKS_PASS + "\n")
+        time.sleep(6)
+        still = ser.run("pgrep -a ade-lock | head -1")
+        if "ade-lock" in still:
+            print("!! the locker is still up after the restart: the password did not reach it")
+            ok = False
+
+        # 6. Four more kills within the two minutes, each once the
+        #    compositor is back: the script gives up and greetd shows the
+        #    greeter; the lines wait for the next login, which toasts them.
+        gone = ser.run(sudo + "sh -c 'for i in 1 2 3 4; do for t in $(seq 20); do pgrep -x -u %s ade-comp >/dev/null && break; sleep 1; done; sleep 2; pkill -KILL -x -u %s ade-comp; done; sleep 10; echo GREETER:$(pgrep -c -x ade-greeter); echo OWNERCOMP:$(pgrep -c -x -u %s ade-comp); echo LEFT:$(wc -l < /run/aos/session/%s); journalctl -b -t ade-session --no-pager | grep -c \"giving up\"'" % ((bt.OWNER,) * 4), timeout=150)
+        print("$ given up\n%s" % gone)
+        bt.shot("greeter-again")
+        if "GREETER:1" not in gone or "OWNERCOMP:0" not in gone or "LEFT:5" not in gone:
+            print("!! the session did not end on the greeter with its five crash lines kept")
+            ok = False
+        bt.typekeys(bt.LUKS_PASS + "\n")
+        time.sleep(25)
+        again = ser.run(sudo + "sh -c 'echo SHELL:$(pgrep -c -x -u %s ade-shell); echo LEFT:$(ls /run/aos/session/ | grep -c ^%s$); echo TOLD:$(journalctl -b -t ade-session --no-pager | sed -n \"/giving up/,\\$p\" | grep -c \"previous session\")'" % (bt.OWNER, bt.OWNER))
+        print("$ logged in again\n%s" % again)
+        bt.shot("greeter-crash-toast")
+        if "SHELL:1" not in again or "LEFT:0" not in again or "TOLD:1" not in again:
+            print("!! the next login did not take the crash lines and start the owner's session")
             ok = False
         ser.send(sudo + "poweroff\n")
         ser.read_until(b"reboot: Power down", 90)

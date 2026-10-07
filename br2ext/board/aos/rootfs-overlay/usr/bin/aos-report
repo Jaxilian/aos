@@ -37,7 +37,14 @@ run analyze-blame       sh -c 'systemd-analyze blame --no-pager | head -30'
 run memory-top          sh -c 'ps -eo rss,comm --sort=-rss | head -25'
 run ade-comp            journalctl -b _COMM=ade-comp --no-pager
 run ade-shell           journalctl -b _COMM=ade-shell --no-pager
-run ade-crashes         sh -c 'cat /run/ade/crash 2>/dev/null; systemctl show -p NRestarts -p Result ade.service'
+run ade-crashes         sh -c 'cat /run/ade/crash /run/user/*/ade/crash 2>/dev/null; systemctl show -p NRestarts -p Result ade.service'
+# An owned machine's session runs under greetd: its output is the
+# session script's journal stream, its crash lines are the account's,
+# and what the script gave up on waits under /run/aos/session.
+run session-journal     journalctl -b -t ade-session -t ade-greeter --no-pager
+run greetd              sh -c 'journalctl -b -u greetd --no-pager; systemctl show -p NRestarts -p Result greetd.service'
+run session-left        sh -c 'for f in /run/aos/session/*; do [ -f "$f" ] || continue; echo "== $f"; cat "$f"; done'
+run tty1                sh -c 'tr -s " " < /dev/vcs1 | fold -w 200 | grep -v "^ *$"'
 run coredumps           coredumpctl list --no-pager
 run coredump-ade        coredumpctl info ade-comp --no-pager
 run dmesg               dmesg

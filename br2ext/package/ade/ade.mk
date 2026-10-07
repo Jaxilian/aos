@@ -8,7 +8,7 @@
 # this file and the sources it names cannot drift apart. This one is v0.1.33.
 # Over ssh, because the repositories are private: whoever builds needs a
 # key GitHub knows. The applications' Cargo.toml fetch the SDK the same way.
-ADE_VERSION = 4654b89cb15b76aff666e92f5b5b05c97919a7da
+ADE_VERSION = 4202a47ad1581ac708bbdfb66bf18169a6d781ee
 ADE_SITE = ssh://git@github.com/Jaxilian/ade
 ADE_SITE_METHOD = git
 ADE_LICENSE = MIT

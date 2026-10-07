@@ -117,9 +117,7 @@ boots -- the update into slot b, its confirmation, a rollback armed, the
 trial of slot a forgotten -- with the mounts, the account and failed units
 checked on each; with `--usb` the disk is a USB stick, as on the G14,
 where udev once mounted the idle slot as media and stopped the update
-at mkfs. Transcripts: `update-N.serial.txt`. (`kernel-test.py` tested
-the 0.1.x kernel package; since 0.2.0 the kernel is part of the core and
-it has nothing to test.) `setup-test.py` is
+at mkfs. Transcripts: `update-N.serial.txt`. `setup-test.py` is
 the graphical installer end to end: the live ISO with a blank disk,
 `aos-setup` started in the session with every answer on its command
 line and `--go`, screendumps while it installs, then the disk booted and
@@ -179,7 +177,24 @@ minute's worth is `SOAK_MINUTES=2 SOAK_INTERVAL=20 boot-test.py soak`.
 One thing to know when reading its output: the compositor's own log lines are
 not under `journalctl -u ade`. `PAMName=login` hands the process to logind,
 which moves it into a session scope, and journald files its output there.
-Use `journalctl -b _COMM=ade-comp`.
+Use `journalctl -b _COMM=ade-comp`. On an owned machine (greetd) the
+session script sends everything the session prints through
+`systemd-cat`: `journalctl -b -t ade-session` (the greeter's own
+compositor: `-t ade-greeter`).
+
+## The gate: every driver in one run
+
+`br2ext/board/aos/gate.sh` runs every driver above in the order the
+disks need -- the live ISO's, then an owner, an OOBE and an encrypted
+disk with theirs, then the demo disk with the rest -- and prints one
+`pass`/`FAIL` line per driver and `GATE OK` or `GATE FAILED` at the end.
+It makes the keyed build first (`board/aos/authorized_keys` must be
+there) and the keyless one last, which is what a release and a stick
+need; `--no-build` and `--keep-keys` skip those, and driver names
+(`gate.sh greeter clip`) run a subset with the disk each needs. Logs
+and the screendumps every driver left are under `output/gate/`. It
+takes hours: run it in the background. A release is tagged only after
+the gate is green (section 6 of WORKFLOW.md).
 
 ## Every script, one line each
 
@@ -214,7 +229,6 @@ QEMU disk of the keyed build.
 | `update-test.py` | disk: a fake 9.9.9 core written into slot b, confirmed, rolled back, a forgotten trial (`--usb` for a stick) |
 | `update-abort-test.py` | disk: QEMU killed mid-write; the old slot boots, `--rollback` refuses, a second update completes |
 | `upgrade-ui-test.py` | disk: the update check, the toast, Software's Update page, Upgrade system against a fake release |
-| `kernel-test.py` | 0.1.x only: the aos/kernel apm package; nothing to test since the kernel is in the core |
 | `auto-install.py` | not a test: types the install for `write-usb.sh --install --auto`, and `--boot --auto`'s login check |
 | `iso-gpt.py` | not a test: trims and checks the live ISO's GPT after xorriso (a build hook) |
 | `br2apkg.py` | not a test: lifts Buildroot packages out of the target into an apm package (the runtimes) |

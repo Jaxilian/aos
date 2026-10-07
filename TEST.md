@@ -5,7 +5,7 @@ you should see. Write anything that differs into `~/issues.md`, one line
 per item, with its number. Everything from the round of 0.2.7 that you
 marked as working is done and not repeated here.
 
-## 0. Reinstall the stick (0.2.8)
+## 0. Reinstall the stick (0.2.9)
 
 Your stick's passwd carries the live `admin` account beside yours (the
 0.2.7 updater put it back after the upgrade, see TODO.md), and the
@@ -14,10 +14,11 @@ Your stick's passwd carries the live `admin` account beside yours (the
 ./usb.sh --no-build --release /dev/sdX
 ```
 From 0.2.8 on, Software → Update → Upgrade system keeps the accounts
-right; the next round upgrades.
+right; the next round upgrades. Everything below is 0.2.8's round plus
+section 4 (0.2.9).
 1. Boot: the login screen lists your account only. `grep -c '^admin:'
    /etc/passwd` says 0.
-2. `grep VERSION_ID /etc/os-release` says 0.2.8.
+2. `grep VERSION_ID /etc/os-release` says 0.2.9.
 
 ## 1. The lock screen and the brightness (the softlock)
 
@@ -63,9 +64,31 @@ regardless), so the G14 is the only check.
 8. Software: install something big (Steam), open another program's
    page while it runs: no steps of Steam's install under its rows;
    Steam's own page shows them.
-9. Not fixed in 0.2.8: Files' F2 then Ctrl+C still leaves the
-   clipboard empty (reproduced in QEMU; Files needs moving onto the
-   current SDK widgets, see TODO.md). No need to test it.
+9. Files' F2 then Ctrl+C: in QEMU it works (clip-test.py: the name
+   pastes into Notepad), so where it failed for you matters. Files,
+   a row, F2, Ctrl+C, Escape; then Ctrl+V in Notepad, in the
+   terminal, and in Firefox's address bar. Say which of the three got
+   the name, and whether Files was started from the launcher or from
+   a terminal.
+
+## 4. The session is in the journal, the lock survives a crash (0.2.9)
+
+Your stick's session printed its lines on a hidden console until now,
+which is why the morning's lockup left nothing to read. From 0.2.9 an
+owned machine's session is logged like the demo's was.
+1. After a login: `journalctl -b -t ade-session | tail` shows the
+   compositor's lines (layers mapped, the shell started); `journalctl
+   -b -t ade-greeter | tail` the login screen's.
+2. Super+L, then from a tty (Ctrl+Alt+F2, log in): `pkill -KILL -x
+   ade-comp`; back on Ctrl+Alt+F1 within seconds the desktop is back
+   **locked**, the password unlocks it, and a toast says the desktop
+   restarted after a crash. (Before 0.2.9 it came back unlocked.)
+3. Settings → About → Save Report: the archive has `session-journal`,
+   `greetd`, `session-left` and `tty1`.
+4. issues.md 3.4 said "I opened notepad, wrote some, clicked File and
+   then back on text. The File menu closed and then the red button."
+   What did you expect, and what happened after the red button? One
+   line, so it can be fixed.
 
 ## When done
 
