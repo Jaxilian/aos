@@ -197,11 +197,20 @@ fi
 
 # Accounts the new release adds -- a system user for a new service, say --
 # would be hidden by the copies of passwd and group the overlay holds once
-# anything on this machine changed them. Append what is new by name.
+# anything on this machine changed them. Append what is new by name --
+# except the live medium's own account, admin, which aos-install deleted
+# on an owned machine: appended back it shared uid 1000 with the owner and
+# the login screen listed it (the G14, 2026-10-07). An admin line a
+# previous update left behind goes the same way.
 # ponytail: name-based append only; a UID the image changed is not followed.
 for f in passwd group shadow gshadow; do
 	[ -f "$M/etc/$f" ] && [ -f "/etc/$f" ] || continue
-	awk -F: 'NR == FNR { have[$1] = 1; next } !($1 in have)' "/etc/$f" "$M/etc/$f" >> "/etc/$f"
+	if [ ! -e /etc/aos/live ]; then
+		sed -i '/^admin:/d' "/etc/$f"
+	fi
+	awk -F: -v live="$([ -e /etc/aos/live ] && echo yes)" \
+		'NR == FNR { have[$1] = 1; next } !($1 in have) && (live == "yes" || $1 != "admin")' \
+		"/etc/$f" "$M/etc/$f" >> "/etc/$f"
 done
 # Last: the ESP's share of the slot, verity.cfg at its end, which is what
 # --rollback and GRUB's menu look for.

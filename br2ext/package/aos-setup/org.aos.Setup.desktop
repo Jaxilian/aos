@@ -8,3 +8,4 @@ Icon=org.aos.Setup
 Categories=System;
 Keywords=install;installer;setup;disk;
 StartupWMClass=org.aos.Setup
+X-AOS-Live=true

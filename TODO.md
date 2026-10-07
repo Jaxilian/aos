@@ -1,6 +1,7 @@
 # TODO
 
-Updated 2026-10-07 morning. The newest release is 0.2.7 (the cores and
+Updated 2026-10-07 midday. The newest release is 0.2.8 (the stick round
+on 0.2.7; 0.2.0-0.2.7: the cores and
 the aos partition: a reinstall; 0.1.23: the
 desktop round; 0.1.24: the first-boot setup; 0.1.25: glass on the
 chrome, two displays; 0.1.26: the trim, Steam's sandbox, Camera, the
@@ -21,6 +22,96 @@ and after in docs/performance.md, with the G14's own numbers from your
 report of 2026-10-05. Left there: resolved's 1.4 s on the live ISO,
 nvidia-devices before the desktop on the G14, and tgn programs' memory,
 to be read from your next report (TEST.md 4h).
+
+## 0.2.8: the stick round on 0.2.7 (2026-10-07)
+
+Your report of 10:08, issues.md and the journal of the morning's boot.
+
+**The softlock.** The journal (boot 0, 10:14): lid closed, s2idle,
+lid opened nine seconds later with a short power-key press (logind
+ignored it: the suspend was still finishing), then nothing from the
+session until your tty login at 10:15:07. Two faults:
+1. The screen can be turned to 0% -- the quick panel's slider and the
+   keys went to 0 -- which is a black screen on a machine that is
+   fine. Both stop at 5% now (shell osd.rs BRIGHT_MIN).
+2. The lock screen took one character and then nothing. Every layer
+   surface that unmaps makes the compositor refocus the top window
+   (hnd.rs, for popups and panels), and that included the brightness
+   OSD you pressed to see the screen again: 1.5 s after it showed, the
+   keyboard left the locker for whatever window was under it. The
+   earlier lock tests never had an OSD up. win::focus now gives the
+   keyboard to the lock surface whatever asked while the session is
+   locked (a toast arriving during the lock had the same hole).
+   greeter-test.py step 3 does Super+L, a volume key, the password.
+Not changed: Ctrl+Alt+F2 and the tty login worked as the way out, as
+they should.
+
+**The admin account after an upgrade** (0a): aos-update appends to
+the machine's passwd every name the new core's passwd has that the
+machine's lacks, so new system users arrive -- and so did the live
+medium's `admin`, which aos-install had deleted, with uid 1000 beside
+yours; the greeter lists uid 1000 and up. The merge skips admin on an
+owned machine and removes a line an earlier update left. Your stick
+has that line now: TEST.md says to reinstall, since the 0.2.7 updater
+would put it back once more.
+
+**Files says Root** (0.2): the commit that adds the AOS place
+(files 0d1178c) was never pinned here; 0.2.8 pins it.
+
+**Two displays** (4b.3, 4b.4): awin bound the wl_outputs once, at
+connect; a monitor plugged back in is a new global with the old name,
+so the shell's bar and wallpaper for it were made on the stale proxy
+and never showed -- black, no panel. aos-sdk v0.4.16 follows outputs
+after the connect; the shell drops a gone display's pair and makes a
+fresh one (ade v0.1.47). The compositor's journal confirms the fresh
+bar and wallpaper map on the returning head. QEMU cannot show the
+result: on virtio-gpu a re-plugged head stays blank whatever is drawn
+(its scanout after a hotplug), so ade-test.py step 4b and replug-test.py
+only report it. A flip watchdog tried for this never fired and was
+reverted. Mirror went black for the same reason; both need the G14.
+
+**Also in 0.2.8**: the quick panel closes on a second click of the
+status area (it hid on losing the keyboard and the click reopened
+it); Ctrl+A in the launcher's search; the screenshot toast stays 6 s;
+Images says "Picture copied"; Software lists a run's steps only on
+the page of the program being installed (store v0.2.7); "Light" is
+"Lightweight" (settings v0.1.26); "Install AOS" is listed on the live
+medium and before the first owner only (X-AOS-Live=true in its desktop
+entry; the shell reads it).
+
+**Not a bug: "Inbound SSH" open** (own 5). That stick is a build of
+yours: make-usb.sh refuses to write a stick without your SSH key, so
+every stick from this tree has sshd on and the red bar says so. The
+published ISO is built without keys and ships sshd disabled
+(release.sh refuses otherwise); an install from it has no SSH.
+
+**Still open from the report**:
+- Files: F2 then Ctrl+C does not put the name on the clipboard (own
+  1). Reproduced in QEMU (clip-test.py fails). A Wayland trace shows
+  Files receives Ctrl and C but never creates a data source or sets a
+  selection, so it is in Files, not the compositor. The SDK's field
+  copy is present and unchanged since v0.4.15, and Images' copy works;
+  Files' key and modal code was last written for aos-sdk v0.4.1
+  (files 113124a) and predates the current tgn widgets. Fix: move
+  Files' rename prompt onto the current tgn field/prompt widgets
+  rather than patch the old path. Not in 0.2.8.
+- Quick panel glass (4.1, 4f.2): in QEMU and on your screenshot the
+  panel sits over a dark wallpaper and a dark window, and 62% dark
+  grey over blurred dark green reads as solid. The blur is drawn under
+  it (the same code as the bar). If you want it visibly glassy, the
+  panel's alpha goes down; say so.
+- Wishes: transitions on the snap ghost, window open/close (4f.3,
+  4f.4); Notepad Ctrl+F and reopening the last document (own 4, 9);
+  the display's refresh rate in Settings (own 8).
+- **Encrypted homes by default** (0b). What you describe is
+  systemd-homed: each account a LUKS volume under users/, unlocked by
+  the account's password at login (pam_systemd_home in greetd's PAM),
+  made by the first-boot setup and the installer, no passphrase before
+  the desktop. The risk you name is real: a forgotten password is the
+  data gone. homed has a recovery key (a long phrase shown once at
+  setup, to be written down); that is the usual answer. This is the
+  next big item and changes what a disk holds, so it waits for your
+  yes; a week of work.
 
 ## 0.2.7: installing from an installed stick onto a second one
 

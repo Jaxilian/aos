@@ -5,10 +5,12 @@ account OWNER with password LUKS_PASS, no demo account, greetd enabled).
   1. The disk boots to greetd: ade-comp runs as the greeter account with
      ade-greeter, the one account is listed (greeter-screen).
   2. A wrong password: the greeter says so and stays (greeter-wrong).
-  3. The right one: greetd starts the owner's session; within half a
+     The right one: greetd starts the owner's session; within half a
      minute ade-comp and ade-shell run as the owner, logind's seat0
      session is the owner's, and the greeter's compositor is gone
      (greeter-desktop).
+  3. Super+L locks; a volume key's OSD comes and goes while the password
+     is typed; the right one unlocks (greeter-locked, greeter-unlocked).
 
 Screendumps: greeter-*. Serial transcript: greeter.serial.txt."""
 import importlib.util
@@ -84,6 +86,31 @@ def main():
             ok = False
         if "ade-greeter" in after:
             print("!! the greeter is still running beside the session")
+            ok = False
+
+        # 3. The lock screen, with a layer coming and going while it is
+        #    up: Super+L, then a volume key (the shell's OSD shows for
+        #    1.5 s and unmaps), then the password. The unmap used to
+        #    refocus the top window, and the locker got nothing after
+        #    its first character (the G14, 2026-10-07).
+        bt.monitor("sendkey meta_l-l")
+        time.sleep(6)
+        bt.shot("greeter-locked")
+        locked = ser.run("pgrep -a ade-lock | head -1")
+        if "ade-lock" not in locked:
+            print("!! Super+L did not start the locker")
+            ok = False
+        bt.monitor("sendkey volumeup")
+        time.sleep(1)
+        bt.typekeys(bt.LUKS_PASS[:1])
+        time.sleep(3)
+        bt.typekeys(bt.LUKS_PASS[1:] + "\n")
+        time.sleep(6)
+        bt.shot("greeter-unlocked")
+        still = ser.run("pgrep -a ade-lock | head -1; journalctl -b _COMM=ade-comp --no-pager | grep -E 'lock' | tail -3 | cut -c17-120")
+        print("$ after the unlock\n%s" % still)
+        if "ade-lock" in still:
+            print("!! the locker is still up: the password did not reach it")
             ok = False
         ser.send(sudo + "poweroff\n")
         ser.read_until(b"reboot: Power down", 90)

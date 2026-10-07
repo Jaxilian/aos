@@ -175,13 +175,14 @@ def main():
         if not (menu > 0.02 and gone > 0.02 and again > 0.02):
             print("!! the popup grab did not dismiss and hand the click on")
             ok = False
-        # An item of that second menu, its first row, "Rotate 90 Right": the
+        # An item of that second menu, its second row, "Rotate 90 Right"
+        # (the first is Copy since images v0.1.3; rows are 26 px): the
         # landscape picture turns to portrait. The menu is drawn on the
         # window's decoration, the click moves the pointer onto it from the
         # content, and a compositor that moved keyboard focus between the
         # two surfaces closed the menu under the click (Set as Wallpaper
         # did nothing on the G14).
-        qmp.button("left", W // 2 - 200 + 60, H // 2 + 60 + 17)
+        qmp.button("left", W // 2 - 200 + 60, H // 2 + 60 + 17 + 26)
         time.sleep(2)
         ink("r8-item")
         turned = changed("r8-menu-gone", "r8-item", W // 2, H // 2 - 60)
@@ -262,6 +263,22 @@ def main():
         if second < 0.1:
             print("!! the window did not reach the second display")
             ok = False
+
+        # 4b. Unplugged and plugged back in: the connector forced off and
+        #     on again. The output that comes back is a new one with the
+        #     old name; the shell must give it a fresh bar and wallpaper
+        #     (the G14's USB-C monitor came back black, 2026-10-07).
+        print("$ replug\n%s" % ser.run(
+            "c=$(ls -d /sys/class/drm/card*-Virtual-2); echo off > $c/status; "
+            "udevadm trigger --action=change --subsystem-match=drm --property-match=DEVTYPE=drm_minor; sleep 6; "
+            "echo on > $c/status; "
+            "udevadm trigger --action=change --subsystem-match=drm --property-match=DEVTYPE=drm_minor; sleep 10; "
+            "journalctl -b _COMM=ade-comp --no-pager | grep -E 'head ' | tail -3 | cut -c17-120", timeout=60))
+        # Informational only: on virtio-gpu the re-plugged head stays
+        # blank in QEMU whatever the shell draws (its scanout after a
+        # hotplug), so this is not a pass/fail check; the G14 is.
+        back = dump2(qmp, "r9-second-back", 1)
+        print("== second display: ink %.1f%% after the replug (virtio: informational)" % (back * 100))
 
         # 5. Mirror, from the settings file: the second display, smaller
         #    (1024x768 against 1280x800), runs at a scale that fits the
