@@ -32,7 +32,7 @@ Then inside the VM:
 
 ```sh
 aos-install --demo /dev/vda   # type YES when asked; takes a few minutes
-                              # without --demo it asks for the machine's account
+                              # without --demo the first boot asks for the owner
 poweroff
 ```
 
@@ -213,7 +213,8 @@ QEMU disk of the keyed build.
 | `disk-test.py` | disk: the working tree's binaries copied in; overview keys, Firefox and Xwayland from the index, popups, sysmon's menu |
 | `disp-test.py` | disk: two displays, the order= and off= lines followed by the compositor |
 | `fx-test.py` | disk: quick panel glass, the snap ghost, the minimize animation, the screenshot toast opening Images |
-| `greeter-test.py` | `INSTALL_MODE=owner`: the login screen, a wrong and a right password, Super+L with an OSD while unlocking |
+| `greeter-test.py` | `INSTALL_MODE=owner`: the login screen, a wrong and a right password, Super+L with an OSD while unlocking, the session's journal, the compositor killed while locked and five times |
+| `homed-test.py` | `INSTALL_MODE=oobe`: the first boot makes the owner's encrypted home, the recovery key printed for the driver; console, sudo, login screen, lock all open with the password; a second boot opens with the recovery key |
 | `luks-test.py` | `INSTALL_MODE=encrypt`: the initramfs's passphrase prompt on serial, wrong then right |
 | `mic-test.py` | disk: the nomic PipeWire sockets refuse capture; aos-sandbox with and without `--microphone` |
 | `oobe-test.py` | `INSTALL_MODE=oobe`: the setup user's welcome, aos-firstboot making the owner, the login screen after |

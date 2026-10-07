@@ -43,7 +43,14 @@ mkdir -p "$ADE_RUNTIME_DIR"
 
 case "$1" in
 	--greeter)    export ADE_AUTOSTART=ade-greeter; exec ade-comp ;;
-	--first-boot) export ADE_AUTOSTART="ade-shell;aos-setup --first-boot" ;;
+	--first-boot)
+		# A first boot cut short after the owner was made but before the
+		# recovery key's Continue: finish now; the login screen follows.
+		if [ -e /etc/aos/oobe-finish ] && [ ! -e /etc/aos/oobe ]; then
+			sudo -n /usr/libexec/aos-firstboot --finish
+			exit 0
+		fi
+		export ADE_AUTOSTART="ade-shell;aos-setup --first-boot" ;;
 esac
 
 # A session this script gave up on (below) left its crash lines under

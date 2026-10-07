@@ -17,11 +17,11 @@ the live ISO in QEMU with the stick attached and types the install for you.
 Ten minutes, most of it the build and the copy; the guest's transcript is
 in `output/images/usb-install.txt`. `./usb.sh --no-build` skips the make,
 `./usb.sh --test` boots the finished stick in QEMU afterwards as proof,
-`./usb.sh --release` makes it your own machine rather than a demo,
-`./usb.sh --oobe` leaves the account to the stick's first boot (see
-"Accounts" below), `./usb.sh --seed=DIR` copies DIR into the account's
-home afterwards, and `./usb.sh /dev/sdX` names the stick instead of
-being asked.
+`./usb.sh --release` (the same as `--oobe`) makes a stick for a
+person: no account until its first boot asks for the owner (see
+"Accounts" below), `./usb.sh --seed=DIR` copies DIR into the demo
+account's home afterwards, and `./usb.sh /dev/sdX` names the stick
+instead of being asked.
 
 Then: stick into a **USB-A port on the machine itself**, machine fully **off**,
 power on, open the **one-time boot menu** (Esc or F8 on ASUS, F12 on most
@@ -125,8 +125,8 @@ root
 aos-install --demo /dev/vda
 ```
 
-Without `--demo` it first asks for a user name and a password, the
-account that will own the machine (see "Accounts" below).
+Without `--demo` the installed stick has no account: its first boot
+asks for the owner (see "Accounts" below).
 
 - **It is `/dev/vda` inside the VM**, always. The stick is `/dev/sda` on the
   host and `/dev/vda` in the guest; the guest never sees a `/dev/sda`.
@@ -268,25 +268,20 @@ is no agent to ask. sshd refuses password authentication, so a stick
 with the demo account on it is not a remote root hole. Root logs in
 without a password on the serial console only (`/etc/securetty`).
 
-**Release (`./usb.sh --release`).** For a machine you will actually use.
-Before the build it asks for a user name and a password; the install then
-deletes `admin` and its passwordless sudo, creates your account in its
-place (`wheel`, `pipewire`, `video`), locks root's console login and
-boots to the login screen (greetd with ade-greeter) instead of the
-autologin. Root
-stays reachable over SSH with your key, and `sudo` covers the rest. The
-password is hashed on the host and only the hash reaches the guest, typed
-with echo off, so it is in no transcript.
-
-**For someone else (`./usb.sh --oobe`).** No account on the stick at
-all. Its first boot comes up as a locked `setup` user whose only program
-is the welcome: keyboard, time zone, a name and a password, **Finish**.
-That makes the owner (the same account a release install makes), locks
-root's console login, restarts into the login screen, which lists the
-owner, and closes the road -- the helper behind Finish refuses once an
-owner exists, and the `setup` account is removed. Until then the stick
-has no password at all, so hand it over rather than leave it lying
-around.
+**Yours, or someone else's (`./usb.sh --release`, the same as
+`--oobe`).** No account on the stick at all: `admin` and its
+passwordless sudo are not installed. Its first boot comes up as a locked
+`setup` user whose only program is the welcome: keyboard, time zone, a
+name and a password, **Finish**. That makes the owner -- a systemd-homed
+account (`wheel`, `pipewire`, `video`) whose home is a LUKS2 image
+opened by the password at every login -- locks root's console login,
+and shows the **recovery key** once; **Continue** restarts into the
+login screen, which lists the owner, and closes the road: the helper
+behind Finish refuses once an owner exists, and the `setup` account is
+removed. Until then the stick has no password at all, so hand it over
+rather than leave it lying around. Root stays reachable over SSH with
+your key on a development stick (`AOS_DEV=1`), and `sudo` covers the
+rest.
 
 ## Why not the live ISO
 

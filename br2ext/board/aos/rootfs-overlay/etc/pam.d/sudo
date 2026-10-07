@@ -1,13 +1,9 @@
-# greetd's logins: the console's stack (login) without pam_securetty, which
-# is about ttys, and with pam_systemd, so the session is logind's on seat0
-# and the compositor gets the display and the input devices from it.
-#
-# pam_systemd_home first: a systemd-homed account (every owner since 0.3)
-# is checked by homed, and its home -- a LUKS2 image under /home -- is
-# unlocked with the password at the session's start, before pam_systemd
-# starts the account's services. A classic /etc/passwd account (the demo,
-# the greeter, the setup user, a machine installed before 0.3) is unknown
-# to homed and falls through to pam_unix.
+# sudo: Buildroot's stack (wheel only, the caller's own password) with
+# pam_systemd_home first, so a homed account's password is checked by
+# homed. A classic account falls through to pam_unix as before.
+auth		sufficient	pam_rootok.so
+auth		required	pam_wheel.so use_uid
+auth		required	pam_env.so
 # pam_unix once first, its result ignored: it asks for the password (an
 # account with none, like the greeter's, is not asked) and caches it, so
 # pam_systemd_home's call carries the password. Without it the module
@@ -21,10 +17,7 @@ auth		sufficient	pam_systemd_home.so
 auth		required	pam_unix.so nullok try_first_pass
 account		sufficient	pam_systemd_home.so
 account		required	pam_unix.so
-password	sufficient	pam_systemd_home.so
 password	required	pam_unix.so nullok
 session		required	pam_limits.so
 session		required	pam_env.so
-session		optional	pam_systemd_home.so
 session		required	pam_unix.so
-session		optional	pam_systemd.so

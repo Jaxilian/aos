@@ -185,13 +185,14 @@ ConsoleKit, so on a stock Buildroot system polkit sees no session behind
 any request and every `allow_active` in every policy silently becomes
 `auth_admin` — the reason is a dependency cycle, and the override that
 breaks it is in `external.mk`. The demo account exists on the live ISO
-only: the graphical installer (or `aos-install` asked directly) makes the
-owner's account in its place, with root's console login locked (root
-stays reachable over SSH with a key), and an installed machine starts at
-the login screen (greetd with ade-greeter). `aos-install --oobe` leaves
-the account to the machine's first boot, which asks for it;
-`aos-install --demo` keeps the demo account, for a test machine; the
-boot tests use that.
+only: an installed machine has no account until its first boot asks for
+the owner -- a systemd-homed account, its home a LUKS2 volume opened by
+its password at login, with a recovery key shown once -- and locks
+root's console login (root stays reachable over SSH with a key on a
+development stick); it starts at the login screen (greetd with
+ade-greeter). `aos-install --demo` keeps the demo account, for a test
+machine, and `--user` makes a classic account unattended; the boot
+tests use those.
 
 **Displays.** Every connected display is used. They extend the desktop,
 side by side with the built-in panel first, and a bar and the wallpaper

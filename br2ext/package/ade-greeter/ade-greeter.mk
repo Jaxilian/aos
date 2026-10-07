@@ -5,7 +5,7 @@
 ################################################################################
 
 # A commit, not a tag -- see ade.mk.
-ADE_GREETER_VERSION = fa02ac83ad35e3d47671bfb50f8b3b7436882217
+ADE_GREETER_VERSION = dcec2a08ddd12a12b3ff7e5323d37b18d49f485d
 ADE_GREETER_SITE = ssh://git@github.com/Jaxilian/greeter
 ADE_GREETER_SITE_METHOD = git
 ADE_GREETER_LICENSE = MIT

@@ -39,16 +39,42 @@ with those three folders, and a person's own files are under users/.
 On the live ISO /aos is a tmpfs with the same three directories: the live
 home is writable now, and the installer copies the core, not a tree.
 
+## Homes
+
+Every account made since 0.3 is a systemd-homed one: its home is a
+LUKS2 image, `/home/<name>.home` under `users/`, ext4 inside, sparse on
+the disk (discard on and off line), unlocked by the account's password
+at login -- pam_systemd_home ahead of pam_unix in greetd's, login's,
+sudo's, the lock screen's and system-auth's stacks, with a pam_exec
+line before it that caches the typed password: without one cached the
+module first asks homed with no password, homed counts that as a
+failed attempt and is busy rewriting the record when the real one
+follows at once, which is how a greeter or `sudo -S` answers -- and
+locked again when the last session ends. The record is in `/var/lib/systemd/home`,
+not in `/etc/passwd`; the greeter and Settings list accounts through
+the C library (nsswitch: `files systemd`), and aos-update's passwd
+merge never sees them. The owner is made at the first boot by
+`aos-firstboot` (`homectl create --storage=luks --fs-type=ext4`, the
+first free uid from 1000), since homed must be running; the installer
+makes no account at all. A **recovery key** (homed's, eight groups of
+eight letters) is made with the home and shown once by the first-boot
+setup, written nowhere; typed where the password goes, it opens the
+home. A classic account (`aos-install --demo`, `--user` for the
+drivers, a machine installed before 0.3) keeps working through
+pam_unix; its home is a plain directory.
+
 ## Encryption
 
-`aos-install --encrypt FILE` (the graphical installer's "Encrypt the
-disk", with the account's password) puts LUKS2 around the aos partition
-before the filesystem: homes, programs, settings and logs are encrypted,
-the cores are not (public images, verified). The initramfs finds the
-LUKS header and asks for the passphrase on the console at every start,
-before the desktop; five tries. The ESP and the cores carry nothing of
-yours. Per-user homes (a second password for a second account) are
-systemd-homed's job, after the greeter.
+`aos-install --encrypt FILE` (the graphical installer's "Also encrypt
+the whole disk", with a passphrase of its own) puts LUKS2 around the
+aos partition before the filesystem: programs, settings and logs are
+encrypted too, and the homes twice; the cores are not (public images,
+verified). The initramfs finds the LUKS header and asks for the
+passphrase on the console at every start, before the desktop; five
+tries. The ESP and the cores carry nothing of yours. The swap file
+(`aos/aos/swapfile`) is made only on an encrypted partition: in the
+clear it would hold pages of the encrypted homes; zram is the swap
+otherwise.
 
 ## The greeter
 

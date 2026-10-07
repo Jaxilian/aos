@@ -5,20 +5,20 @@ you should see. Write anything that differs into `~/issues.md`, one line
 per item, with its number. Everything from the round of 0.2.7 that you
 marked as working is done and not repeated here.
 
-## 0. Reinstall the stick (0.2.9)
+## 0. Reinstall the stick (0.3.0)
 
-Your stick's passwd carries the live `admin` account beside yours (the
-0.2.7 updater put it back after the upgrade, see TODO.md), and the
-0.2.7 updater would do it once more. So this once:
+0.3.0 changes what a disk holds (every account a systemd-homed one,
+made at the first boot), and your stick's passwd still carries the
+live `admin` account beside yours (the 0.2.7 updater put it back after
+the upgrade, see TODO.md). So this once, reinstall:
 ```
-./usb.sh --no-build --release /dev/sdX
+./usb.sh --no-build --release /dev/sdX     # no account on it: the first boot asks
 ```
-From 0.2.8 on, Software → Update → Upgrade system keeps the accounts
-right; the next round upgrades. Everything below is 0.2.8's round plus
-section 4 (0.2.9).
-1. Boot: the login screen lists your account only. `grep -c '^admin:'
-   /etc/passwd` says 0.
-2. `grep VERSION_ID /etc/os-release` says 0.2.9.
+Section 5 is that first boot. Everything else below is 0.2.8's round
+plus section 4 (0.2.9).
+1. After section 5's first boot: the login screen lists your account
+   only. `grep -c '^admin:' /etc/passwd` says 0.
+2. `grep VERSION_ID /etc/os-release` says 0.3.0.
 
 ## 1. The lock screen and the brightness (the softlock)
 
@@ -89,6 +89,43 @@ owned machine's session is logged like the demo's was.
    then back on text. The File menu closed and then the red button."
    What did you expect, and what happened after the red button? One
    line, so it can be fixed.
+
+## 5. Encrypted homes (0.3.0): the first boot
+
+Every account is a systemd-homed account with a LUKS2 home of its own,
+made at the first boot. The reinstall of section 0 left no account on
+the stick; this is what happens next.
+1. First boot: the welcome asks keyboard, time zone, then your name and
+   password; Finish; a page shows a **recovery key** (eight groups of
+   eight letters). Write it down. Continue: the login screen lists you.
+2. Log in. `ls /home` shows `jax.home` (the LUKS image) and `jax`;
+   `findmnt /home/jax` says ext4 on a dm device; `homectl inspect jax`
+   says Storage luks, State active. `cryptsetup isLuks /home/jax.home
+   && echo yes`.
+3. `sudo true` asks your password and takes it. Super+L and the
+   password unlock. Ctrl+Alt+F2: log in as jax with the password (the
+   console reaches homed too), then `sudo true` at once: it should take
+   the password; if it says "Too many unsuccessful login attempts"
+   first, note it (QEMU shows that line when sudo follows the login
+   within a second; it still succeeds).
+4. Log out (Ctrl+Alt+F2 and `loginctl terminate-user jax` from a root
+   shell is the hard way; the quick panel's Log out if it has one):
+   `homectl inspect jax` on a tty says State inactive: the home is
+   locked while you are out.
+5. Reboot, and at the login screen type the **recovery key** where the
+   password goes: your desktop, your files.
+6. Settings → Accounts: your account is listed. Set the password: it
+   asks the current one (wrong → refused; right → works, and the next
+   login takes the new one). Add an account (standard): it appears in
+   the login screen, logs in, has its own `/home/<name>.home`. Remove it.
+7. Suspend and resume, then a program that writes to your home (Notepad
+   save): fine.
+8. `swapon --show`: zram only (no swap file on an unencrypted partition).
+9. Software → Update → Upgrade system to the next release, restart: you
+   log in as before; the home is still encrypted (step 2).
+10. If the first boot ever fails: Ctrl+Alt+F2, log in as root (no
+    password until the owner exists), `journalctl -b -t ade-session
+    --no-pager | tail -40 > /root/firstboot.txt`, and tell me.
 
 ## When done
 

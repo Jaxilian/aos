@@ -7,10 +7,12 @@ NVD's feed). This page is its triage, redone when the report changes.
 
 **Triaged 2026-10-01 against the 0.1.7 report: 64 CVEs in 19 packages.**
 
-Not redone since the bumps of 0.1.17 and 0.1.18. The 0.2.x releases
-(verity cores, LUKS, greetd) have their own reports beside each release,
-not yet triaged here; some reasons below date from 0.1.x (the tar entry:
-`aos-update` now writes core images, not tarballs).
+Not redone since the bumps of 0.1.17 and 0.1.18. The 0.2.x and 0.3.0
+releases (verity cores, LUKS, greetd, homed) have their own reports
+beside each release, not yet triaged here; a fresh triage is owed with
+the first monthly release after the alpha. Some reasons below date from
+0.1.x: the tar entry no longer matters at all, `aos-update` writes core
+images, not tarballs.
 
 ## Fixed by a version bump (in 0.1.18)
 

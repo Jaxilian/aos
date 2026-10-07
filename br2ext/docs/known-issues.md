@@ -18,13 +18,20 @@ an issue on the project.
   ordinary system, which every firmware boots ([usb.md](usb.md)).
 - **The whole disk is used.** No dual boot, no installing beside another
   system, no choosing partitions.
-- **Encryption is one passphrase for the whole machine.** "Encrypt the
-  disk" in the installer (`aos-install --encrypt`) puts LUKS2 around the
-  aos partition -- homes, programs, settings, logs -- and asks for the
-  account's password at every start, before the desktop. Every account on
-  the machine sits behind that one passphrase; a home of its own per
-  account (systemd-homed) is proposed, not decided. Without the switch,
-  anyone with the disk can read it ([policies.md](policies.md)).
+- **A forgotten password is the files gone.** Every home is encrypted
+  with its account's password (systemd-homed); the recovery key shown
+  once at the first boot is the only other way in. Programs, settings
+  and logs are in the clear unless "Also encrypt the whole disk" was on
+  at install (`aos-install --encrypt`), which adds a passphrase asked at
+  every start, before the desktop ([policies.md](policies.md)).
+- **A machine installed before 0.3 keeps its classic account**, with a
+  plain home: it updates and works, and nothing converts the home.
+  Reinstall for an encrypted one. Settings → Accounts can make new,
+  encrypted accounts on it.
+- **A home is not resized.** homed gives the owner most of the free
+  space of the aos partition, sparse on the disk; what a second account
+  made in Settings gets is the same default. Shrinking or growing one
+  afterwards is homectl's job on a terminal.
 - **The live session's account, `admin`, has no password**: sudo asks for
   none, and there is no lock screen. It exists only on
   the installer; an installed machine has only the account you create.
@@ -95,5 +102,5 @@ an issue on the project.
 The CVE report of each release and what was done about every entry:
 [security-status.md](security-status.md). What AOS defends against and
 what it does not yet -- AOS's own applications are not sandboxed (third-party
-ones are), Secure Boot is unsupported, one account's home is not
-encrypted apart from another's: [security-model.md](security-model.md).
+ones are), Secure Boot is unsupported, a machine installed before 0.3
+has a classic home in the clear: [security-model.md](security-model.md).

@@ -8,3 +8,11 @@ disable sshd.service
 # The login daemon: an owned or an OOBE install enables it; the live
 # medium and a demo install run ade.service instead.
 disable greetd.service
+# Homes: every owner and later account is a systemd-homed home, a LUKS2
+# image under /home unlocked by its password at login (docs/layout.md).
+# homed's own first-boot wizard asks on the console and holds back logins
+# until it is answered; AOS asks in aos-setup's first boot instead.
+enable systemd-homed.service
+enable systemd-homed-activate.service
+enable systemd-userdbd.service
+disable systemd-homed-firstboot.service

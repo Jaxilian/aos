@@ -1,9 +1,22 @@
-# The stack passwd, chpasswd, chfn and chsh include. Buildroot's shadow
+# system-auth: passwd, chpasswd and chsh "include system-auth". Buildroot
 # ships those files with "include system-auth" and no system-auth, so every
 # password change failed with PAM's "Permission denied" -- the installer's
 # chpasswd in the chroot, Settings' "Set the password", passwd itself. The
-# same pam_unix lines login uses; sha512 for new hashes.
-auth		required	pam_unix.so nullok
+# same pam_unix lines login uses; sha512 for new hashes. pam_systemd_home
+# first, so a homed account's password change re-keys its home.
+# pam_unix once first, its result ignored: it asks for the password (an
+# account with none, like the greeter's, is not asked) and caches it, so
+# pam_systemd_home's call carries the password. Without it the module
+# first asks homed with no password; against a home already active (sudo,
+# the lock screen, a second login) homed books that as a failed attempt,
+# is busy writing the record when the real password follows, and after
+# five immediate retries the module refuses. No jumps: every path ends
+# in pam_unix, so pam_setcred succeeds (greetd treats IGNORE as fatal).
+auth		[success=ignore default=ignore]	pam_unix.so nullok
+auth		sufficient	pam_systemd_home.so
+auth		required	pam_unix.so nullok try_first_pass
+account		sufficient	pam_systemd_home.so
 account		required	pam_unix.so
+password	sufficient	pam_systemd_home.so
 password	required	pam_unix.so sha512 shadow nullok
 session		required	pam_unix.so

@@ -122,32 +122,10 @@ cleanup() {
 	kill "${KEEPALIVE:-}" 2>/dev/null
 }
 trap cleanup EXIT
-if [ "$RELEASE" = yes ] && [ "$OOBE" = yes ]; then
-	echo "make-usb.sh: --release and --oobe exclude each other" >&2; exit 1
-fi
-if [ "$RELEASE" = yes ]; then
-	echo ">>> Release install: your own account replaces the demo one."
-	printf "User name: "
-	read -r NEWUSER
-	echo "$NEWUSER" | grep -qE '^[a-z_][a-z0-9_-]{0,31}$' || {
-		echo "make-usb.sh: '$NEWUSER' is not a usable user name (lowercase, digits, - _)" >&2
-		exit 1
-	}
-	[ "$NEWUSER" != root ] || { echo "make-usb.sh: not root" >&2; exit 1; }
-	stty -echo
-	printf "Password: "; read -r PW1; echo
-	printf "Again:    "; read -r PW2; echo
-	stty echo
-	[ "$PW1" = "$PW2" ] || { echo "make-usb.sh: passwords differ" >&2; exit 1; }
-	[ -n "$PW1" ] || { echo "make-usb.sh: empty password" >&2; exit 1; }
-	HASH=$(printf '%s' "$PW1" | openssl passwd -6 -stdin)
-	unset PW1 PW2
-	ACCOUNT=$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/aos-account.XXXXXX")
-	chmod 600 "$ACCOUNT"
-	printf '%s\n%s\n' "$NEWUSER" "$HASH" > "$ACCOUNT"
-	unset HASH
-	echo
-fi
+# --release is --oobe: a stick for a person has no account until its
+# first boot asks for the owner, who gets an encrypted home (systemd-homed)
+# and a recovery key. The demo install is the test machine's.
+[ "$RELEASE" = yes ] && OOBE=yes
 
 # Root, now rather than later. sudo's ticket normally lasts a few minutes,
 # less than a build; the loop renews it until this script exits.
@@ -193,9 +171,13 @@ printf 'YES\n' | sudo "$WRITE" "$DEV" --install --auto ${ACCOUNT:+--account "$AC
 # stick -- notes and scripts for the next test round. After the install,
 # on the host: the root partition by its label, the account by name, the
 # owner by the uid the stick's own passwd gives it.
+if [ -n "$SEED" ] && [ "$OOBE" = yes ]; then
+	echo ">>> Not seeded: the owner's home is made, encrypted, at the first boot"
+	SEED=""
+fi
 if [ -n "$SEED" ]; then
 	echo ">>> Seeding the home from $SEED"
-	who=${NEWUSER:-admin}
+	who=admin
 	part=$(lsblk -lnpo PATH,LABEL "$DEV" | awk '$2 == "aos" { print $1; exit }')
 	[ -n "$part" ] || { echo "make-usb.sh: no partition labelled aos on $DEV; not seeded" >&2; exit 1; }
 	mnt=$(mktemp -d)
@@ -225,9 +207,8 @@ fi
 
 cat <<EOF
 
-$([ "$OOBE" = yes ] && echo "No account on it: the first boot asks for one and makes it the owner.")
-$([ "$RELEASE" = yes ] && echo "Log in as $NEWUSER; the demo account is gone and root's console login is locked." \
-                         || echo "The live account is admin, with no password; sudo asks for none.")
+$([ "$OOBE" = yes ] && echo "No account on it: the first boot asks for the owner, encrypts their home and shows a recovery key once." \
+                      || echo "The live account is admin, with no password; sudo asks for none.")
 
 Next, on the machine you are booting:
   1. power fully off, not restart

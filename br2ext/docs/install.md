@@ -82,21 +82,24 @@ AOS**:
 
 1. **Keyboard**: your layout, for the desktop and the console.
 2. **Time zone**.
-3. **Account**: your user name and password. This account owns the
-   machine and is its administrator; the demo account is not installed,
-   and root cannot log in on the console.
-4. **Disk**: the disk to install onto. The stick you started from is never
+3. **Disk**: the disk to install onto. The stick you started from is never
    offered. Everything on the chosen disk is erased.
-5. **Install**: "Encrypt the disk", if you want it, locks your files,
-   programs and settings with your password, which is then asked for at
+4. **Install**: "Also encrypt the whole disk", if you want it, locks
+   programs, settings and logs too behind a passphrase asked for at
    every start, before the desktop. Then a progress bar, then
    **Restart**. Remove the stick when the machine turns off.
 
-The installed machine starts at a login screen with your account.
+The installed machine has no account yet. Its **first boot** asks the
+keyboard and the zone again, then your user name and password: that
+account owns the machine and is its administrator, root cannot log in
+on the console, and your home is encrypted with your password (opened
+at every login, locked when you log out). It then shows a **recovery
+key** once: write it down and keep it away from the computer. If you
+forget your password, the key typed in its place opens your files;
+without either they are gone, by design. **Continue** brings the login
+screen.
 
-A machine installed for someone else (`aos-install --oobe`, or a stick
-made with `./usb.sh --oobe`) asks the same questions at its first boot
-instead, without the disk, and the desktop restarts as the new owner.
+The demo account of the live medium is never installed.
 
 ## 5. After the install
 

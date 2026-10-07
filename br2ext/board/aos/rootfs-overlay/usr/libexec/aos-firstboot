@@ -2,47 +2,70 @@
 #
 # aos-firstboot -- make the machine's owner, at its first boot.
 #
-# An installation made with `aos-install --oobe` has no account: its
-# session belongs to a locked "setup" user, whose desktop runs
-# `aos-setup --first-boot` (keyboard, time zone, account), and that
-# program runs this, as root through the one sudoers line the setup user
-# has. It creates the owner the way aos-install does on a release install,
-# puts the keyboard and the zone where the desktop and the console read
-# them, hands the session to the owner and restarts the desktop as them.
-# Once an owner exists the marker is gone, the sudoers line with it, and
-# this refuses to run again: there is no second owner by this road.
+# An installation has no account: its first boot's session belongs to a
+# locked "setup" user, whose desktop runs `aos-setup --first-boot`
+# (keyboard, time zone, account), and that program runs this, as root
+# through the one sudoers line the setup user has. The owner is a
+# systemd-homed account: a LUKS2 home of its own under /home, unlocked
+# by its password at every login, with a recovery key made here and
+# shown once by the setup program. The key goes on this program's stdout
+# and is written nowhere else. Two steps, because the person must have
+# seen the key before the desktop goes away:
 #
 #   aos-firstboot --user NAME --password-file FILE [--keymap CODE] [--zone ZONE]
+#       the owner, the keyboard and the zone; prints "Recovery key: ..."
+#   aos-firstboot --finish
+#       the key was written down: the session goes to the login screen
+#       and the setup user's road closes (the sudoers line, the account)
 #
-# Prints a ">>>" line per stage and "AOS is yours, NAME" at the end,
-# which aos-setup shows as a bar; a failure under set -e ends the output
-# with the error and a non-zero exit.
+# Prints a ">>>" line per stage and "AOS is yours, NAME" at the end of
+# the first step; a failure under set -e ends the output with the error
+# and a non-zero exit. Once an owner exists the first step refuses: there
+# is no second owner by this road.
 
 set -e
 
 MARK=/etc/aos/oobe
+FINISH=/etc/aos/oobe-finish
 SUDOERS=/etc/sudoers.d/30-aos-oobe
 USERCONF=/etc/systemd/system/ade.service.d/10-aos-user.conf
+
+finish() {
+	[ -f "$FINISH" ] || { echo "aos-firstboot: nothing to finish" >&2; exit 1; }
+	# The session is the owner's from the next start of the desktop; the
+	# setup user's road ends here: no sudoers line, and the account itself
+	# goes once its session is over.
+	rm -f "$FINISH" "$SUDOERS" "$USERCONF"
+	systemctl daemon-reload
+	# After this program has returned to aos-setup, which shows the last line.
+	systemd-run --quiet --on-active=3 --unit=aos-firstboot-restart systemctl restart greetd
+	systemd-run --quiet --on-active=30 --unit=aos-firstboot-cleanup userdel -r setup
+	echo "The login screen comes in a moment: log in with your password."
+	exit 0
+}
 
 NEWUSER=""
 PASSFILE=""
 KEYMAP=""
 ZONE=""
+DOFINISH=no
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--user)          NEWUSER="$2"; shift ;;
 		--password-file) PASSFILE="$2"; shift ;;
 		--keymap)        KEYMAP="$2"; shift ;;
 		--zone)          ZONE="$2"; shift ;;
+		--finish)        DOFINISH=yes ;;
 		*) echo "aos-firstboot: unknown option $1" >&2; exit 64 ;;
 	esac
 	shift
 done
 [ "$(id -u)" = 0 ] || { echo "aos-firstboot: needs root" >&2; exit 1; }
+[ "$DOFINISH" = no ] || finish
 [ -f "$MARK" ] || { echo "aos-firstboot: this machine has an owner already" >&2; exit 1; }
 [ -n "$NEWUSER" ] || { echo "aos-firstboot: --user NAME is needed" >&2; exit 64; }
 echo "$NEWUSER" | grep -qE '^[a-z_][a-z0-9_-]{0,31}$' || { echo "aos-firstboot: '$NEWUSER' is not a usable user name" >&2; exit 1; }
-case "$NEWUSER" in root|admin|setup|ade) echo "aos-firstboot: $NEWUSER is taken; pick another" >&2; exit 1 ;; esac
+case "$NEWUSER" in root|admin|setup|ade|greeter) echo "aos-firstboot: $NEWUSER is taken; pick another" >&2; exit 1 ;; esac
 ! id "$NEWUSER" >/dev/null 2>&1 || { echo "aos-firstboot: $NEWUSER exists" >&2; exit 1; }
 [ -n "$PASSFILE" ] && [ -r "$PASSFILE" ] || { echo "aos-firstboot: --password-file FILE is needed" >&2; exit 64; }
 NEWPASS=$(head -n 1 "$PASSFILE")
@@ -56,13 +79,29 @@ if [ -n "$ZONE" ]; then
 	[ -f "/usr/share/zoneinfo/$ZONE" ] || { echo "aos-firstboot: no time zone '$ZONE'" >&2; exit 1; }
 fi
 
-# The same account aos-install makes: wheel for sudo and polkit, pipewire
-# for real-time audio, video for the backlight. /etc is the overlay on the
-# data partition, so this outlives every system update.
+# The owner: wheel for sudo and polkit, pipewire for real-time audio,
+# video for the backlight; the first free uid from 1000, as a classic
+# account would get (homed's own choice, 60001 and up, is nobody's idea
+# of a person here). The home is a LUKS2 image with ext4 inside, sparse
+# on the disk (discard) and unlocked by the password at login; homed
+# takes the password from NEWPASSWORD and prints the recovery key, eight
+# groups of eight letters, which is the one line kept from its output.
 echo ">>> Account: $NEWUSER owns this machine"
-useradd -m -G wheel,pipewire,video -s /bin/bash "$NEWUSER"
-printf '%s:%s\n' "$NEWUSER" "$NEWPASS" | chpasswd
+systemctl start systemd-homed.service
+uid=1000
+while getent passwd "$uid" >/dev/null 2>&1; do uid=$((uid + 1)); done
+echo ">>> Home: encrypted, opened by the password at every login"
+if ! out=$(NEWPASSWORD="$NEWPASS" homectl create "$NEWUSER" --uid="$uid" --storage=luks --fs-type=ext4 \
+	--luks-discard=yes --luks-offline-discard=yes --shell=/bin/bash \
+	--member-of=wheel,pipewire,video --recovery-key=yes 2>&1); then
+	unset NEWPASS
+	echo "$out" | grep -v '^$' | tail -5 >&2
+	echo "aos-firstboot: homectl could not make the home" >&2
+	exit 1
+fi
 unset NEWPASS
+key=$(echo "$out" | grep -oE '[cbdefghijklnrtuv]{8}(-[cbdefghijklnrtuv]{8}){7}' | head -1)
+[ -n "$key" ] || { echo "aos-firstboot: homed made no recovery key" >&2; exit 1; }
 # A locked password refuses the console and nothing else (sshd's key
 # login goes through pam account, which a lock does not touch).
 usermod -p '!' root
@@ -93,12 +132,12 @@ if [ -n "$ZONE" ]; then
 	ln -sfn "../usr/share/zoneinfo/$ZONE" /etc/localtime
 fi
 
-# The session is the owner's from the next start of the desktop; the
-# setup user's road ends here: no marker, no sudoers line, and the account
-# itself goes once its session is over.
+# greetd's first-boot session (the setup account's) goes from its
+# config now; the greeter is what greetd shows once --finish restarts
+# it, and it lists the owner. Until then the marker of the finish step
+# keeps the setup user's sudoers line: a first boot cut short here is
+# finished by the session script at the next one.
 echo ">>> Desktop: the login screen asks for $NEWUSER from now on"
-# greetd's first-boot session (the setup account's) goes; the greeter is
-# what greetd shows once this session ends, and it lists the owner.
 cat > /etc/greetd/config.toml <<GREETD
 [terminal]
 vt = 1
@@ -107,9 +146,7 @@ vt = 1
 command = "/usr/lib/aos/session --greeter"
 user = "greeter"
 GREETD
-rm -f "$MARK" "$SUDOERS" "$USERCONF"
-systemctl daemon-reload
-# After this program has returned to aos-setup, which shows the last line.
-systemd-run --quiet --on-active=3 --unit=aos-firstboot-restart systemctl restart greetd
-systemd-run --quiet --on-active=30 --unit=aos-firstboot-cleanup userdel -r setup
-echo "AOS is yours, $NEWUSER. The login screen comes in a moment: log in with your password."
+rm -f "$MARK"
+: > "$FINISH"
+echo "Recovery key: $key"
+echo "AOS is yours, $NEWUSER. Write the recovery key down, then continue to the login screen."

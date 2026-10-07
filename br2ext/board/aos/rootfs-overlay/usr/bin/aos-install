@@ -10,23 +10,25 @@ set -e
 
 usage() {
 	cat <<USAGE
-Usage: aos-install [--demo | --oobe | --user NAME [--hash HASH | --password-file FILE]]
-                   [--keymap CODE] [--zone AREA/CITY] <disk>
+Usage: aos-install [--demo | --oobe | --user NAME (--hash HASH | --password-file FILE)]
+                   [--keymap CODE] [--zone AREA/CITY] [--encrypt FILE] <disk>
 
   <disk>  the whole disk to install onto, e.g. /dev/sda or /dev/nvme0n1
 
-  With no option, asks for a user name and a password: that account owns
-  the desktop session and is a member of wheel, the live account (admin,
-  no password, sudo without one) is not installed, and root's console
-  login is locked.
-  Root stays reachable over SSH with a key, and everything else through
-  sudo.
+  With no option (the same as --oobe) the installed machine has no
+  account: its first boot asks for the owner, who gets an encrypted home
+  of their own (systemd-homed) and a recovery key. The live account
+  (admin, no password, sudo without one) is not installed, and root's
+  console login is locked once the owner exists. Root stays reachable
+  over SSH with a key, and everything else through sudo.
 
-  --user NAME --hash HASH   the same, unattended: NAME with HASH as its
-                            crypt(3) password. (--release is accepted and
-                            means nothing: it is the default now.)
+  --user NAME --hash HASH   a classic account instead, unattended: NAME
+                            with HASH as its crypt(3) password, its home a
+                            plain directory. For the QEMU drivers; a person
+                            installs with no option. (--release is accepted
+                            and means nothing.)
   --password-file FILE      instead of --hash: the password, one line, in a
-                            file (what the graphical installer writes).
+                            file.
   --keymap CODE             the keyboard layout (an XKB code, "se"), for the
                             desktop and the console of the installed system
   --zone AREA/CITY          its time zone ("Europe/Stockholm")
@@ -100,20 +102,12 @@ for src in "$(findmnt -n -o SOURCE /run/aos/live 2>/dev/null)" \
 	fi
 done
 
-# The account. Asked for up front, before anything is erased, so a typo
-# costs nothing. The password is hashed by chpasswd inside the installed
-# tree later; the image has no openssl or mkpasswd to do it here.
+# No account at install: the owner is made at the first boot, by the
+# installed system itself (a systemd-homed home needs homed running,
+# which an installer's chroot is not). The password is hashed by chpasswd
+# inside the installed tree for the --user form.
 if [ "$DEMO" = no ] && [ "$OOBE" = no ] && [ -z "$NEWUSER" ]; then
-	[ -t 0 ] || { echo "aos-install: no terminal to ask for an account; pass --user and --hash, or --demo" >&2; exit 1; }
-	echo "The account that owns this machine (lowercase letters, digits, - and _):"
-	printf "User name: "
-	read -r NEWUSER
-	stty -echo
-	printf "Password: "; read -r NEWPASS; echo
-	printf "Again:    "; read -r PW2; echo
-	stty echo
-	[ "$NEWPASS" = "$PW2" ] || { echo "aos-install: passwords differ" >&2; exit 1; }
-	[ -n "$NEWPASS" ] || { echo "aos-install: empty password" >&2; exit 1; }
+	OOBE=yes
 fi
 if [ "$DEMO" = no ] && [ "$OOBE" = no ]; then
 	[ -n "$NEWUSER" ] || { echo "aos-install: --user needs a name" >&2; exit 1; }
@@ -312,6 +306,10 @@ echo ">>> Creating swap file"
 # this file is the second, at a lower priority, and is what gives an
 # installed machine real headroom when a big build outgrows RAM.
 #
+# Only on an encrypted aos partition: the homes are encrypted (homed),
+# and a swap file in the clear would hold their pages. Without --encrypt
+# zram alone is the swap.
+#
 # Size: the machine's RAM, at most 8 GiB, and never so much that less than
 # 4 GiB of the data partition is left free. There is no hibernation to size
 # for. Written with dd, NOT fallocate: fallocate leaves unwritten extents
@@ -322,6 +320,7 @@ swap_mb=$mem_mb
 avail_mb=$(df -m --output=avail "$TARGET/aos" | tail -1)
 max_by_disk=$(( avail_mb - 4096 ))
 [ "$swap_mb" -gt "$max_by_disk" ] && swap_mb=$max_by_disk
+[ -n "$ENCRYPT" ] || swap_mb=0
 if [ "$swap_mb" -ge 512 ]; then
 	dd if=/dev/zero of="$TARGET/aos/aos/swapfile" bs=1M count="$swap_mb" status=none
 	chmod 600 "$TARGET/aos/aos/swapfile"
@@ -330,7 +329,11 @@ if [ "$swap_mb" -ge 512 ]; then
 	SWAP_LINE="/aos/aos/swapfile	none		swap		defaults,pri=10		0	0"
 else
 	SWAP_LINE=""
-	echo "    skipped: not enough space on the aos partition (its fstab line is nofail)"
+	if [ -n "$ENCRYPT" ]; then
+		echo "    skipped: not enough space on the aos partition (its fstab line is nofail)"
+	else
+		echo "    skipped: the partition is not encrypted and the homes are; zram is the swap"
+	fi
 fi
 
 

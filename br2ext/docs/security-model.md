@@ -93,9 +93,14 @@ nothing without a policy nobody has written and would imply one.
 `-fstack-protector-strong` and `_FORTIFY_SOURCE=2`, as Fedora and
 Ubuntu do.
 
-**Accounts are separate.** Homes are 0700; the first account is an
-administrator and the rest are not; root has no password and no
-console login; `sudo` asks for the person's own. An owned machine starts
+**Accounts are separate, and each home is encrypted.** Every account
+is a systemd-homed one: its home a LUKS2 volume opened by its own
+password at login and locked when its last session ends, so one
+account's files are closed to another's and to whoever takes the disk;
+a recovery key shown once at the first boot is the only other way in
+([layout.md](layout.md)). The first account is an administrator and the
+rest are not; root has no password and no console login; `sudo` asks
+for the person's own. An owned machine starts
 at a login screen (greetd and ade-greeter) and the session locks before
 sleep; a machine installed for someone else asks for its owner at the
 first boot. The live system's
@@ -146,11 +151,11 @@ undeclared".
    release that wrote it; a signed root hash checked by the firmware is
    Secure Boot's job, which is after stable.
 3. ~~**The disk encrypted.**~~ Done 2026-10-06 (0.2.2): LUKS2 around the
-   aos partition, above. Next: **a home per account**, systemd-homed,
-   each account its own LUKS volume unlocked by its own password at
-   login, with a recovery key shown once. Proposed, waiting for a
-   decision ([policies.md](policies.md)). The cores stay in the clear:
-   there is nothing private in them, and verity covers their integrity.
+   aos partition, a choice at install. ~~**A home per account**~~: done
+   2026-10-07 (0.3.0), systemd-homed, every account its own LUKS volume
+   unlocked by its own password at login, with a recovery key shown once
+   ([policies.md](policies.md)). The cores stay in the clear: there is
+   nothing private in them, and verity covers their integrity.
 4. **Secure Boot**, shim, a MOK-enrolled kernel, signed modules
    including NVIDIA's, and lockdown on. This closes the chain from
    firmware to kernel and is the last link verity and LUKS leave open.

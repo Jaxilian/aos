@@ -1,14 +1,28 @@
-# Console login. Buildroot's default (/usr/lib/pam.d/login) plus pam_systemd,
-# which registers the login as a logind session -- and so gives it a seat and
-# an XDG_RUNTIME_DIR. Without it a compositor started from this login cannot
-# take the GPU or input devices through logind.
+# The console login (agetty): pam_securetty keeps root to the serial line
+# (/etc/securetty), the rest is the shared stack, with pam_systemd so a
+# text login's processes take the GPU or input devices through logind.
 # root only where /etc/securetty says: the serial console, for the QEMU
 # tests and a developer's cable, never a tty with a keyboard in front of it.
+# pam_systemd_home as in greetd: a homed account's home is unlocked by its
+# password here too, so the console is a way in when the desktop is not.
 auth		required	pam_securetty.so
-auth		required	pam_unix.so nullok
+# pam_unix once first, its result ignored: it asks for the password (an
+# account with none, like the greeter's, is not asked) and caches it, so
+# pam_systemd_home's call carries the password. Without it the module
+# first asks homed with no password; against a home already active (sudo,
+# the lock screen, a second login) homed books that as a failed attempt,
+# is busy writing the record when the real password follows, and after
+# five immediate retries the module refuses. No jumps: every path ends
+# in pam_unix, so pam_setcred succeeds (greetd treats IGNORE as fatal).
+auth		[success=ignore default=ignore]	pam_unix.so nullok
+auth		sufficient	pam_systemd_home.so
+auth		required	pam_unix.so nullok try_first_pass
+account		sufficient	pam_systemd_home.so
 account		required	pam_unix.so
+password	sufficient	pam_systemd_home.so
 password	required	pam_unix.so nullok
 session		required	pam_limits.so
 session		required	pam_env.so
+session		optional	pam_systemd_home.so
 session		required	pam_unix.so
 session		optional	pam_systemd.so

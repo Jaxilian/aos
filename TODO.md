@@ -1,9 +1,10 @@
 # TODO
 
-Updated 2026-10-07 evening. The newest release is 0.2.9 (the session
-in the journal, the lock across a crash; the alpha plan below),
-published, untested on the stick: [TEST.md](TEST.md). 0.2.8 was never
-on the stick either; its round is in TEST.md too.
+Updated 2026-10-07 night. The newest release is 0.3.0 (the stable
+alpha: every account a systemd-homed one with an encrypted home, the
+owner made at the first boot, the gate green), published, untested on
+the stick: [TEST.md](TEST.md). 0.2.8 and 0.2.9 were never on the stick
+either; their rounds are in TEST.md too.
 0.2.0-0.2.7 brought the verity cores, the aos partition, LUKS and the
 login screen; a machine on 0.1.x reinstalls once.
 
@@ -39,21 +40,42 @@ Robustness and security first, no new features. The plan, in order:
 4. ~~**The gate**~~ (`board/aos/gate.sh`, written, not yet run whole):
    every driver in one run, one verdict each; 0.3.0 is tagged only
    after it is green. kernel-test.py is gone (0.1.x only).
-5. **systemd-homed**: a LUKS home per account, unlocked by the password
-   at login, a recovery key shown once; **every install's owner is
-   made at the first boot** (homectl needs a running homed, so the
-   installer's account page goes and `--oobe` is what an owned install
-   is; `--demo` keeps the classic account for the drivers). The
-   swapfile only on a LUKS aos partition. The half-done PAM/preset/
-   defconfig lines are parked in ~/Projects/OS/chains/homed-wip.patch
-   (shipped by mistake in a dev build, they are a "faulty module" in
-   every PAM stack without homed). About a week.
-6. **0.3.0**: TODO/TEST/docs, the gate, the stick round. Another
-   session asked (2026-10-07 afternoon) to repin apm to v0.1.13
-   (b41da28: .deb and AppImage sources, for the Chrome/Spotify/Krita/
-   Inkscape recipes) as part of it; the repin was not done here -- it
-   is a commit from outside this session, so it is yours to confirm:
-   WORKFLOW.md section 5.3.
+5. ~~**systemd-homed**~~ (0.3.0, done): a LUKS2 home per account,
+   ext4 inside, sparse, unlocked by the password at login
+   (pam_systemd_home in greetd, login, sudo, system-auth, systemd-user,
+   ade-lock), a recovery key shown once by the first-boot setup and
+   kept nowhere; **every install's owner is made at the first boot**
+   by aos-firstboot (homectl needs a running homed): the installer's
+   Account page is gone (setup v0.1.5; "Also encrypt the whole disk"
+   asks a passphrase of its own), `aos-install` with no option is
+   `--oobe`, `usb.sh --release` too; `--demo` and `--user` keep classic
+   accounts for the drivers. The first boot is two steps (the key page,
+   then `aos-firstboot --finish`), and a first boot cut short between
+   them is finished by the next one. The greeter (v0.1.5) and Settings
+   (v0.1.28) list accounts through the C library; Settings makes,
+   removes and re-keys homed accounts through homectl, asking the
+   current password for a change (it is the key). The swap file only
+   on a LUKS partition. homed-test.py drives it: first boot, LUKS
+   image, console, sudo, login screen, lock, the key nowhere on the
+   disk, a second boot with the recovery key. Not done: converting a
+   classic home (reinstall), resizing a home.
+   Known and left: pam_systemd_home's first call to a home that is
+   already active carries no password unless PAM cached one, so every
+   stack asks pam_unix once first (result ignored) to cache it. `sudo`
+   within a second of the console login still logs homed's "Too many
+   unsuccessful login attempts" and succeeds through pam_unix (root
+   reads the record's hash through nss-systemd); a person typing is
+   slower than the record rewrite that causes it. Watch for it on the
+   stick (TEST.md 5.3).
+6. ~~**0.3.0**~~: TODO/TEST/docs, the gate (green 2026-10-07 night,
+   output/gate/summary), released. apm repinned to v0.1.14 (062a2fd,
+   superseding v0.1.13: .deb and AppImage sources for the Chrome/
+   Spotify/Krita/Inkscape recipes, the store lock on update, recipe
+   builds under bwrap, clean/rollback/autoremove/info/files/owns,
+   resumed downloads; the --progress protocol and exit codes
+   unchanged), as the store apps round asked; the six staged recipes
+   in apm-thirdparty/staging can publish now (apps-test.py is their
+   gate). What is left of the alpha is the stick round (TEST.md).
 
 Decided out for the alpha: transitions, Notepad Ctrl+F and the last
 document, the refresh rate, a glassier panel, HDMI multi-GPU, the file
@@ -62,10 +84,13 @@ dialog and own apps in the sandbox, Secure Boot, CI, an update channel
 
 ## Open now, in priority order
 
-1. **The stick round on 0.2.8** (TEST.md): reinstall, the lock screen
-   with the OSD, two displays, the small things.
-2. **Encrypted homes (systemd-homed)**: waits for your yes (0.2.8
-   section below); changes what a disk holds; about a week.
+1. **The stick round on 0.3.0** (TEST.md): reinstall with an encrypted
+   home and the recovery key, the lock screen with the OSD, two
+   displays, the small things; the 0.2.8 and 0.2.9 rounds are in it.
+2. **Publish the six staged recipes** in apm-thirdparty (Chrome,
+   Spotify, Blender, Krita, Inkscape, Lutris): the OS has apm v0.1.14
+   now; `git mv staging/recipes/<xx> recipes/`, runtime-python.sh,
+   apps-test.py, publish.sh.
 3. **Files' rename prompt onto the current tgn widgets** (F2 then
    Ctrl+C copies nothing).
 4. **The file dialog by fd passing**, then AOS's own apps in the

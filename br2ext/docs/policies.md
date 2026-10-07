@@ -62,20 +62,25 @@ known limitations, and it stays that way until there is a reason to carry
 shim, a MOK-enrolled kernel and signed modules -- a business reason, since
 the engineering is known and the maintenance is what costs.
 
-## Disk encryption: the aos partition, chosen at install
+## Encryption: every home, always; the whole partition by choice
 
-The installer's "Encrypt the disk" (`aos-install --encrypt`) puts LUKS2
-around the aos partition: homes, programs, settings, the journal. The
-passphrase is the account's password, and the initramfs asks for it on
-the console at every start, before the desktop. The cores stay in the
-clear: they are the public release images, and verity covers their
-integrity ([layout.md](layout.md)). Without the switch, the disk is
-readable by anyone who has it.
+Decided 2026-10-07 (0.3.0). Every account is a systemd-homed one: its
+home is a LUKS2 volume of its own, unlocked by its password at login
+and locked when the last session ends, so a stolen laptop is a stolen
+laptop and nothing more, with no choice to make at install. A recovery
+key is made with the home and shown once at the first boot; a forgotten
+password without it is the data gone, by design, and the setup says so.
+The owner is therefore made at the machine's first boot, by the
+installed system itself, for every kind of install: the installer asks
+no account. Machines installed before 0.3 keep their classic account
+(reinstall to get an encrypted home).
 
-Per-account encrypted homes (systemd-homed: each account its own LUKS
-volume, unlocked by its own password at login, with a recovery key
-shown once) are proposed and wait for a decision: they change what a
-disk holds, and a forgotten password is the data gone.
+The installer's "Also encrypt the whole disk" (`aos-install --encrypt`)
+puts LUKS2 around the aos partition as well: programs, settings, the
+journal, with a passphrase of its own asked on the console at every
+start, before the desktop. The swap file exists only there. The cores
+stay in the clear: they are the public release images, and verity
+covers their integrity ([layout.md](layout.md)).
 
 ## Base OS updates
 
