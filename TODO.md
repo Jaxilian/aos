@@ -53,10 +53,39 @@ done?). No newer release existed, so 5.9 could not run. The first boot
 itself (21:05-21:06: keyboard, time zone, the account, the key page,
 `--finish`) went as designed.
 
-**Owed from your report**: `tests.md`, `issues.md`, `lock.txt` and the
-Save Report archive. Either `sudo setfacl -m u:jax:rx
-/run/media/jax/jax/jax` (and `:r` on the files) while the stick is in,
-or copy them into `~/` here.
+**Your report, read at midday** (issues.md, display.txt, the archive;
+there was no tests.md or lock.txt). Fixed, for 0.3.2:
+- Settings "crashed" on a wrong current password and froze on the
+  right one (5.7): both were homectl falling back to its own password
+  prompt (the agent, no terminal) and Settings hanging in it until the
+  compositor dropped the unresponsive client ("Data too big for
+  buffer", "error in client communication" in the session journal).
+  The right-password case was the missing node above; settings
+  v0.1.29 runs homectl --no-ask-password, so a refused password is an
+  answer ("Wrong current password").
+- The recovery key ran past the row's end (5.1, and so 5.5 could not
+  be done): setup v0.1.6 shows it on two lines with a Copy button.
+- The display black after a replug, and a mirror black (2): the
+  compositor draws a head at its own vblank, and a head that came with
+  a udev change never had one -- it was never drawn at all, which
+  display.txt shows as mapped layers and no error. ade v0.1.56 draws
+  every head once after a hotplug scan or a display setting change.
+  Still only the G14 can show it.
+- Super then Ctrl+A "does not register" (3.5): it did, invisibly; the
+  query turns the accent colour now (ade v0.1.56).
+- Three installs pressed in a row (3.8): apm runs one at a time and
+  the store refused the second with a notice; store v0.2.8 queues
+  them, the one under way says Working..., the rest Queued.
+Not fixed, noted: Spotify and Blender have no window header
+(observation 1). They expect the compositor to draw it -- Blender
+through libdecor or xdg-decoration's server side, Spotify's Electron
+as an X11 window under Xwayland -- and ade answers client-side to
+every request and frames no X11 window. Server-side decorations in
+ade are the next compositor feature: a title strip with close,
+maximise and a drag handle for toplevels that ask for them and for
+X11 windows without their own. The brightness slider (1.2) is the
+G14's backlight, dead on Fedora too. `notify-send` is not in the
+image (1.1): the toast check needs another trigger next time.
 
 **After the tag, committed separately, built and checked in output2/**
 (a second output directory, so the 0.3.1 build stays in output/ for
@@ -161,19 +190,14 @@ dialog and own apps in the sandbox, Secure Boot, CI, an update channel
 
 ## Open now, in priority order
 
-1. **The stick round on 0.3.1** (TEST.md): the upgrade, the active
-   home's node, Set the password, and your 0.3.0 report (tests.md,
-   issues.md, lock.txt, the archive), unread so far.
-2. ~~Publish the six staged recipes~~: done 2026-10-07 16:02
+1. **The stick round on 0.3.2** (TEST.md): the upgrade, the active
+   home's node, Set the password, the replugged display, the key page.
+2. **Server-side decorations in ade** (Spotify, Blender, every X11
+   window without its own frame): the next compositor feature.
+3. ~~Publish the six staged recipes~~: done 2026-10-07 16:02
    (apm-thirdparty 5de36e7: Chrome, Spotify, Blender, Krita, Inkscape,
    Lutris and runtime/python are in the index).
-3. **Files' F2 then Ctrl+C**: Files is on tgn's field widget already
-   (flow.rs, modal_keys -> field::keys -> win_clipboard_set) and
-   clip-test.py passes; the answer to TEST.md 3.9 of the 0.3.0 round is
-   in your tests.md. Nothing to change until it is read.
-4. **Next build round**: repin ade v0.1.55, `make`, then kiosk-test.py
-   (INSTALL_MODE=kiosk install first), a channel check, and the gate's
-   install/disk/greeter paths (aos-install changed); then 0.3.2.
+4. ~~Files' F2 then Ctrl+C~~: works on the G14 too (issues.md 3.9).
 5. **The file dialog by fd passing**, then AOS's own apps in the
    sandbox (settled in WORKFLOW.md section 9).
 6. **HDMI on the G14** is the NVIDIA GPU's port: multi-GPU output in
