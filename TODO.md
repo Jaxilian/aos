@@ -231,8 +231,22 @@ dialog and own apps in the sandbox, Secure Boot, CI, an update channel
 ## Open now, in priority order
 
 1. **The stick round on 0.3.2** (TEST.md): the upgrade, the active
-   home's node, Set the password, the replugged display, the key page.
+   home's node, Set the password, the replugged display, the key page,
+   the window controls, the channel switch, fwupd, Blender's resize.
+   0.3.2 is tagged after 0.3.1 is published (output/ holds 0.3.1).
 2. ~~Server-side decorations in ade~~: done, see the round below.
+   Left of the alpha roadmap's tier 1, each waiting on a word from you:
+   - **Noto in the image** (emoji, CJK): 100-150 MB more on the ISO;
+     or through apm's fonts package as now. Say which.
+   - **A Secret Service** for stored logins in Firefox, VS Code and
+     Chrome: oo7-daemon (Rust) or gnome-keyring, unlocked by the login
+     password through PAM. A day; say which.
+   - **VA-API** (libva, intel-media-driver): a build and a Settings
+     line, unprovable in QEMU; your G14 round would judge it.
+   - **aos-fleet v0** and **TPM unlock with the key escrowed**: both
+     need the server, so where it runs and under what name are yours
+     first (alpha-roadmap.md section 4).
+   - **Secure Boot** needs the certified model.
 3. ~~Publish the six staged recipes~~: done 2026-10-07 16:02
    (apm-thirdparty 5de36e7: Chrome, Spotify, Blender, Krita, Inkscape,
    Lutris and runtime/python are in the index).
