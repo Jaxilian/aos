@@ -108,6 +108,9 @@ CHECKS = [
     "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>&1; sysctl -n kernel.panic",
     "loginctl list-sessions --no-pager | tail -3",
     "cc --version | head -1; rustc --version; uname -r",
+    # fwupd is in the image (tier 1): its daemon answers, with or without
+    # devices to report.
+    "fwupdmgr --version 2>&1 | grep -E 'client|daemon' | head -2; timeout 60 fwupdmgr get-devices 2>&1 | tail -2",
 ]
 
 # The live account has no password: any password is refused, and sudo

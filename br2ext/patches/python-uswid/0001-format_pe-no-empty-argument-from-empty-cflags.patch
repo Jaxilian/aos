@@ -1,0 +1,19 @@
+format_pe: no empty argument from empty cflags
+
+fwupd-efi 1.8 runs uswid with an empty --cflags, and "".split(" ") is
+[""]: the compiler is handed an empty argument and refuses it, so the
+SBOM section is never made and the build stops. split() with no
+separator gives no arguments from an empty string.
+
+Signed-off-by: Jax Carls <jax.carls@protonmail.com>
+--- a/uswid/format_pe.py
++++ b/uswid/format_pe.py
+@@ -83,7 +83,7 @@
+         if not cc:
+             raise NotSupportedError("compiler is required for missing section")
+         subprocess.run(
+-            [cc, "-x", "c", "-c", "-o", filepath, "/dev/null"] + cflags.split(" "),
++            [cc, "-x", "c", "-c", "-o", filepath, "/dev/null"] + cflags.split(),
+             check=True,
+         )
+ 

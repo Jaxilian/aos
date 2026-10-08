@@ -56,7 +56,9 @@ release `stable` of the same repository, which holds what
 after its time on edge with no fault found, promoted without a rebuild.
 A machine follows it with `CHANNEL=stable` in `/etc/aos/update.conf`
 (a copy of the core's file with that line; the file replaces the
-core's whole). `aos-update --check` names the channel and the URL it
+core's whole), which is what Software's Update page writes when
+"Follow the stable channel" is switched on, and removes when it is
+switched off. `aos-update --check` names the channel and the URL it
 reads. A channel is the last part of the URL, so a local server for
 the drivers works the same way (`URL=http://host/index`, `CHANNEL=x`
 reads `http://host/x`).

@@ -31,9 +31,21 @@ awin's (two bars), and its lights did nothing -- the wallpaper is
 always under the pointer, so "nothing under it" never came; the
 controls are now looked for between the layers above the windows and
 the windows themselves. desk-test.py checks the lights and the menu in
-place and Notepad's close question from the compositor's light. Not
-yet: resize from the edges of a window that draws no strip (awin's own
-border resize still works), a hover highlight on the lights.
+place and Notepad's close question from the compositor's light.
+ade v0.1.60: a full-strip window resizes from a six-pixel band at its
+edges, inside and outside, and an X11 window's maximize (its own
+request or the yellow light) moves it into the zone under the strip
+and back, where before only the state changed. Probed in QEMU with
+Notepad under AWIN_NO_DECO=1 (no strip of its own: the full strip, the
+title, a double click to maximize, the yellow light back, the right
+edge dragged 120 px wider). Not yet: a hover highlight on the lights, a
+resize cursor at the edges.
+Also for the alpha: Software's Update page has "Follow the stable
+channel" (store v0.2.9), writing CHANNEL=stable into
+/etc/aos/update.conf; a kiosk session ignores Ctrl+Alt+Fn (ade
+v0.1.61, kiosk-test.py 3); fwupd and fwupd-efi are in the image (tier
+1: firmware updates from the LVFS, `fwupdmgr` from a terminal, no
+Settings page yet; boot-test's disk checks print its answer).
 
 ## 0.3.1: the stick round on 0.3.0 (2026-10-08)
 

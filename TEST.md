@@ -77,7 +77,20 @@ program keeps its own strip with its menus to the left of them.
 4. Steam: its own frame, as before; a dialog it opens (Settings) gets
    our strip if it has none of its own.
 
-## 5. Still from 0.3.0, not done
+## 5. Small things of the round
+
+1. Software → Update: "Follow the stable channel" switches on (asks the
+   password); `cat /etc/aos/update.conf` ends in `CHANNEL=stable`;
+   Check says the channel has nothing yet (empty until a promotion);
+   switch it off: the file is gone.
+2. A terminal: `fwupdmgr get-devices` lists the G14's firmware devices
+   (the system firmware, the NVMe, the TPM among them); `fwupdmgr
+   refresh` fetches the LVFS metadata; `fwupdmgr get-updates` says what
+   it would update. Install nothing yet.
+3. Blender from Software: drag its strip's edge -- the window resizes;
+   double click the strip -- maximized; the yellow light -- back.
+
+## 6. Still from 0.3.0, not done
 
 1. Suspend (close the lid), open it, log in; Notepad saves into your
    home. Neither 0.3.0 boot had a suspend in the journal.

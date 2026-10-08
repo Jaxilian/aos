@@ -67,15 +67,20 @@ an issue on the project.
 - **No drag and drop between applications** yet. (Screenshots: Print for
   the display, Shift+Print for the window, Super+Shift+S without a Print
   key; they land in Pictures/Screenshots.)
-- **Files: a name selected while renaming (F2) is not copied** by
-  Ctrl+C.
+- **Window controls**: the three lights at the top right of every
+  window are the desktop's (0.3.2). A program that draws no title bar
+  of its own (Blender, Spotify, X11 programs) gets a whole one from the
+  desktop and resizes from a narrow band at its edges, with no resize
+  cursor yet and no highlight when the pointer is over a light. One
+  that draws its own bar whole (Firefox, Chrome, Steam) keeps it.
 - **X11 programs** need XWayland, a third-party package (Software ->
   AOS -> Compatibility); Steam installs it.
 
 ## Software
 
 - **The app store's catalogue is small**: AOS's own applications, and
-  Visual Studio Code, Firefox, Discord and Steam as third-party.
+  Visual Studio Code, Firefox, Chrome, Discord, Spotify, Steam, Lutris,
+  Blender, Krita and Inkscape as third-party.
 - **Third-party packages are not part of AOS** and may break with an
   update of either; they are marked wherever they appear.
 - **Firefox may show pages as boxes** on some machines (its sandbox and the
@@ -93,6 +98,10 @@ an issue on the project.
   Reinstall it, once.
 - **An update replaces the system, not a part of it**: about 750 MB per
   release. Delta updates are not planned before 1.0.
+- **Every release reaches a machine as it is published** unless
+  Software -> Update -> "Follow the stable channel" is on; the stable
+  channel is filled by hand, after a release's time on edge, and is
+  empty until the first promotion.
 - **AOS's own applications show as installed in Software but do not
   upgrade one by one**: they are part of the release image, and a new
   version of one comes with the next system update.

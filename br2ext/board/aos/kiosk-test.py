@@ -8,7 +8,8 @@ greetd at boot).
   2. The program killed: the compositor starts it again within seconds
      ("the kept program exited", "spawned notepad" in the journal) and
      the new one is full screen too (kiosk-again).
-  3. The kiosk account has no shell and no sudo; root's console login is
+  3. Ctrl+Alt+F2 does not leave the kiosk's VT.
+  4. The kiosk account has no shell and no sudo; root's console login is
      open (no --user was given).
 Screendumps: kiosk-*. Serial transcript: kiosk.serial.txt."""
 import importlib.util
@@ -85,7 +86,17 @@ def main():
         if not back:
             print("!! the program was not started again")
             ok = False
-        # 3. No sudo for the account; root's console is open (this shell).
+        # 3. Ctrl+Alt+F2 changes nothing: the kiosk stays on its VT (the
+        #    serial console is this shell's, root's, with no VT at all).
+        before = ser.run("cat /sys/class/tty/tty0/active").replace("# ", "").strip()
+        bt.monitor("sendkey ctrl-alt-f2")
+        time.sleep(3)
+        after = ser.run("cat /sys/class/tty/tty0/active").replace("# ", "").strip()
+        print("$ VT before %s, after Ctrl+Alt+F2 %s" % (before, after))
+        if before != after or not after.startswith("tty"):
+            print("!! the kiosk let Ctrl+Alt+F2 switch the console")
+            ok = False
+        # 4. No sudo for the account; root's console is open (this shell).
         no = ser.run("su -s /bin/sh kiosk -c 'sudo -n true' 2>&1 | tail -1")
         print("$ sudo as kiosk\n%s" % no)
         if "may not run sudo" not in no and "password" not in no:

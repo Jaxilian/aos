@@ -69,6 +69,9 @@ BR2_INIT_SYSTEMD_VAR_FACTORY=y
 # BR2_PACKAGE_BUSYBOX is not set
 BR2_SYSTEM_BIN_SH_BASH=y
 BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_AOS_PATH)/board/aos/rootfs-overlay"
+# Patches of ours on Buildroot's packages, one directory per package
+# (python-uswid: fwupd-efi's SBOM tool choked on an empty cflags).
+BR2_GLOBAL_PATCH_DIR="$(BR2_EXTERNAL_AOS_PATH)/patches"
 # Groups that udev rules expect and Buildroot does not create -- see the file.
 BR2_ROOTFS_USERS_TABLES="$(BR2_EXTERNAL_AOS_PATH)/board/aos/users_table.txt"
 
@@ -247,6 +250,11 @@ BR2_PACKAGE_HOST_XORRISO=y
 # systemd-cryptenroll can bind an encrypted aos partition to the machine's
 # TPM (CONFIG_TCG_* in the kernel fragment). Not yet used by the installer.
 BR2_PACKAGE_TPM2_TSS=y
+# Firmware updates from the LVFS: fwupd's daemon and fwupdmgr, with the
+# UEFI capsule loader for system firmware. No Settings page yet
+# (fwupdmgr from a terminal; alpha-roadmap.md, tier 1).
+BR2_PACKAGE_FWUPD=y
+BR2_PACKAGE_FWUPD_EFI=y
 # libdevmapper with udev synchronisation, over lvm2's copy: homed's homes
 # lose their /dev/mapper node otherwise (the package's Config.in).
 BR2_PACKAGE_DEVMAPPER_UDEV=y
