@@ -237,6 +237,9 @@ BR2_PACKAGE_E2FSPROGS=y
 # initramfs and on the system; the host one makes the hash trees.
 BR2_PACKAGE_CRYPTSETUP=y
 BR2_PACKAGE_HOST_CRYPTSETUP=y
+# libdevmapper with udev synchronisation, over lvm2's copy: homed's homes
+# lose their /dev/mapper node otherwise (the package's Config.in).
+BR2_PACKAGE_DEVMAPPER_UDEV=y
 BR2_PACKAGE_DOSFSTOOLS=y
 # The sub-options are not implied by the package. Without MKFS_FAT there
 # is no mkfs.fat and aos-install cannot format the EFI system partition.

@@ -145,6 +145,22 @@ def first_boot():
         if "WROTE" not in home or "ext4" not in home or not home.replace("$ ", "").strip().endswith("0"):
             print("!! the home is not mounted and writable, or sudo refused the password")
             ok = False
+        # The active home keeps its /dev/mapper node (udev's symlink), and
+        # sudo's password went through homed, not around it: without the
+        # udev-synchronised libdevmapper (0.3.1) the node vanished at the
+        # deferred removal, homework failed every operation on the active
+        # home with "Home mount incompletely set up", and pam_systemd_home
+        # gave up after five busy answers ("Too many unsuccessful login
+        # attempts") before pam_unix let sudo through.
+        node = ser.run("ls -l /dev/mapper/home-%s; %s journalctl -b --no-pager | grep -c -E "
+                       "'incompletely set up|currently being used|Too many unsuccessful'; "
+                       "%s journalctl -b --no-pager | grep -c 'pam_systemd_home(sudo:auth): Home for user %s successfully acquired'"
+                       % (USER, sudo, sudo, USER), timeout=60)
+        print("$ the node and homed's answers\n%s" % node)
+        lines = [l.strip() for l in node.replace("$ ", "").splitlines() if l.strip()]
+        if "home-%s ->" % USER not in node or len(lines) < 3 or lines[-2] != "0" or lines[-1] == "0":
+            print("!! the active home has no /dev/mapper node, or homed refused an operation on it")
+            ok = False
         # 3. The login screen: wrong, right, lock, unlock.
         bt.typekeys("wrong-0\n")
         time.sleep(6)

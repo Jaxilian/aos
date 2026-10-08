@@ -1,0 +1,22 @@
+config BR2_PACKAGE_DEVMAPPER_UDEV
+	bool "devmapper-udev (libdevmapper with udev synchronisation)"
+	depends on BR2_PACKAGE_LVM2
+	depends on BR2_PACKAGE_HAS_UDEV
+	help
+	  lvm2's device-mapper library built a second time, after
+	  systemd, with --enable-udev_sync, replacing the copy the lvm2
+	  package installs. Buildroot cannot build lvm2 itself that way:
+	  systemd (homed) needs cryptsetup, cryptsetup needs lvm2, so
+	  lvm2 is built before libudev exists.
+
+	  Without the synchronisation libdevmapper makes and removes the
+	  /dev/mapper nodes itself. systemd-homed opens a home and at
+	  once marks its DM device for deferred removal (it goes when the
+	  home is unmounted), and libdevmapper removes the node right
+	  then while the device lives on; udev's symlink had failed
+	  against that node. An active home then has no /dev/mapper
+	  node, and every homework run on it -- the lock screen's and
+	  sudo's password check, a password change, the rebalance every
+	  few minutes -- fails with "Home mount incompletely set up".
+	  With the synchronisation libdevmapper leaves the nodes to
+	  udev, as every distribution does.

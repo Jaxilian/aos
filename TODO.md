@@ -1,12 +1,62 @@
 # TODO
 
-Updated 2026-10-07 night. The newest release is 0.3.0 (the stable
-alpha: every account a systemd-homed one with an encrypted home, the
-owner made at the first boot, the gate green), published, untested on
-the stick: [TEST.md](TEST.md). 0.2.8 and 0.2.9 were never on the stick
-either; their rounds are in TEST.md too.
+Updated 2026-10-08 morning. The newest release is 0.3.1 (the active
+home keeps its /dev/mapper node, so the lock screen, sudo and Settings
+reach homed), tagged and built, untested on the stick: [TEST.md](TEST.md).
+0.3.0 was on the stick on 2026-10-07/08; its round is below.
 0.2.0-0.2.7 brought the verity cores, the aos partition, LUKS and the
 login screen; a machine on 0.1.x reinstalls once.
+
+## 0.3.1: the stick round on 0.3.0 (2026-10-08)
+
+Read from the stick's journal (three boots: the first boot at 21:05,
+the overnight session, the morning's). Your `tests.md` is in your
+encrypted home, which the Fedora side mounts as uid 1000 mode 0700, so
+it was not readable here; the items below are the journal's, and the
+report's are owed (end of this section).
+
+**Every operation on the active home failed.** From the login on, the
+journal has `systemd-homework: Home mount incompletely set up` and
+`Home jax is currently being used` for every password check against
+the unlocked home -- the lock screen (08:21), `sudo` on the tty (08:38,
+08:50, 08:51), Settings asking for the password (polkit, 08:53) -- and
+for homed's rebalance every seven minutes all night. pam_systemd_home
+retries five times, then gives up and pam_unix checks the hash (root
+reads it through nss-systemd), so the lock opened and sudo worked, each
+after the five refusals; that is the "Too many unsuccessful login
+attempts" line 0.3.0 left as known, and a `homectl passwd` (Settings
+-> Set the password) has no such fallback and must have failed.
+Cause, reproduced in QEMU with the same disk: homework decides whether
+the LUKS device of a mounted home is set up by `access("/dev/mapper/
+home-jax")`, and that node was gone. homed opens the device and at
+once marks it for deferred removal (it is to vanish with the unmount);
+Buildroot's libdevmapper is built without udev synchronisation (lvm2
+is built before systemd, which needs cryptsetup, which needs lvm2), so
+it makes the node itself at the open and removes it at the deferred
+removal while the device lives on, and udev's own symlink had failed
+against the node ("Failed to create/update device symlink
+/dev/mapper/home-jax: File exists" in every boot). Fix: a second build
+of lvm2's device-mapper half after systemd, `--enable-udev_sync`, over
+the first (br2ext/package/devmapper-udev): cryptsetup then tells
+libdevmapper to leave the nodes to udev, whose symlink stays until the
+kernel removes the device at the unmount. The CAP_MKNOD drop-in on
+homed's unit goes with it. homed-test.py now requires the node while
+the home is active, no `incompletely set up`/`currently being used`/
+`Too many unsuccessful` line in the journal, and sudo's password
+answered by homed itself.
+
+**Also seen**: the `test` account you made (08:52) still has its
+`users/test.home` on the stick; the journal shows its session and
+logout (08:56) but no removal, so "Remove it" (5.6) either failed or
+was not reached -- say which. No suspend in either boot (5.7 not
+done?). No newer release existed, so 5.9 could not run. The first boot
+itself (21:05-21:06: keyboard, time zone, the account, the key page,
+`--finish`) went as designed.
+
+**Owed from your report**: `tests.md`, `issues.md`, `lock.txt` and the
+Save Report archive. Either `sudo setfacl -m u:jax:rx
+/run/media/jax/jax/jax` (and `:r` on the files) while the stick is in,
+or copy them into `~/` here.
 
 ## The stable alpha (decided 2026-10-07 afternoon; 0.3.0)
 
@@ -59,14 +109,11 @@ Robustness and security first, no new features. The plan, in order:
    image, console, sudo, login screen, lock, the key nowhere on the
    disk, a second boot with the recovery key. Not done: converting a
    classic home (reinstall), resizing a home.
-   Known and left: pam_systemd_home's first call to a home that is
-   already active carries no password unless PAM cached one, so every
-   stack asks pam_unix once first (result ignored) to cache it. `sudo`
-   within a second of the console login still logs homed's "Too many
-   unsuccessful login attempts" and succeeds through pam_unix (root
-   reads the record's hash through nss-systemd); a person typing is
-   slower than the record rewrite that causes it. Watch for it on the
-   stick (TEST.md 5.3).
+   pam_systemd_home's first call to a home that is already active
+   carries no password unless PAM cached one, so every stack asks
+   pam_unix once first (result ignored) to cache it. The "Too many
+   unsuccessful login attempts" that 0.3.0 left as known was the
+   missing /dev/mapper node (0.3.1 above), not the record rewrite.
 6. ~~**0.3.0**~~: TODO/TEST/docs, the gate (green 2026-10-07 night,
    output/gate/summary), released. apm repinned to v0.1.14 (062a2fd,
    superseding v0.1.13: .deb and AppImage sources for the Chrome/
@@ -84,9 +131,9 @@ dialog and own apps in the sandbox, Secure Boot, CI, an update channel
 
 ## Open now, in priority order
 
-1. **The stick round on 0.3.0** (TEST.md): reinstall with an encrypted
-   home and the recovery key, the lock screen with the OSD, two
-   displays, the small things; the 0.2.8 and 0.2.9 rounds are in it.
+1. **The stick round on 0.3.1** (TEST.md): the upgrade, the active
+   home's node, Set the password, and your 0.3.0 report (tests.md,
+   issues.md, lock.txt, the archive), unread so far.
 2. **Publish the six staged recipes** in apm-thirdparty (Chrome,
    Spotify, Blender, Krita, Inkscape, Lutris): the OS has apm v0.1.14
    now; `git mv staging/recipes/<xx> recipes/`, runtime-python.sh,

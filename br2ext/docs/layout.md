@@ -45,12 +45,20 @@ Every account made since 0.3 is a systemd-homed one: its home is a
 LUKS2 image, `/home/<name>.home` under `users/`, ext4 inside, sparse on
 the disk (discard on and off line), unlocked by the account's password
 at login -- pam_systemd_home ahead of pam_unix in greetd's, login's,
-sudo's, the lock screen's and system-auth's stacks, with a pam_exec
-line before it that caches the typed password: without one cached the
-module first asks homed with no password, homed counts that as a
-failed attempt and is busy rewriting the record when the real one
-follows at once, which is how a greeter or `sudo -S` answers -- and
-locked again when the last session ends. The record is in `/var/lib/systemd/home`,
+sudo's, the lock screen's and system-auth's stacks, with a pam_unix
+line before it (result ignored) that asks for and caches the typed
+password: without one cached the module first asks homed with no
+password, homed counts that as a failed attempt and is busy rewriting
+the record when the real one follows at once, which is how a greeter
+or `sudo -S` answers -- and locked again when the last session ends.
+homed opens the home's LUKS device and at once marks it for deferred
+removal, so it goes with the unmount; the `/dev/mapper/home-<name>`
+node must stay meanwhile, since every later homework run (a password
+check against the active home, the rebalance) looks for it. That is
+udev's symlink, which is why libdevmapper is built with udev
+synchronisation (the devmapper-udev package, 0.3.1): the copy Buildroot
+builds before systemd makes and removes the node itself, and removed
+it at the deferred removal. The record is in `/var/lib/systemd/home`,
 not in `/etc/passwd`; the greeter and Settings list accounts through
 the C library (nsswitch: `files systemd`), and aos-update's passwd
 merge never sees them. The owner is made at the first boot by
