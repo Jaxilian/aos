@@ -237,6 +237,16 @@ BR2_PACKAGE_E2FSPROGS=y
 # initramfs and on the system; the host one makes the hash trees.
 BR2_PACKAGE_CRYPTSETUP=y
 BR2_PACKAGE_HOST_CRYPTSETUP=y
+# post-image.sh's other host tools: mkfs.vfat and mcopy for the ESP image,
+# xorriso for the ISO. Until 2026-10-08 nothing named them and a clean
+# build (output2) stopped at post-image; output/ had them from the past.
+BR2_PACKAGE_HOST_DOSFSTOOLS=y
+BR2_PACKAGE_HOST_MTOOLS=y
+BR2_PACKAGE_HOST_XORRISO=y
+# The TPM 2.0 stack: with it systemd is built with TPM2 support, so
+# systemd-cryptenroll can bind an encrypted aos partition to the machine's
+# TPM (CONFIG_TCG_* in the kernel fragment). Not yet used by the installer.
+BR2_PACKAGE_TPM2_TSS=y
 # libdevmapper with udev synchronisation, over lvm2's copy: homed's homes
 # lose their /dev/mapper node otherwise (the package's Config.in).
 BR2_PACKAGE_DEVMAPPER_UDEV=y
@@ -270,6 +280,9 @@ BR2_PACKAGE_BZIP2=y
 ################################################################################
 BR2_PACKAGE_IPROUTE2=y
 BR2_PACKAGE_IW=y
+# wg and wg-quick for WireGuard tunnels (CONFIG_WIREGUARD in the kernel
+# fragment); a Settings page comes later.
+BR2_PACKAGE_WIREGUARD_TOOLS=y
 # lspci: aos-report's hardware section runs it, and Steam's system
 # information asks for it on every start.
 BR2_PACKAGE_PCIUTILS=y

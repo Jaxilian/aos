@@ -47,7 +47,9 @@ import zlib
 
 MODE = sys.argv[1] if len(sys.argv) > 1 else "live"
 BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-IMG = os.path.join(BASE, "output", "images")
+# AOS_OUT names another Buildroot output directory (a second build,
+# make O=output2, while output/ holds a release for the stick).
+IMG = os.path.join(os.environ.get("AOS_OUT", os.path.join(BASE, "output")), "images")
 OUT = IMG
 ISO = os.path.join(IMG, "rootfs.iso9660")
 DISK = os.path.join(IMG, "aos-disk.img")
@@ -128,6 +130,12 @@ INSTALL = [
     # LUKS_PASS as its password, and the login screen (greeter-test.py).
     ("printf '%s\\n' > /tmp/pw; printf 'YES\\n' | aos-install --user %s --password-file /tmp/pw /dev/vda 2>&1 | tail -20" % (LUKS_PASS, OWNER))
     if os.environ.get("INSTALL_MODE") == "owner" else
+    # INSTALL_MODE=kiosk: the machine starts into Notepad, full screen,
+    # as the kiosk account (kiosk-test.py); root's console stays open, as
+    # on the demo disk. Notepad, not the terminal: the kiosk account's
+    # shell is /bin/false, so a terminal ends at once.
+    "printf 'YES\\n' | aos-install --kiosk notepad /dev/vda 2>&1 | tail -20"
+    if os.environ.get("INSTALL_MODE") == "kiosk" else
     "printf 'YES\\n' | aos-install --%s /dev/vda 2>&1 | tail -20" % os.environ.get("INSTALL_MODE", "demo"),
 ]
 
@@ -1194,6 +1202,19 @@ def main():
                 if "wrong=refused sudo=free" not in out:
                     print("!! the demo account's own password is not accepted as that account")
                     ok = False
+                # The update channel on an installed disk: CHANNEL= in
+                # update.conf moves aos-update to the release of that name
+                # beside index (docs/upgrading.md); the port nobody listens
+                # on keeps this to the line it prints first.
+                if MODE == "disk":
+                    chan = ser.run("mkdir -p /etc/aos; printf 'URL=http://127.0.0.1:9/index\\nCHANNEL=stable\\n' > /etc/aos/update.conf; "
+                                   "aos-update --check 2>&1 | head -1; "
+                                   "printf 'URL=http://127.0.0.1:9/index\\n' > /etc/aos/update.conf; aos-update --check 2>&1 | head -1; "
+                                   "rm -f /etc/aos/update.conf", timeout=60)
+                    print("\n$ update channel\n%s" % chan)
+                    if "channel stable at http://127.0.0.1:9/stable" not in chan or "channel edge at http://127.0.0.1:9/index" not in chan:
+                        print("!! aos-update does not follow CHANNEL=")
+                        ok = False
                 if MODE in ("live", "usb"):
                     print("\n$ (from the host) ssh -p %d root@127.0.0.1\n%s"
                           % (SSH_PORT, ssh_check()))

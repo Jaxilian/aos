@@ -33,6 +33,16 @@ USAGE
 CONF=/usr/lib/aos/update.conf
 [ -f /etc/aos/update.conf ] && CONF=/etc/aos/update.conf
 URL=$(sed -n 's/^URL=//p' "$CONF")
+# The channel is the last part of the URL: "index" holds every release
+# as it is published (edge); "stable" what was promoted to it after a
+# while on edge (release.sh --promote). CHANNEL= in the file names
+# another; edge is the URL as written.
+CHANNEL=$(sed -n 's/^CHANNEL=//p' "$CONF")
+case "$CHANNEL" in
+	""|edge) CHANNEL=edge ;;
+	*/*|*..*) echo "aos-update: CHANNEL '$CHANNEL' is not a name" >&2; exit 1 ;;
+	*) URL="${URL%/*}/$CHANNEL" ;;
+esac
 MODE=install
 PROG=no
 while [ $# -gt 0 ]; do
@@ -104,6 +114,7 @@ rm -rf "$WORK"
 mkdir -p "$WORK"
 trap 'rm -rf "$WORK"' EXIT
 
+echo "aos-update: channel $CHANNEL at $URL"
 curl -fsSL -o "$WORK/SHA256SUMS" "$URL/SHA256SUMS"
 curl -fsSL -o "$WORK/SHA256SUMS.minisig" "$URL/SHA256SUMS.minisig"
 # Any trusted key will do; `apm verify` alone checks against the user's

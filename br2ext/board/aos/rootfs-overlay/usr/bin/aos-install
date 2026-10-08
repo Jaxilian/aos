@@ -11,7 +11,8 @@ set -e
 usage() {
 	cat <<USAGE
 Usage: aos-install [--demo | --oobe | --user NAME (--hash HASH | --password-file FILE)]
-                   [--keymap CODE] [--zone AREA/CITY] [--encrypt FILE] <disk>
+                   [--kiosk COMMAND] [--keymap CODE] [--zone AREA/CITY]
+                   [--encrypt FILE] <disk>
 
   <disk>  the whole disk to install onto, e.g. /dev/sda or /dev/nvme0n1
 
@@ -37,6 +38,15 @@ Usage: aos-install [--demo | --oobe | --user NAME (--hash HASH | --password-file
                             the passphrase in FILE (one line), asked for at
                             every start before the desktop. The cores stay
                             in the clear: they are public images, verified.
+  --kiosk COMMAND           a kiosk: the machine starts into COMMAND (a
+                            program with its arguments, "firefox --kiosk
+                            https://example.org") full screen, no shell,
+                            started again whenever it ends, as the
+                            password-less account "kiosk". With --user the
+                            named account exists beside it for a tty login
+                            and sudo; alone, root's console login stays
+                            open, as on a demo machine. The command is
+                            /etc/aos/kiosk on the installed machine.
   --demo                    keep the demo account. For a test machine.
   --oobe                    no account yet: the machine's first boot asks
                             for one (a locked "setup" user runs aos-setup
@@ -56,6 +66,7 @@ NEWPASS=""
 KEYMAP=""
 ZONE=""
 ENCRYPT=""
+KIOSK=""
 while [ $# -gt 1 ]; do
 	case "$1" in
 		--release) ;;
@@ -67,6 +78,7 @@ while [ $# -gt 1 ]; do
 		--keymap)  KEYMAP="$2"; shift ;;
 		--zone)    ZONE="$2"; shift ;;
 		--encrypt) ENCRYPT="$2"; shift ;;
+		--kiosk)   KIOSK="$2"; shift ;;
 		*)         usage ;;
 	esac
 	shift
@@ -106,6 +118,13 @@ done
 # installed system itself (a systemd-homed home needs homed running,
 # which an installer's chroot is not). The password is hashed by chpasswd
 # inside the installed tree for the --user form.
+# A kiosk never asks for an owner: its session starts by itself. Without
+# --user it is a demo-like machine (root's console open) minus the demo
+# account, with the kiosk account in its place.
+if [ -n "$KIOSK" ]; then
+	[ "$OOBE" = no ] || { echo "aos-install: --kiosk and --oobe do not go together" >&2; exit 1; }
+	if [ -z "$NEWUSER" ]; then DEMO=yes; fi
+fi
 if [ "$DEMO" = no ] && [ "$OOBE" = no ] && [ -z "$NEWUSER" ]; then
 	OOBE=yes
 fi
@@ -410,6 +429,33 @@ vt = 1
 [default_session]
 command = "/usr/lib/aos/session --greeter"
 user = "greeter"
+GREETD
+	slot_enable_greetd "$TARGET"
+fi
+if [ -n "$KIOSK" ]; then
+	echo ">>> Kiosk: the machine starts into \"$KIOSK\" as the account kiosk"
+	# No shell and no sudo for it; pipewire and video as every session
+	# account has, so sound and the backlight work. The demo account's
+	# autologin and sudo line go: the kiosk is what runs.
+	chroot "$TARGET" userdel -r admin 2>/dev/null || true
+	rm -f "$TARGET/etc/sudoers.d/20-aos-live" "$TARGET/etc/aos/live"
+	chroot "$TARGET" useradd -m -G pipewire,video -s /bin/false kiosk
+	chroot "$TARGET" passwd -d kiosk >/dev/null
+	mkdir -p "$TARGET/etc/aos"
+	printf '%s\n' "$KIOSK" > "$TARGET/etc/aos/kiosk"
+	# greetd starts the kiosk session at boot; the greeter is behind it
+	# for the --user account should the session ever end.
+	cat > "$TARGET/etc/greetd/config.toml" <<GREETD
+[terminal]
+vt = 1
+
+[default_session]
+command = "/usr/lib/aos/session --greeter"
+user = "greeter"
+
+[initial_session]
+command = "/usr/lib/aos/session --kiosk"
+user = "kiosk"
 GREETD
 	slot_enable_greetd "$TARGET"
 fi

@@ -101,6 +101,23 @@ screen.
 
 The demo account of the live medium is never installed.
 
+**A kiosk** -- a reception screen, a library terminal, a machine that
+is one program -- is installed from a terminal on the live medium:
+
+```sh
+sudo aos-install --kiosk "firefox --kiosk https://example.org" /dev/sda
+sudo aos-install --kiosk "..." --user NAME --password-file FILE /dev/sda   # with an administrator's account
+```
+
+The machine then starts straight into that program, full screen, with
+no shell or bar, as a password-less account that can do nothing else;
+when the program ends it is started again within seconds. The command
+is `/etc/aos/kiosk` on the installed machine, read at every start. The
+program must be on the machine: AOS's own (`terminal`, `files`) are;
+Firefox or Chrome are installed with `apm` as NAME first, from a tty
+(Ctrl+Alt+F2). Without `--user`, root logs in on the console with no
+password, as on a demo machine.
+
 ## 5. After the install
 
 - **Wi-Fi, sound, displays, Bluetooth, users**: the Settings

@@ -99,6 +99,21 @@ def main():
                 print("!! %s missing from the LSM list" % good)
                 ok = False
 
+        # The VPN and the TPM stack (alpha-roadmap.md, phase A): a WireGuard
+        # interface can be made and removed, wg is there; systemd was built
+        # with TPM2 and the kernel has the drivers, which in QEMU without
+        # swtpm means cryptenroll finds no device rather than no support.
+        print("\n== wireguard, tpm")
+        stack = ser.run("ip link add wg0 type wireguard && echo WG_UP; ip link del wg0; wg --version | head -1; "
+                        "systemd-cryptenroll --tpm2-device=list 2>&1 | head -2; "
+                        "grep -c -E '^(CONFIG_TCG_TPM|CONFIG_TCG_CRB|CONFIG_WIREGUARD)=' /boot/config-* /proc/config.gz 2>/dev/null | head -1; "
+                        "modinfo -n wireguard 2>&1 | tail -1; ls /usr/lib/libtss2-esys.so* | head -1", timeout=60)
+        print(stack)
+        if "WG_UP" not in stack or "wireguard-tools" not in stack or "libtss2-esys" not in stack \
+                or "compiled without" in stack or "not supported" in stack.lower():
+            print("!! the WireGuard or TPM stack is missing")
+            ok = False
+
         print("\n== sshd on this build: %s" % ser.run("systemctl is-enabled sshd; systemctl is-active sshd"))
         listening = ser.run("grep -c ':0016 00000000:0000 0A' /proc/net/tcp /proc/net/tcp6")
         print("$ listeners on 22: %s" % listening)

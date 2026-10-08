@@ -58,6 +58,36 @@ Save Report archive. Either `sudo setfacl -m u:jax:rx
 /run/media/jax/jax/jax` (and `:r` on the files) while the stick is in,
 or copy them into `~/` here.
 
+**After the tag, committed separately, built and checked in output2/**
+(a second output directory, so the 0.3.1 build stays in output/ for
+your publish and the stick; chains/round24-output2.sh: desktop, sec,
+kiosk, homed, greeter, install, disk green on it, 2026-10-08 midday).
+Phase A of alpha-roadmap.md, items 2 and 4:
+- **The stable channel**: `CHANNEL=stable` in update.conf makes
+  aos-update read the `stable` release of apm-recipes in place of
+  `index` (edge); `release.sh --promote stable` copies edge's current
+  core, verity and signed SHA256SUMS there, no build (docs/upgrading.md).
+  aos-update prints "channel X at URL" before fetching. No Settings
+  switch yet.
+- **Kiosk mode**: `aos-install --kiosk "CMD"` makes a password-less
+  `kiosk` account that greetd starts at boot into `session --kiosk`:
+  no shell, CMD alone, full screen, started again whenever it ends
+  (ade v0.1.55: the compositor's shell supervision became "the kept
+  program", ADE_KIOSK makes every toplevel full screen). With `--user`
+  an administrator's account exists beside it; without, root's console
+  stays open as on a demo disk. The command is /etc/aos/kiosk.
+  kiosk-test.py and INSTALL_MODE=kiosk drive it. Not yet: a Settings
+  page, locking the VT switch, Firefox installed by the installer (apm
+  from a tty, docs/install.md).
+- ade v0.1.55 is pinned. Found by the clean build in output2: the
+  defconfig never named host-dosfstools, host-mtools and host-xorriso,
+  which post-image.sh runs; output/ had them from an earlier
+  configuration. The three lines are in now.
+- WireGuard (module) and the TPM 2.0 drivers in the kernel,
+  wireguard-tools and tpm2-tss (systemd with TPM2, so
+  systemd-cryptenroll --tpm2-device exists) in the image; sec-test.py
+  checks them and the channel. TPM unlock itself and fwupd are next.
+
 ## The stable alpha (decided 2026-10-07 afternoon; 0.3.0)
 
 Robustness and security first, no new features. The plan, in order:
@@ -134,20 +164,24 @@ dialog and own apps in the sandbox, Secure Boot, CI, an update channel
 1. **The stick round on 0.3.1** (TEST.md): the upgrade, the active
    home's node, Set the password, and your 0.3.0 report (tests.md,
    issues.md, lock.txt, the archive), unread so far.
-2. **Publish the six staged recipes** in apm-thirdparty (Chrome,
-   Spotify, Blender, Krita, Inkscape, Lutris): the OS has apm v0.1.14
-   now; `git mv staging/recipes/<xx> recipes/`, runtime-python.sh,
-   apps-test.py, publish.sh.
-3. **Files' rename prompt onto the current tgn widgets** (F2 then
-   Ctrl+C copies nothing).
-4. **The file dialog by fd passing**, then AOS's own apps in the
+2. ~~Publish the six staged recipes~~: done 2026-10-07 16:02
+   (apm-thirdparty 5de36e7: Chrome, Spotify, Blender, Krita, Inkscape,
+   Lutris and runtime/python are in the index).
+3. **Files' F2 then Ctrl+C**: Files is on tgn's field widget already
+   (flow.rs, modal_keys -> field::keys -> win_clipboard_set) and
+   clip-test.py passes; the answer to TEST.md 3.9 of the 0.3.0 round is
+   in your tests.md. Nothing to change until it is read.
+4. **Next build round**: repin ade v0.1.55, `make`, then kiosk-test.py
+   (INSTALL_MODE=kiosk install first), a channel check, and the gate's
+   install/disk/greeter paths (aos-install changed); then 0.3.2.
+5. **The file dialog by fd passing**, then AOS's own apps in the
    sandbox (settled in WORKFLOW.md section 9).
-5. **HDMI on the G14** is the NVIDIA GPU's port: multi-GPU output in
+6. **HDMI on the G14** is the NVIDIA GPU's port: multi-GPU output in
    the compositor (smithay's GpuManager). Big.
-6. **A second test machine** (any Intel or AMD laptop): nothing but the
+7. **A second test machine** (any Intel or AMD laptop): nothing but the
    G14 has run AOS.
-7. **CI's first real run**: paused since 2026-10-07; only on your word.
-8. Wishes: snap and open/close transitions, Notepad Ctrl+F and the
+8. **CI's first real run**: paused since 2026-10-07; only on your word.
+9. Wishes: snap and open/close transitions, Notepad Ctrl+F and the
    last document, refresh rate in Settings, a glassier quick panel
    (say the alpha).
 

@@ -167,6 +167,24 @@ CONFIG_NF_CONNTRACK=y
 CONFIG_NFT_CT=m
 CONFIG_NFT_REJECT=m
 
+# --- VPN -----------------------------------------------------------------------
+# WireGuard, as a module: wireguard-tools in the image configures it, and
+# a Settings page later. The office worker's VPN (alpha-roadmap.md).
+CONFIG_WIREGUARD=m
+
+# --- TPM -----------------------------------------------------------------------
+# The TPM 2.0 drivers: the command/response buffer interface of every
+# firmware TPM (Intel PTT, AMD fTPM) and the TIS interface of discrete
+# chips, with the chip's random numbers fed to the kernel. tpm2-tss in the
+# image gives systemd-cryptenroll --tpm2-device, the road to unlocking an
+# encrypted aos partition without a passphrase (alpha-roadmap.md, phase
+# A). QEMU has no TPM unless swtpm is on the host, so the drivers check
+# only that the stack is there.
+CONFIG_TCG_TPM=y
+CONFIG_TCG_TIS=y
+CONFIG_TCG_CRB=y
+CONFIG_HW_RANDOM_TPM=y
+
 # --- Wired network ---------------------------------------------------------
 CONFIG_E1000=m
 CONFIG_E1000E=m

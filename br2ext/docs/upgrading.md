@@ -46,6 +46,21 @@ directory into it afterwards. A kernel change ships as an OS update --
 previous kernel is the previous slot. (0.1.x had the kernel as an apm
 package, `kernel-apkg.sh`; that road is closed.)
 
+## Channels
+
+`release.sh --publish` puts every release on **edge**: the `index`
+release of apm-recipes, the URL in `/usr/lib/aos/update.conf`, which is
+what every machine follows unless told otherwise. **stable** is the
+release `stable` of the same repository, which holds what
+`release.sh --promote stable` copied there from edge last -- a release
+after its time on edge with no fault found, promoted without a rebuild.
+A machine follows it with `CHANNEL=stable` in `/etc/aos/update.conf`
+(a copy of the core's file with that line; the file replaces the
+core's whole). `aos-update --check` names the channel and the URL it
+reads. A channel is the last part of the URL, so a local server for
+the drivers works the same way (`URL=http://host/index`, `CHANNEL=x`
+reads `http://host/x`).
+
 ## Base OS updates
 
 An installed disk has two root slots, each holding a core: a squashfs

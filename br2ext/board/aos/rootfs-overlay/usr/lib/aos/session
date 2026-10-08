@@ -9,6 +9,9 @@
 #   session --greeter     the greeter's own compositor: ade-greeter alone
 #   session --first-boot  the setup account's: the shell and the first-boot
 #                         setup (aos-install --oobe)
+#   session --kiosk       the kiosk account's: no shell, the one program
+#                         named in /etc/aos/kiosk full screen, started
+#                         again whenever it ends (aos-install --kiosk)
 #
 # A compositor that dies is started again, at most four times in two
 # minutes as the unit does, with a line in the runtime directory's crash
@@ -51,6 +54,12 @@ case "$1" in
 			exit 0
 		fi
 		export ADE_AUTOSTART="ade-shell;aos-setup --first-boot" ;;
+	--kiosk)
+		# The command is the file's first line; the compositor keeps it
+		# running and makes its windows full screen (ADE_KIOSK).
+		kiosk=$(head -n 1 /etc/aos/kiosk 2>/dev/null)
+		[ -n "$kiosk" ] || { echo "session: /etc/aos/kiosk names no program" >&2; exit 1; }
+		export ADE_KIOSK=1 ADE_AUTOSTART="$kiosk" ;;
 esac
 
 # A session this script gave up on (below) left its crash lines under

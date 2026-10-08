@@ -7,6 +7,13 @@
 #   ./br2ext/board/aos/release.sh --publish --iso-to OWNER/REPO
 #                                          and the ISO for people to download:
 #                                          a GitHub release v<version> there
+#   ./br2ext/board/aos/release.sh --promote stable
+#                                          copy what edge (the index release)
+#                                          holds now to the stable channel:
+#                                          the release `stable` of the same
+#                                          repository, which a machine with
+#                                          CHANNEL=stable in its update.conf
+#                                          follows. Needs no build.
 #
 # Refuses a build whose BUILD_ID says -dirty: a release is a commit, and
 # one with uncommitted changes in it cannot be rebuilt by anyone. The
@@ -23,6 +30,36 @@ set -e
 
 BASE=$(cd "$(dirname "$0")/../../.." && pwd)
 cd "$BASE"
+
+REPO=Jaxilian/apm-recipes
+# --promote NAME: the channel's release gets edge's current core, its
+# verity parameters and the signed SHA256SUMS, downloaded from the index
+# release and uploaded again; the older core there goes. A release is
+# promoted after its time on edge, not rebuilt, so this takes no build.
+if [ "$1" = --promote ]; then
+	CH="$2"
+	case "$CH" in ""|index|edge|*/*) echo "release.sh: --promote needs a channel name (stable)" >&2; exit 2 ;; esac
+	T=$(mktemp -d)
+	trap 'rm -rf "$T"' EXIT
+	gh release download index -R "$REPO" -D "$T" -p 'aos-*-core.img' -p 'aos-*-core.verity' -p 'SHA256SUMS' -p 'SHA256SUMS.minisig'
+	CORE=$(ls "$T"/aos-*-core.img)
+	NAME=$(basename "$CORE" -core.img)
+	grep -q " $NAME-core.img$" "$T/SHA256SUMS" || { echo "release.sh: edge's SHA256SUMS does not name $NAME-core.img" >&2; exit 1; }
+	( cd "$T" && sha256sum -c --ignore-missing --quiet SHA256SUMS )
+	gh release view "$CH" -R "$REPO" >/dev/null 2>&1 || \
+		gh release create "$CH" -R "$REPO" --title "AOS channel $CH" --latest=false \
+			--notes "The $CH channel of aos-update: what release.sh --promote $CH copied here from edge last."
+	for old in $(gh release view "$CH" -R "$REPO" --json assets -q '.assets[].name' | grep -E '^aos-.*-(core\.img|core\.verity)$'); do
+		case "$old" in "$NAME-core.img"|"$NAME-core.verity") ;; *) gh release delete-asset "$CH" "$old" -R "$REPO" -y ;; esac
+	done
+	n=0
+	until gh release upload "$CH" -R "$REPO" --clobber "$T/$NAME-core.img" "$T/$NAME-core.verity" "$T/SHA256SUMS" "$T/SHA256SUMS.minisig"; do
+		n=$((n + 1)); [ $n -lt 3 ] || exit 1
+		echo "upload failed, retrying ($n)" >&2; sleep 5
+	done
+	echo "promoted: ${NAME#aos-} is $CH at https://github.com/$REPO/releases/download/$CH/SHA256SUMS"
+	exit 0
+fi
 
 ISO=output/images/rootfs.iso9660
 CORE=output/images/core.img
@@ -95,7 +132,6 @@ done
 [ "$PUBLISH" = yes ] || exit 0
 
 TAG=index
-REPO=Jaxilian/apm-recipes
 for old in $(gh release view "$TAG" -R "$REPO" --json assets -q '.assets[].name' | grep -E '^aos-.*-(root\.tar\.xz|core\.img\.xz|core\.img|core\.verity)$'); do
 	case "$old" in "$NAME-core.img"|"$NAME-core.verity") ;; *) gh release delete-asset "$TAG" "$old" -R "$REPO" -y ;; esac
 done
