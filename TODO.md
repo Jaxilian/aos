@@ -7,6 +7,34 @@ reach homed), tagged and built, untested on the stick: [TEST.md](TEST.md).
 0.2.0-0.2.7 brought the verity cores, the aos partition, LUKS and the
 login screen; a machine on 0.1.x reinstalls once.
 
+## The window controls are the compositor's (2026-10-08 afternoon)
+
+Asked for after the report: Spotify and Blender had no header. The
+compositor owns the window controls now, the way Windows does it: the
+system draws the caption buttons, the program may own the rest of its
+top strip. ade v0.1.58 (deco.rs) draws, for every toplevel that asks
+through xdg-decoration and every X11 window whose hints allow a frame,
+either the whole strip with the title and the three lights (a window
+with no strip of its own: Blender, Spotify, an X11 program) or the
+three lights alone over the right end of the strip the program draws
+itself -- which the compositor knows by the window geometry reaching
+above the surface, as awin's does. aos-sdk v0.4.18's awin asks for
+server-side, draws no lights and leaves its right end to the
+compositor's; every app is on it (ade v0.1.59 for the shell and the
+lock). A client that wants its own frame whole (Firefox, Chrome, Steam)
+keeps it. A light's press goes to the compositor, never to the client;
+the drag and the menus stay the program's; a double click on the full
+strip maximizes. Placement, the snap slots and maximize leave room for
+the full strip; full screen hides everything.
+Two rounds of QEMU to get there: v0.1.57 drew a whole strip above
+awin's (two bars), and its lights did nothing -- the wallpaper is
+always under the pointer, so "nothing under it" never came; the
+controls are now looked for between the layers above the windows and
+the windows themselves. desk-test.py checks the lights and the menu in
+place and Notepad's close question from the compositor's light. Not
+yet: resize from the edges of a window that draws no strip (awin's own
+border resize still works), a hover highlight on the lights.
+
 ## 0.3.1: the stick round on 0.3.0 (2026-10-08)
 
 Read from the stick's journal (three boots: the first boot at 21:05,
@@ -192,8 +220,7 @@ dialog and own apps in the sandbox, Secure Boot, CI, an update channel
 
 1. **The stick round on 0.3.2** (TEST.md): the upgrade, the active
    home's node, Set the password, the replugged display, the key page.
-2. **Server-side decorations in ade** (Spotify, Blender, every X11
-   window without its own frame): the next compositor feature.
+2. ~~Server-side decorations in ade~~: done, see the round below.
 3. ~~Publish the six staged recipes~~: done 2026-10-07 16:02
    (apm-thirdparty 5de36e7: Chrome, Spotify, Blender, Krita, Inkscape,
    Lutris and runtime/python are in the index).

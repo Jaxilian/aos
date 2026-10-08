@@ -5,7 +5,7 @@
 ################################################################################
 
 # A commit, not a tag -- see ade.mk. This one is v0.1.2.
-AOS_SETUP_VERSION = c48dfc863dfc6960a8adad35695e87da6636a711
+AOS_SETUP_VERSION = fee1aa27b39ed6fa52287595faac263df8e35b0a
 AOS_SETUP_SITE = ssh://git@github.com/Jaxilian/setup
 AOS_SETUP_SITE_METHOD = git
 AOS_SETUP_LICENSE = MIT

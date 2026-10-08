@@ -59,7 +59,25 @@ head got none. Only the G14 can show the fix.
    (paste it into the name field to see). Then 0.3.0's 5.5: at the
    login screen the key typed as the password opens your home.
 
-## 4. Still from 0.3.0, not done
+## 4. The window controls are the compositor's
+
+The three lights at the top right of every window are drawn by the
+compositor now, the way Windows owns the caption buttons; an AOS
+program keeps its own strip with its menus to the left of them.
+1. Notepad: its strip looks as before (File, Edit left, the lights
+   right). The red light asks about unsaved text; the yellow one
+   maximizes and again restores; the green one minimizes and the dock
+   brings it back. Drag the strip: the window moves.
+2. Software → Blender (or Spotify): the window has a strip above it
+   with its title at the left and the lights at the right; drag it
+   moves, a double click on it maximizes, the red light closes. Same
+   for Krita and Inkscape.
+3. Firefox and Chrome keep their own frames and buttons, with nothing
+   of ours over them.
+4. Steam: its own frame, as before; a dialog it opens (Settings) gets
+   our strip if it has none of its own.
+
+## 5. Still from 0.3.0, not done
 
 1. Suspend (close the lid), open it, log in; Notepad saves into your
    home. Neither 0.3.0 boot had a suspend in the journal.

@@ -87,6 +87,23 @@ def main():
             time.sleep(0.2)
         time.sleep(1)
         dt.ink("desk-typed")
+        # The lights are the compositor's (ade v0.1.58, aos-sdk v0.4.18),
+        # laid over the right end of Notepad's own strip at the top of
+        # the zone; the strip's menus (File) are at its left, and the
+        # content below the lights has no light of its own.
+        shot = bt.shot("desk-header", quiet=True)
+        if shot is not None:
+            raw = shot[1]
+            def px(x, y):
+                i = (y * 1280 + x) * 3
+                return raw[i], raw[i + 1], raw[i + 2]
+            light = px(CLOSE_X, DOT_Y)
+            below = px(CLOSE_X, DOT_Y + 36)
+            title = any(px(x, DOT_Y)[0] > 150 for x in range(12, 90))
+            print("== header: close light %r, below it %r, menu drawn %s" % (light, below, title))
+            if not (light[0] > 180 and light[1] < 140) or below[0] > 120 or not title:
+                print("!! the compositor's header is not where the lights and the title should be")
+                ok = False
         qmp.button("left", CLOSE_X, DOT_Y)
         time.sleep(3)
         dt.ink("desk-dialog")
